@@ -12528,9 +12528,19 @@ const V4 = (() => {
     return { att: W.att, def: W.def, from: W.from, to: W.to, over: W.over, food: W.food, captured: W.captured, rescue: W.rescue, dead: [], log: [], mode: W.mode,
       day: W.turn, playerSide: W.playerSide, policy: '보통', hq: { A: W.hq.A, D: W.hq.D }, timeout: /제한 턴/.test(W.why || ''), retreat: false, map: [], fx: [], reinf: {}, hungry: { A: 0, D: 0 }, dstore: C(W.to).food, enc: 0,
       stats: { fireOk: 0, fireNo: 0, rainBlock: 0, disobey: 0, starve: 0, counterBig: 0, flank: 0, ambush: 0, hq: W.why === '적 총대장 퇴각' ? (W.over === 'A' ? 1 : -1) : 0, reinf: 0 },
-      units: W.units.filter(u => u.side !== 'R').map(u => ({ id: u.id, gen: u.gen, vg: u.vg, st: u.st, jg: u.jg, side: team(u), troops: u.alive || u.fled ? u.troops + u.left : u.left, max: u.max + u.left, dd: u.dd, dt: u.dt, k: u.k, fled: u.fled, form: u.form, mor: u.mor })) };
+      // 이 게임 규칙: 퇴각한 부대는 남은 병력을 가지고 돌아간다. 다만 성이 떨어졌을 때 물러난 수비 부대는 흩어진 것으로 쳐 병력 0으로 넘긴다
+      // (옛 finishBattle은 병력이 남은 수비 부대를 '아직 성 안에 있다'고 보고 포로로 잡기 때문. 옛 전투의 rout도 병력을 0으로 만들었다)
+      units: W.units.filter(u => u.side !== 'R').map(u => { const lost = W.over === 'A' && u.side === 'D' && !u.alive; return { id: u.id, gen: u.gen, vg: u.vg, st: u.st, jg: u.jg, side: team(u), troops: lost ? 0 : (u.alive || u.fled ? u.troops + u.left : u.left), max: u.max + u.left, dd: u.dd, dt: u.dt, k: u.k, fled: u.fled, form: u.form, mor: u.mor }; }) };
   }
-  return { CLS, TN, LT, get JR() { return JR; }, get W() { return W; }, set W(v) { W = v; }, start, stats, clsName, famOf, reach, pathTo, targets, attackCells, canHit, gateTargets, forecast, attack, hitGate,
+  // 퇴각: 그 편의 남은 부대가 모두 물러나고(병력은 가진 채) 상대 승리로 끝난다
+  function retreat(side) {
+    if (W.over) return W.over;
+    W.units.forEach(u => { if (team(u) === side && u.alive) { u.alive = false; u.fled = true; } });
+    W.over = side === 'A' ? 'D' : 'A'; W.why = '퇴각';
+    log(`${side === 'A' ? '공격측' : '수비측'} 퇴각. 전투 종료: ${W.over === 'A' ? '공격측' : '수비측'} 승리`); W.ev.push({ t: 'over', win: W.over, why: W.why });
+    return W.over;
+  }
+  return { CLS, TN, LT, get JR() { return JR; }, get W() { return W; }, set W(v) { W = v; }, start, stats, retreat, clsName, famOf, reach, pathTo, targets, attackCells, canHit, gateTargets, forecast, attack, hitGate,
     spellsOf, castRange, areaCells, duelTargets, duel, aiQueue: side => aiOrder(W.units.filter(u => u.alive && u.side === side && !u.acted)), spellTargetsAt, canCast, castPreview, cast, moveTo, undoMove, wait, beginPhase, endPhase, check, aiAct, runPhaseAI, simulate, toLegacy, unitAt, at, inCastle: (x, y) => inCastle(x, y), kTile: () => kTile(), terrMod, moveCost, movePts, get SPL() { return SPL; } };
 })();
 </script>
@@ -12815,7 +12825,7 @@ const V4UI = (() => {
   ACT.v4cDuel = async () => { const u = U(ui.sel); if (!u || ui.busy) return; const ds = V4.duelTargets(u); if (!ds.length) return; const o = ds[0]; clear(); ui.busy = true; setMode('anim'); V4.duel(u, o); await play(); ui.busy = false; afterAct(); };
   function afterAct() { clear(); ui.sel = null; if (V4.W.over) return finish(); setMode('idle'); const left = V4.W.units.filter(x => x.alive && mine(x) && !x.acted); if (!left.length) { toast('모든 부대가 행동을 마쳤습니다. 적의 차례로 넘어갑니다.'); setTimeout(endTurn, 500); } }
   // ---------- 차례 넘기기 ----------
-  async function endTurn() { if (ui.busy || !V4.W || V4.W.over || V4.W.phase !== me()) return; clear(); ui.sel = null; ui.busy = true; setMode('anim'); V4.endPhase(); await play(); await aiPhases(); ui.busy = false; if (V4.W.over) return finish(); startMyPhase(); }
+  async function endTurn() { if (ui.busy || !V4.W || V4.W.phase !== me()) return; if (V4.W.over) return ui.mode === 'over' ? undefined : finish(); clear(); ui.sel = null; ui.busy = true; setMode('anim'); V4.endPhase(); await play(); await aiPhases(); ui.busy = false; if (V4.W.over) return finish(); startMyPhase(); }
   ACT.v4End = () => endTurn();
   ACT.v4Auto = async () => { const W = V4.W; if (ui.busy || !W || W.over || W.phase !== me()) return; clear(); ui.sel = null; ui.busy = true; setMode('anim');
     for (const u of V4.aiQueue(me())) { if (W.over) break; if (!u.alive || u.acted) continue; follow(u.x, u.y); V4.aiAct(u); await play(); } ui.busy = false; if (W.over) return finish(); endTurn(); };
@@ -12924,15 +12934,19 @@ const V4UI = (() => {
     else { const u = ui.info != null ? U(ui.info) : null; if (u) h += unitHTML(u); }
     if (ui.msg) h += `<div class="v4msg">${ui.msg.face ? face(ui.msg.face, 36) : ''}<span>${esc(ui.msg.text)}</span></div>`;
     if (ui.fore && !ui.eng) h += foreHTML();
-    h += `</div>${cmdHTML()}<div class="v4sys">${btn('턴 종료', 'v4End', '', { dis: ui.busy || W.over || W.phase !== me() })}${btn('위임', 'v4Auto', '', { dis: ui.busy || W.over || W.phase !== me() })}${btn('속도 ' + ui.speed + '×', 'v4Spd', '')}${btn('나가기', 'v4Quit', '', { s: 1 })}</div>`;
+    h += `</div>${cmdHTML()}<div class="v4sys">${btn('턴 종료', 'v4End', '', { dis: ui.busy || W.over || W.phase !== me() })}${btn('위임', 'v4Auto', '', { dis: ui.busy || W.over || W.phase !== me() })}${btn('속도 ' + ui.speed + '×', 'v4Spd', '')}${ui.real ? btn(ui.retOk ? '퇴각 확정' : '퇴각', 'v4Retreat', '', { s: 1, dis: ui.busy || W.over || W.phase !== me() }) : btn('나가기', 'v4Quit', '', { s: 1 })}</div>`;
     return h;
   }
   function panel() { const el = document.getElementById('v4side'); if (el) el.innerHTML = fixJosa(panelHTML()); }
   ACT.v4Spd = () => { ui.speed = ui.speed === 1 ? 2 : ui.speed === 2 ? 4 : 1; panel(); };
+  // 퇴각 (실제 출진에서만): 두 번 눌러 확정. 아군 부대가 모두 물러나고 패배로 끝난다
+  ACT.v4Retreat = () => { const W = V4.W; if (!ui.real || ui.busy || !W || W.over || W.phase !== me()) return;
+    if (!ui.retOk) { ui.retOk = true; toast('퇴각하면 이 전투는 패배로 끝납니다. 한 번 더 누르면 퇴각합니다.', false); panel(); return; }
+    ui.retOk = false; clear(); ui.sel = null; ui.fore = null; V4.retreat(me()); ui.evi = W.ev.length; finish(); };
   function view() { return `<div id="v4root"><div class="v4map"><canvas id="v4c"></canvas><canvas id="v4mini"></canvas><div id="v4ban" class="v4ban"></div><div id="v4duel" class="v4duel"></div></div><div class="v4side" id="v4side"></div></div>`; }
   function mount() { const cv = document.getElementById('v4c'); if (!cv || cv === st.cv) return; st.cv = cv; st.mini = document.getElementById('v4mini'); bind(); orient(); panel();
     setTimeout(async () => { const W = V4.W; const m = W.units.find(u => u.id === W.hq[me()]); if (m) focus(m.x, m.y, false); ui.busy = true; await play(); ui.busy = false; if (W.phase !== me()) { ui.busy = true; await aiPhases(); ui.busy = false; if (W.over) return finish(); } startMyPhase(); }, 30); }
-  function reset() { Object.assign(ui, { mode: 'idle', sel: null, info: null, busy: false, pops: [], anim: {}, fxs: [], show: {}, eng: null, evi: 0, msg: null, banner: null }); clear(); st.cv = null; st.map = null; }
+  function reset() { Object.assign(ui, { mode: 'idle', sel: null, info: null, busy: false, pops: [], anim: {}, fxs: [], show: {}, eng: null, evi: 0, msg: null, banner: null, retOk: false }); clear(); st.cv = null; st.map = null; }
   // 서 있는 동작 (걷기 두 장 번갈아)
   setInterval(() => { if (st.cv && document.body.contains(st.cv)) { st.tick++; kick(); } }, 480);
   return { st, ui, view, mount, draw, kick, focus, panel, tap, TS, jojoUnit, jojoIndex, reset, tryLandscape, leaveFull, orient, endTurn };
@@ -12953,8 +12967,38 @@ ACT.v4Test = () => { V4UI.tryLandscape(); v4TestOpen(); };
 ACT.v4Done = () => { if (V4UI.ui.done2) return V4UI.ui.done2(); ACT.v4Quit(); };
 ACT.v4Quit = () => { UI.scr = UI.v4back || 'main'; V4UI.reset(); V4UI.leaveFull(); $('#app').innerHTML = ''; render(); };
 // 메뉴에 시험 단추 (지형·야전/공성 고르기 포함)
-{ const f = ACT.sys; ACT.sys = function () { f.apply(this, arguments); const top = UI.sheets[UI.sheets.length - 1]; if (top && typeof top.body === 'function') { const b0 = top.body; top.body = () => b0() + `<div class="col" style="margin-top:8px">${btn('새 전투 시험 (조조전식 v4 · 작업판)', 'v4Test', '', { s: 1 })}${btn(`시험 전장: ${V4T.terr[V4T.i]} · ${V4T.siege ? '공성' : '야전'} (바꾸기)`, 'v4Terr', '', { s: 1 })}</div>`; renderSheet(); } }; }
+{ const f = ACT.sys; ACT.sys = function () { f.apply(this, arguments); const top = UI.sheets[UI.sheets.length - 1]; if (top && typeof top.body === 'function') { const b0 = top.body; top.body = () => b0() + `<div class="col" style="margin-top:8px">${btn(`전투 방식: ${v4On() ? '조조전식(새)' : '기존'}`, 'v4Tog', '', { s: 1 })}${btn('새 전투 시험 (조조전식 v4 · 작업판)', 'v4Test', '', { s: 1 })}${btn(`시험 전장: ${V4T.terr[V4T.i]} · ${V4T.siege ? '공성' : '야전'} (바꾸기)`, 'v4Terr', '', { s: 1 })}</div>`; renderSheet(); } }; }
 ACT.v4Terr = () => { V4T.k = ((V4T.k || 0) + 1) % 12; V4T.i = V4T.k % 6; V4T.siege = V4T.k >= 6; renderSheet(); };
+
+// ===== 8단계 (1부): 실제 출진을 조조전식 전투(V4)로 연결 =====
+// 이 게임 규칙: 설정 S.opt.v4Battle이 꺼져 있지 않으면(기본 켜짐, 옛 세이브도 켜짐) 플레이어가 끼는 수동 전투는 V4 화면에서 치른다. AI끼리의 autoBattle은 그대로.
+function v4On() { return !(S && S.opt && S.opt.v4Battle === false); }
+ACT.v4Tog = () => { S.opt = S.opt || {}; S.opt.v4Battle = !v4On(); toast(`전투 방식을 ${v4On() ? '조조전식(새)' : '기존'}으로 바꿨습니다.`); renderSheet(); };
+// 옛 startBattle은 그대로 돌린다(출진 병력·군량 차감, 출정비, 정예 비용, 수비 병력을 성에서 빼 부대로 만들고 상한 넘는 몫은 B.dres 예비대로, 내통 등).
+// 같은 입력을 B.v4args에 남겨 두었다가 enterBattle에서 V4를 연다
+{ const f = startBattle; startBattle = function (att, fromCn, toCn, units, food, playerSide, defMode) { const defTroops = C(toCn).troops; const r = f.apply(this, arguments); try { if (B && playerSide) B.v4args = { att, from: fromCn, to: toCn, units, food, playerSide, defMode: B.mode || defMode, defTroops }; } catch (e) { } return r; }; }
+function v4EnterReal() {
+  const old = B, a = old.v4args; UI.v4old = old; B = null;
+  const spec = u => ({ gen: u.gen, vg: u.vg, st: u.st, jg: u.jg, troops: u.troops, form: u.form, role: u.role, elite: u.elite, eliteName: u.eliteName });
+  // 수비 부대는 옛 startBattle이 만든 편성을 그대로 쓴다. 공격 부대는 출진 편성(정예 표시 포함)에 내통해 돌아선 부대를 더한다
+  const dUnits = old.units.filter(u => u.side === 'D').map(spec);
+  const aUnits = a.units.slice(); old.units.filter(u => u.traitor).forEach(u => aUnits.push(spec(u)));
+  V4.start(a.att, a.from, a.to, aUnits, a.food, a.playerSide, a.defMode, { dUnits, defTroops: a.defTroops });
+  V4UI.reset(); V4UI.ui.done = null; V4UI.ui.done2 = v4RealDone; V4UI.ui.real = true;
+  UI.v4back = 'main'; UI.scr = 'v4'; closeAll(); $('#app').innerHTML = ''; V4UI.tryLandscape(); render();
+}
+// 결과 단추: V4 상태를 옛 B 모양으로 바꿔 기존 finishBattle·결과 창(endBattleUI)에 넘긴다. 확인(bDone) → 포로 처리 → UI.after(출진이면 본 화면, 수비면 다음 침공)
+function v4RealDone() {
+  const old = UI.v4old; UI.v4old = null; if (!V4.W) return ACT.v4Quit();
+  B = V4.toLegacy(); B.v4 = true;
+  // 옛 전투 상태에서 결과 처리가 읽는 것만 이어받는다: 수비 예비대(dres), 전투 전 능력치(pre, 성장 표시), 출정비, 방어 탑, 수비 대책
+  if (old) ['dres', 'dresN', 'pre', 'fee', 'towers', 'counter'].forEach(k => { if (old[k] !== undefined) B[k] = old[k]; });
+  V4UI.ui.done2 = null; V4UI.ui.real = false; V4UI.reset(); V4UI.leaveFull(); $('#app').innerHTML = ''; UI.scr = 'main';
+  endBattleUI();
+}
+{ const f = enterBattle; enterBattle = function () { if (v4On() && B && B.playerSide && B.v4args) return v4EnterReal(); return f.apply(this, arguments); }; }
+// 전투 음악: 공성/야전
+{ const f = trackFor; trackFor = function (scr) { if (scr === 'v4' && V4.W) return V4.W.siege ? 'siege' : 'field'; return f.apply(this, arguments); }; }
 </script>
 <script id="jojo-rules">
 // 조조전 원본 규칙 표 (병과·지형·책략·범위) — tools/jojo_rules.py가 만든 블록

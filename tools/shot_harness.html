@@ -4,7 +4,8 @@
 <style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style></head>
 <body>
 <!-- 사용: chrome --headless --allow-file-access-from-files --screenshot ... "file:///.../tools/shot_harness.html?s=장면이름&siege=0&terr=0&m=6"
-     게임(samguk_v105.html)을 iframe으로 열고, 아래 장면 함수로 전투 v4 시험 화면을 조작한다. 게임 파일은 고치지 않음. -->
+     게임(samguk_v105.html)을 iframe으로 열고, 아래 장면 함수로 전투 v4 시험 화면을 조작한다. 게임 파일은 고치지 않음.
+     실제 출진 흐름(8단계): ?s=real|realover|realdone|realret|realretdone (아래 REAL 참고) -->
 <iframe id="g" src="../samguk_v105.html"></iframe>
 <script>
 const Q = new URLSearchParams(location.search);
@@ -31,14 +32,32 @@ async function near(w, wantSpell) {
   const c = V4.reach(u).find(c => V4.targets(u, c.x, c.y).length) || { x: u.x, y: u.y }; const t = V4.targets(u, c.x, c.y)[0];
   w.V4UI.focus(u.x, u.y, false); w.V4UI.tap(u.x, u.y); await sl(300); w.V4UI.tap(c.x, c.y); await sl(1200); w.V4UI.focus(c.x, c.y, false); return t;
 }
+// 8단계: 실제 출진 경로(옛 startBattle 래퍼 → enterBattle → V4) 시험. 조조가 초에서 진류를 친다
+// real: 전투 화면(퇴각 단추) / realover: 적을 모두 쓰러뜨려 결과 단추 / realdone: 결과 단추를 눌러 결과 창 / realret: 퇴각 두 번 눌러 패배
+const REAL = {
+  real: async () => { },
+  realover: async (w, g) => { g.eval(`V4.W.units.filter(u => u.side === 'D').forEach(u => { u.alive = false; u.troops = 0; }); V4.check();`); await w.V4UI.endTurn(); await sl(600); },
+  realdone: async (w, g) => { await REAL.realover(w, g); w.ACT.v4Done(); await sl(600); },
+  realret: async (w) => { w.ACT.v4Retreat(); await sl(300); w.ACT.v4Retreat(); await sl(800); },
+  realretdone: async (w, g) => { await REAL.realret(w, g); w.ACT.v4Done(); await sl(600); },
+};
+// 확인용 상태 표시(화면 왼쪽 아래 작은 글씨, --dump-dom으로도 읽힘)
+function status(g) {
+  const s = g.eval(`JSON.stringify({ scr: UI.scr, owner: C('진류').owner, jinTroops: C('진류').troops, choTroops: C('초').troops, Bnull: typeof B === 'undefined' || B === null, over: V4.W && V4.W.over, why: V4.W && V4.W.why, sheet: UI.sheets.length ? UI.sheets[UI.sheets.length - 1].title : null, real: V4UI.ui.real, mode: V4UI.ui.mode })`);
+  document.body.insertAdjacentHTML('beforeend', `<pre id="st" style="position:fixed;left:0;bottom:0;z-index:9;margin:0;padding:2px 4px;color:#9f9;background:rgba(0,0,0,.7);font:10px monospace">${s}</pre>`);
+}
 document.getElementById('g').addEventListener('load', () => setTimeout(async () => {
   const g = document.getElementById('g').contentWindow;
+  const scene = Q.get('s') || 'sel';
   try {
-    g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; V4T.siege = ${Q.get('siege') === '1'}; V4T.i = ${+(Q.get('terr') || 0)}; v4TestOpen();`);
+    if (REAL[scene]) g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; UI.city = '초'; const us = autoUnits(gensIn('초', '조조'), 8000, 5); C('초').troops -= 8000; C('초').food -= 2000;
+      startBattle('조조', '초', '진류', us, 2000, 'A', '${Q.get('siege') === '0' ? '야전' : '농성'}'); UI.after = () => { UI.scr = 'main'; render(); }; enterBattle();`);
+    else g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; V4T.siege = ${Q.get('siege') === '1'}; V4T.i = ${+(Q.get('terr') || 0)}; v4TestOpen();`);
     // V4·V4UI·ACT는 const라 창 속성이 아님 → eval로 꺼냄
     const w = { V4: g.eval('V4'), V4UI: g.eval('V4UI'), ACT: g.eval('ACT') };
     await sl(+(Q.get('wait') || 2200));
-    const f = SCN[Q.get('s') || 'sel']; if (f) await f(w);
+    const f = REAL[scene] || SCN[scene]; if (f) await f(w, g);
+    if (REAL[scene]) status(g);
   } catch (e) { document.body.insertAdjacentHTML('afterbegin', `<pre style="position:fixed;z-index:9;color:#f55;background:#000;white-space:pre-wrap">${e.stack}</pre>`); }
 }, 200));
 </script>
