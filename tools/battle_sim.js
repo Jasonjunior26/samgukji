@@ -8,7 +8,7 @@ const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }
   localStorage: { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
   document: el(), navigator: { userAgent: 'node' }, location: { reload() { } } };
 ctx.window = ctx; vm.createContext(ctx);
-[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { console.log('block', i, e.message); } });
+[...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { console.log('block', i, e.message); } });
 const N = +(process.argv[2] || 20), showLog = process.argv[3] === 'log';
 vm.runInContext(`(() => {
   function one(siege, size, show) {
