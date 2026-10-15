@@ -895,7 +895,16 @@ function disasters() {
 }
 
 // ===== 자동 전투 (AI끼리 또는 위임) =====
+// 8단계(2부) 공용 규칙
+// 지키는 장수가 없는 성의 병졸 부대: 8000명씩 최대 5부대. (한 부대만 세우고 나머지를 예비대로 두면 예비대는 싸우지 않아 관문이 허무하게 떨어졌다)
+function militiaUnits(troops) { const n = clamp(Math.ceil(troops / 8000), 1, 5); const each = Math.floor(troops / n); return Array.from({ length: n }, (_, i) => ({ gen: null, troops: i ? each : troops - each * (n - 1), form: '방원', role: '엄호' })); }
+// 수비 방식: 관문은 늘 성문을 지키고(농성), 그 밖에는 수비가 공격보다 충분히 세면 성 밖으로 나온다(야전)
+function defModeFor(toCn, dT, wall, aT) { if (isPass(toCn)) return '농성'; return dT * (1 + wall / 150) >= aT * 0.9 && dT > 3000 ? '야전' : '농성'; }
+// 수비 부대 수 어림 (autoUnits가 만드는 수와 같은 규칙, 무작위 탐색은 빼고)
+function defUnitCount(dg, troops) { if (!dg.length) return militiaUnits(troops).length; const pool = dg.slice().sort((a, b) => stat(b, 't') - stat(a, 't')); let n = 0, cap = 0; while (n < pool.length && n < 5 && cap < troops) { cap += unitCap(pool[n].n); n++; } return Math.max(1, Math.min(5, pool.length, Math.max(n, Math.ceil(pool.length / 4)))); }
 function autoBattle(att, fromCn, toCn, units) {
+  // 8단계(2부): 전투 방식이 조조전식(v4)이면 공식 대신 V4를 화면 없이 끝까지 돌린다 (맨 끝 블록의 v4AutoBattle). 바깥 래퍼들의 병력 보정은 그대로 받는다
+  if (typeof v4AutoBattle === 'function') { const r = v4AutoBattle(att, fromCn, toCn, units); if (r) return r; }
   const tc = C(toCn); const def = tc.owner;
   const dg = def ? gensIn(toCn, def).filter(g => g.inj === 0) : [];
   const aT = units.reduce((s, u) => s + u.troops, 0);
@@ -2267,7 +2276,7 @@ function startBattle(att, fromCn, toCn, aUnits, food, playerSide, defMode, polic
   const dg = def ? gensIn(toCn, def).filter(g => g.inj === 0 && !g.away) : [];
   const troops = tc.troops; tc.troops = 0;
   let dUnits = dg.length ? autoUnits(dg, troops, 5) : [];
-  if (!dUnits.length) dUnits = [{ gen: null, troops, form: '방원', role: '엄호' }];
+  if (!dUnits.length) dUnits = militiaUnits(troops); // 8단계(2부): 장수 없는 성은 병졸 부대 여럿
   const used = dUnits.reduce((s, u) => s + u.troops, 0); if (troops - used > 0) dUnits[0].troops += troops - used;
   // 본진: 태수(없으면 첫 부대)
   const gi = dUnits.findIndex(u => u.gen && (u.gen === tc.gov || (def && S.fac[def].ruler === u.gen))); if (gi > 0) dUnits.unshift(dUnits.splice(gi, 1)[0]);
@@ -3380,18 +3389,28 @@ function corpsTurn() {
 // ===== 군단 공격 v2: 합동 공격 · 병력 모으기 · 승률 판단 =====
 function enemyNear(cn, except) { return ADJ[cn].map(C).filter(o => o.n !== except && o.owner && o.owner !== S.player && !allied(S.player, o.owner)).reduce((s, o) => s + o.troops, 0); }
 function keepOf(cn, target) { return Math.max(3000, Math.round(enemyNear(cn, target) * 0.6)); }
-// autoBattle과 같은 공식으로 승률 계산
-function winChance(att, fromCn, toCn, units, extraMul) {
+// autoBattle(옛 공식)과 같은 전력 계산. 8단계(2부): 전력(aQ·dQ)과 승률 곡선을 나눠, 전투 방식이 조조전식이면 V4 결과에 맞춘 곡선(v4WinCurve)을 쓴다
+function winFeat(att, fromCn, toCn, units, extraMul) {
   const tc = C(toCn); const def = tc.owner; const dg = def ? gensIn(toCn, def).filter(g => g.inj === 0) : [];
   let aQ = units.reduce((s, u) => s + u.troops * (abf(stat(G(u.gen), 't')) + abf(stat(G(u.vg || u.gen), 'w')) + abf(stat(G(u.st || u.gen), 'i')) * 0.3) / 2.3, 0) * (0.5 + C(fromCn).train / 200) * (extraMul || 1);
   const dq = dg.length ? dg.slice(0, 5).reduce((s, g) => s + abf(stat(g, 't')) + abf(stat(g, 'w')), 0) / (dg.slice(0, 5).length * 2) : 0.5;
   let dQ = tc.troops * dq * (0.5 + tc.train / 200) * (1 + tc.def / 100);
   if (isPass(toCn)) dQ *= 1.6; if (isJungle(toCn) && !facNative(att)) dQ *= 1.35;
   if (isFord(toCn) || isFord(fromCn)) { const aw = units.some(u => mem(u).some(n => isWater(G(n)))), dw = dg.some(isWater); dQ *= aw === dw ? 1 : (aw ? 0.8 : 1.3); }
-  let pw = 1 / (1 + Math.exp(-1.53 * Math.log(Math.max(0.05, aQ) / Math.max(1, dQ))));
-  dg.forEach(g => { if (S.traitors[g.n] === att) pw += 0.15; });
+  const aT = units.reduce((s, u) => s + u.troops, 0);
+  return { aQ, dQ, aT, dT: tc.troops, dq, dg, wall: tc.def, pass: isPass(toCn), siege: defModeFor(toCn, tc.troops, tc.def, aT) !== '야전', nA: units.length, nD: defUnitCount(dg, tc.troops) };
+}
+function winChance(att, fromCn, toCn, units, extraMul) {
+  const f = winFeat(att, fromCn, toCn, units, extraMul);
+  const x = Math.log(Math.max(0.05, f.aQ) / Math.max(1, f.dQ));
+  let pw = typeof v4WinCurve === 'function' && v4On() ? v4WinCurve(x, f) : 1 / (1 + Math.exp(-1.53 * x));
+  f.dg.forEach(g => { if (S.traitors[g.n] === att) pw += 0.15; });
   return Math.min(0.99, pw);
 }
+// 8단계(2부): V4(조조전식) 결과에 맞춘 승률 곡선. 실제 AI 매치업 564개 × V4 5판(2,820판)에 로지스틱 회귀로 맞췄다 (tools/battle_calib.js).
+// x = ln(aQ/dQ)는 옛 공식과 같고, 수비가 농성이면(수비 전력이 공격의 0.9배 미만·관문) 공격이 훨씬 잘 이기며, 지키는 장수가 없는 성(병졸 부대뿐)은 무너지기 쉽다.
+const V4WIN = { b0: 0.16, x: 2.37, siege: 1.05, militia: 4.26 };
+function v4WinCurve(x, f) { const z = V4WIN.b0 + V4WIN.x * x + (f.siege ? V4WIN.siege : 0) + (f.dg.length ? 0 : V4WIN.militia); return 1 / (1 + Math.exp(-z)); }
 function corpsAttack(k, atk) {
   const t = C(k.target);
   if (!t.owner || t.owner === S.player || allied(S.player, t.owner)) { atk.push(`${k.target}은(는) 더 이상 적의 도시가 아니다. 공격 대상을 다시 정하세요.`); k.target = null; return; }
@@ -5272,7 +5291,7 @@ function battleTraits(units, won, siege, capture) {
     ms.forEach(g => { if (stat(g, 'w') >= 95 && (g.winStreak || 0) >= 5 && !hasTr(g, '오만') && P(5)) { g.tr = (g.tr || []).concat('오만'); if (g.fac === S.player) news(`${g.n}이(가) 거듭된 승리에 오만해졌다.`); } });
   });
 }
-{ const f = autoBattle; autoBattle = function (att, fromCn, toCn, units) { const siege = kindOf(toCn) !== '나루' && !!C(toCn).owner; const r = f.apply(this, arguments); try { battleTraits(units, r.win, siege, r.win); } catch (e) { } return r; }; }
+{ const f = autoBattle; autoBattle = function (att, fromCn, toCn, units) { const siege = kindOf(toCn) !== '나루' && !!C(toCn).owner; const r = f.apply(this, arguments); try { if (!(r && r.v4)) battleTraits(units, r.win, siege, r.win); } catch (e) { } return r; }; } // v4 경로는 finishBattle 쪽에서 이미 특성 처리를 했다
 { const f = finishBattle; finishBattle = function () { const att = B.att, to = B.to, mode = B.mode; const au = B.units.filter(u => u.side === 'A'), du = B.units.filter(u => u.side === 'D'); const r = f.apply(this, arguments); try { const aw = C(to).owner === att; battleTraits(au, aw, mode === '농성', aw); battleTraits(du, !aw, false, false); } catch (e) { } return r; }; }
 // ---------- 등용·수색·유학·공방·포상 횟수 ----------
 { const f = cmdRecruit; cmdRecruit = function (cn, rn) { const r = f.apply(this, arguments); const g = G(rn); if (r && r.ok && g) { g.recOK = (g.recOK || 0) + 1; if (g.recOK >= 10 && P(5)) grantTrait(g, '인재수집가', '많은 인재를 데려온 끝에'); } return r; }; }
@@ -6823,7 +6842,7 @@ ACT.sortGo = () => {
   }
   if (t.owner) setHos(t.owner, S.player, hos(t.owner, S.player) + 10);
   const dPow = t.troops * (1 + t.def / 150), aPow = tot;
-  startBattle(S.player, UI.city, t.n, us, food, 'A', dPow >= aPow * 0.9 && t.troops > 3000 ? '야전' : '농성');
+  startBattle(S.player, UI.city, t.n, us, food, 'A', defModeFor(t.n, t.troops, t.def, aPow));
   UI.after = () => { UI.scr = 'main'; render(); };
   enterBattle();
 };
@@ -7538,7 +7557,7 @@ ACT.sortGo = () => {
   if (!t.owner || (t.troops <= 0 && !gensIn(t.n, t.owner).length)) { captureCity(S.player, t.n, us.flatMap(mem), tot, UI.city); t.food += food; UI.city = t.n; toast(`${t.n}을(를) 차지했다.`); showCaptives(() => render()); return; }
   if (t.owner) setHos(t.owner, S.player, hos(t.owner, S.player) + 10);
   const dPow = t.troops * (1 + t.def / 150);
-  startBattle(S.player, UI.city, t.n, us, food, 'A', dPow >= tot * 0.9 && t.troops > 3000 ? '야전' : '농성', UI.f.policy);
+  startBattle(S.player, UI.city, t.n, us, food, 'A', defModeFor(t.n, t.troops, t.def, tot), UI.f.policy);
   UI.after = () => { UI.scr = 'main'; render(); };
   enterBattle();
 };
@@ -12174,7 +12193,14 @@ const V4 = (() => {
   const bscale = (v, l) => l >= 4 ? v * 1.2 : l <= 2 ? v * 0.7 : v;
   function buffSet(u, k, up) { const l = u.buf[k]; u.buf[k] = up ? (l >= 3 ? 6 : 3) : (l > 3 ? 3 : 0); }
   // ---------- 종합 능력치 (부장·조합·특기·병과 등급·단계·버프 모두 반영) ----------
+  // 8단계(2부): AI가 칸마다 예상을 돌리므로 종합 능력치는 사기·버프·단계가 같은 동안 기억해 둔다 (장수 능력·조합·특기는 전투 중 안 바뀜)
   function stats(u, why) {
+    if (why) return stats0(u, why);
+    const key = u.mor + '|' + u.buf.A + u.buf.D + u.buf.I + u.buf.E + u.buf.M + '|' + (u.elite ? 1 : 0) + '|' + u.lv + '|' + u.jc + '|' + u.tier;
+    if (u._sk === key && u._sc) return u._sc;
+    const r = stats0(u); u._sk = key; u._sc = r; return r;
+  }
+  function stats0(u, why) {
     const S0 = k => u.gen ? uS(u, k) : (k === 'i' ? 35 : 45);
     const w = S0('w'), t = S0('t'), i = S0('i');
     const row = clsRow(u.jc); const g = row ? row.gr.join('') : 'BBBBB';
@@ -12203,9 +12229,11 @@ const V4 = (() => {
   function movePts(u) { if (u.sts.stuck) return 0; const row = clsRow(u.jc); let m = (row ? row.mv : 4) + (has(u, '신속') ? 2 : 0) + ((u.chem && u.chem.fx.mov) || 0); if (u.buf.V >= 4) m += 2; else if (u.buf.V <= 2) m = Math.max(0, m - 1); return m; }
   // 저지(ZOC): 상하좌우에 적이 있는 칸에 들어가면 멈춤 (출발 칸은 예외)
   const inZoc = (u, x, y) => !has(u, '기습') && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const o = unitAt(x + dx, y + dy); return o && foe(o, u); });
+  // 비용이 가장 작은 항목을 꺼낸다 (같으면 먼저 넣은 것). 매번 정렬하던 것과 같은 순서, 훨씬 싸다
+  function qmin(q) { let b = 0; for (let i = 1; i < q.length; i++) if (q[i][2] < q[b][2]) b = i; return q.splice(b, 1)[0]; }
   function reach(u) {
     const mp = movePts(u); const best = {}; const k = (x, y) => x + ',' + y; best[k(u.x, u.y)] = 0; const q = [[u.x, u.y, 0]]; const prev = {};
-    while (q.length) { q.sort((a, b) => a[2] - b[2]); const [x, y, c] = q.shift(); if (c > best[k(x, y)]) continue; if ((x !== u.x || y !== u.y) && inZoc(u, x, y)) continue;
+    while (q.length) { const [x, y, c] = qmin(q); if (c > best[k(x, y)]) continue; if ((x !== u.x || y !== u.y) && inZoc(u, x, y)) continue;
       [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dy]) => { const nx = x + dx, ny = y + dy; const cc = at(nx, ny); if (!cc) return; const o = unitAt(nx, ny); if (o && foe(o, u)) return;
         const nc = c + moveCost(u, cc); if (nc > mp) return; if (best[k(nx, ny)] == null || nc < best[k(nx, ny)]) { best[k(nx, ny)] = nc; prev[k(nx, ny)] = k(x, y); q.push([nx, ny, nc]); } }); }
     const out = []; Object.keys(best).forEach(s => { const [x, y] = s.split(',').map(Number); const o = unitAt(x, y); if (!o || o === u) out.push({ x, y, c: best[s] }); });
@@ -12354,7 +12382,7 @@ const V4 = (() => {
     const dg = def ? gensIn(toCn, def).filter(g => g.inj === 0 && !g.away) : [];
     const troops = opt.defTroops != null ? opt.defTroops : tc.troops;
     let dUnits = opt.dUnits || (dg.length ? autoUnits(dg, troops, 5) : []);
-    if (!dUnits.length) dUnits = [{ gen: null, troops, form: '방원' }];
+    if (!dUnits.length) dUnits = militiaUnits(troops);
     const siege = defMode !== '야전';
     const winter = [12, 1, 2].includes(S.m);
     const terr = kindOf(toCn) === '관문' ? '관문' : kindOf(toCn) === '나루' ? '나루' : (tc.terr || CDATA[toCn].지형 || '평지');
@@ -12462,7 +12490,7 @@ const V4 = (() => {
     return null;
   }
   // 목표까지 이동 비용 지도 (부대 무시)
-  function distMap(u, goal) { const d = {}; const k = (x, y) => x + ',' + y; d[k(goal.x, goal.y)] = 0; const q = [[goal.x, goal.y, 0]]; while (q.length) { q.sort((a, b) => a[2] - b[2]); const [x, y, c] = q.shift(); if (c > d[k(x, y)]) continue; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { const nx = x + dx, ny = y + dy; const cc = at(nx, ny); if (!cc) return; let mc = moveCost(u, cc); if (mc >= 99 && cc.t === 'T' && team(u) === 'A') mc = 3; if (mc >= 99) return; const v = c + mc; if (d[k(nx, ny)] == null || v < d[k(nx, ny)]) { d[k(nx, ny)] = v; q.push([nx, ny, v]); } }); } return d; }
+  function distMap(u, goal) { const d = {}; const k = (x, y) => x + ',' + y; d[k(goal.x, goal.y)] = 0; const q = [[goal.x, goal.y, 0]]; while (q.length) { const [x, y, c] = qmin(q); if (c > d[k(x, y)]) continue; [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { const nx = x + dx, ny = y + dy; const cc = at(nx, ny); if (!cc) return; let mc = moveCost(u, cc); if (mc >= 99 && cc.t === 'T' && team(u) === 'A') mc = 3; if (mc >= 99) return; const v = c + mc; if (d[k(nx, ny)] == null || v < d[k(nx, ny)]) { d[k(nx, ny)] = v; q.push([nx, ny, v]); } }); } return d; }
   const wantsRetreat = u => u.troops <= u.max * 2 / 5;
   // 공격 점수 (§9.5): 쓰러뜨림 80, 큰 피해 16, …, 반격 받으면 −1
   function atkScore(u, c, o) {
@@ -13109,6 +13137,50 @@ function v4RealDone() {
 { const f = enterBattle; enterBattle = function () { if (v4On() && B && B.playerSide && B.v4args) return v4EnterReal(); return f.apply(this, arguments); }; }
 // 전투 음악: 공성/야전
 { const f = trackFor; trackFor = function (scr) { if (scr === 'v4' && V4.W) return V4.W.siege ? 'siege' : 'field'; return f.apply(this, arguments); }; }
+
+// ===== 8단계 (2부): AI끼리·위임 전투도 V4 규칙으로 (화면 없이) =====
+// 이 게임 규칙: 설정이 켜져 있으면 autoBattle은 공식 대신 V4를 끝까지 돌리고(V4.simulate, 절차 지도) 그 결과를 기존 finishBattle에 넘긴다.
+// 그래서 점령·포로·경험치·예비대·특성 처리는 플레이어의 V4 전투와 같은 길을 간다. autoBattle의 바깥 래퍼들(출정비·정예·수비 대책·정예주의·탑·보급선·전술)은
+// 병력을 잠시 늘였다 줄이는 방식이라 V4 부대 병력에 그대로 반영된다. 화면(DOM)은 건드리지 않는다.
+function v4AutoBattle(att, fromCn, toCn, units) {
+  if (typeof V4 === 'undefined' || !v4On() || !units || !units.length) return null;
+  const tc = C(toCn); const def = tc.owner; if (!def || def === att) return null;
+  const W0 = V4.W, B0 = B; // 플레이어의 V4 전투(W)나 옛 전투(B)가 진행 중이어도 덮어쓰지 않는다
+  const troops = tc.troops; let took = false;
+  try {
+    const aT = units.reduce((s, u) => s + u.troops, 0);
+    // 수비 방식: 플레이어 출진 때와 같은 기준 (defModeFor) — 관문은 농성, 그 밖에는 수비가 충분히 세면 야전
+    const defMode = defModeFor(toCn, troops, tc.def, aT);
+    // 수비 부대: 옛 startBattle과 같은 편성. 통솔 상한을 넘는 몫은 성내 예비대(dres)로 두었다가 전투 뒤 돌려준다
+    const dg = gensIn(toCn, def).filter(g => g.inj === 0 && !g.away);
+    let dUnits = dg.length ? autoUnits(dg, troops, 5) : [];
+    if (!dUnits.length) dUnits = militiaUnits(troops);
+    const used = dUnits.reduce((s, u) => s + u.troops, 0); if (troops - used > 0) dUnits[0].troops += troops - used;
+    let dres = 0; dUnits.forEach(u => { const cap = u.gen ? unitCapU(u) : 8000; if (u.troops > cap) { dres += u.troops - cap; u.troops = cap; } });
+    // 내통: 약속한 수비 장수의 부대는 공격측으로 돌아선다 (옛 startBattle과 같음). 수비 부대가 하나도 안 남으면 옛 공식에 맡긴다
+    const aUnits = units.map(u => ({ ...u })); const turned = dUnits.filter(u => u.gen && S.traitors[u.gen] === att);
+    // 공성전인데 성문을 칠 수 있는 부대가 없으면(궁병·궁기병뿐 — 조조전 규칙으로 간접 부대는 성문을 못 친다) 가장 큰 부대를 보병으로 바꾼다. 안 그러면 제한 턴까지 성 밖에 서 있다
+    if (defMode === '농성' && !aUnits.some(u => !['안행', '추행'].includes(u.form))) { const big = aUnits.slice().sort((a, b) => b.troops - a.troops)[0]; if (big) big.form = '어린'; }
+    if (turned.length) { dUnits = dUnits.filter(u => !turned.includes(u)); if (!dUnits.length) return null; turned.forEach(u => { aUnits.push(u); mem(u).forEach(n => { const g = G(n); if (g && g.fac === def) joinFac(g, att, toCn, 70); }); }); }
+    const food = Math.ceil(aT / FOODDIV * 25); // 제한 턴 계산용: AI 출진이 들고 가는 군량(25일치)과 같다. 실제 군량 가감은 호출 쪽이 한다
+    tc.troops = 0; took = true;
+    V4.start(att, fromCn, toCn, aUnits, food, null, defMode, { dUnits, defTroops: troops, noJojo: true });
+    const W = V4.W;
+    // 공격측 총대장은 플레이어가 움직이던 자리다. 화면 없는 전투에서는 목표(성문·본성·가장 가까운 적)를 따라가게 한다(AI 0). 그대로 두면(대기 3) 부대가 하나뿐일 때 제한 턴까지 멈춰 선다
+    W.units.forEach(u => { if (u.side === 'A' && u.id === W.hq.A) u.ai = 0; });
+    V4.simulate(40);
+    B = V4.toLegacy(); B.v4 = true; B.auto = true; B.food = 0; B.dres = dres; B.dresN = 0;
+    const n0 = S.news.length;
+    const res = finishBattle(); took = false;
+    // finishBattle의 결과 문장은 플레이어 소식이므로 걷어내고, 옛 autoBattle처럼 세상 소식으로 남긴다 (포로 등 플레이어에 관한 소식은 그대로)
+    if (res && res.msgs) S.news = S.news.filter((t, i) => i < n0 || !res.msgs.includes(t));
+    const win = res.win === 'A';
+    if (att !== S.player && def !== S.player) world(win ? `${fname(att)}이(가) ${fname(def)}의 ${toCn}을(를) 빼앗았다.` : `${fname(att)}이(가) ${fname(def)}의 ${toCn}을(를) 쳤으나 물러났다.`, win ? 3 : 1, [toCn]);
+    return { win, msg: win ? `${fname(att)}이(가) ${toCn}을(를) 빼앗았다.` : `${fname(att)}이(가) ${toCn} 공격에 실패했다.`, v4: true, turns: W.turn, why: W.why, mode: W.mode };
+  } catch (e) {
+    console.error('v4AutoBattle', e); if (took && tc.owner === def) tc.troops = troops; return null; // 중간에 실패하면 수비 병력을 되돌리고 옛 공식으로
+  } finally { V4.W = W0; B = B0; }
+}
 </script>
 <script id="jojo-rules">
 // 조조전 원본 규칙 표 (병과·지형·책략·범위) — tools/jojo_rules.py가 만든 블록
