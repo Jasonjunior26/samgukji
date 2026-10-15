@@ -12088,6 +12088,8 @@ const V4 = (() => {
       const cx = Math.floor((castle.x0 + castle.x1) / 2);
       [cx, cx + 1].forEach(x => set(x, castle.y1, 'T')); set(castle.x0, castle.y0 + 4, 'T'); set(castle.x1, castle.y0 + 4, 'T');
       set(cx, castle.y0 + 3, 'K'); set(cx + 1, castle.y0 + 3, 'K');
+      // 성 안 민가 (지나갈 수 있음): 본성·성문 길을 비켜 몇 채
+      for (let i = 0, n = 0; i < 40 && n < 5; i++) { const x = R(castle.x0 + 1, castle.x1 - 1), y = R(castle.y0 + 1, castle.y1 - 2); if (Math.abs(x - cx - .5) < 2 || m[y][x].t !== 'I' || y === castle.y0 + 4) continue; set(x, y, 'V'); n++; }
       // 성 앞 길
       for (let y = castle.y1 + 1; y < h; y++) [cx, cx + 1].forEach(x => { const t = m[y][x].t; if (t === 'M' || t === 'F' || t === 'W') set(x, y, 'P'); if (t === 'R') set(x, y, 'B'); });
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const c = m[y][x]; if (c.t === 'T') c.hp = c.max = 0; }
@@ -12099,7 +12101,7 @@ const V4 = (() => {
     // 배치 구역 정리
     for (let y = h - 4; y < h; y++) for (let x = 0; x < w; x++) if ('MRW'.includes(m[y][x].t)) set(x, y, 'P');
     if (!siege) for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) if ('MRW'.includes(m[y][x].t)) set(x, y, 'P');
-    if (winter) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if ((m[y][x].t === 'P' || m[y][x].t === 'G') && rnd() < .45) m[y][x].t = 'S';
+    if (winter) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (m[y][x].t === 'P' || m[y][x].t === 'G') m[y][x].t = rnd() < .85 ? 'S' : 'P';
     return { m, castle };
   }
 
@@ -12301,7 +12303,7 @@ const V4 = (() => {
     const terr = kindOf(toCn) === '관문' ? '관문' : kindOf(toCn) === '나루' ? '나루' : (tc.terr || CDATA[toCn].지형 || '평지');
     const gm = genMap(terr, w, h, siege, winter);
     W = { att, def, from: fromCn, to: toCn, w, h, map: gm.m, castle: gm.castle, siege, terr, units: [], uid: 1, turn: 1, phase: null, log: [], ev: [], captured: [], rescue: [], over: null,
-      weather: rollWeather(), food, playerSide: playerSide || null, mode: siege ? '농성' : '야전' };
+      weather: rollWeather(), food, playerSide: playerSide || null, mode: siege ? '농성' : '야전', winter };
     if (winter && W.weather === '비') W.weather = '눈';
     const ctx = { from: fromCn, to: toCn, water: terr === '강변' || terr === '나루' };
     // 성문 내구
@@ -12441,6 +12443,214 @@ const V4 = (() => {
   }
   return { CLS, TT, TN, SPELL, get W() { return W; }, set W(v) { W = v; }, start, stats, clsName, reach, pathTo, targets, gateTargets, forecast, attack, hitGate, spellsOf, canCast, cast, moveTo, wait, beginPhase, endPhase, check, aiAct, runPhaseAI, simulate, toLegacy, unitAt, at, inRange };
 })();
+</script>
+<style>
+/* 전투 v4 (조조전식) */
+.scr.v4{padding:0;gap:0;height:100dvh;min-height:0;background:#0f1428;color:#eef}
+.v4top{display:flex;gap:10px;align-items:baseline;padding:7px 10px;background:#1a2340;border-bottom:2px solid #c9a24a;font-size:13px;white-space:nowrap;overflow:hidden}
+.v4top .v4t{font-weight:700;font-size:15px;color:#ffd84a}.v4top small{color:#aab3c5}.v4me{color:#7fb8ff;margin-left:auto}.v4en{color:#ffb070}
+.v4view{position:relative;flex:1;min-height:0;overflow:hidden;background:#1a1f12}
+#v4c{display:block;width:100%;height:100%;touch-action:none;image-rendering:pixelated;cursor:grab}
+#v4mini{position:absolute;right:6px;top:6px;width:96px;border:2px solid #c9a24a;background:#000;image-rendering:pixelated;touch-action:none;opacity:.92}
+.v4panel{min-height:92px;padding:8px 10px;background:#1a2340;border-top:2px solid #c9a24a;font-size:13px}
+.v4dim{color:#aab3c5;font-size:12px;line-height:1.5}
+.v4u{display:flex;gap:8px;align-items:center}.v4ub{flex:1;min-width:0}.v4ub small{color:#aab3c5}
+.v4bars{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:center;font-size:12px;margin-top:3px}.v4bars small{color:#ffb070}
+.v4st{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12px;color:#c3cadc}.v4st b{color:#fff;font-size:13px}.v4st i{font-style:normal;font-size:11px;margin-left:2px}.v4st i.up{color:#7fe08a}.v4st i.dn{color:#ff8a7a}
+.v4dep{margin-top:4px;font-size:12px;color:#d8c48a}
+.v4bar{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:6px;padding:6px 8px 10px;background:#0f1428}.v4bar .b{min-height:44px}
+</style>
+<script>
+// ===== 전투 v4 (조조전식) 2단계: 전장 그리기 — 16px 도트 타일 ×3(48px) · 끌어서 스크롤 · 두 손가락 확대 · 전체 지도 · 카메라 따라가기 =====
+const V4UI = (() => {
+  const TS = 48, PS = 3; // 칸 48px = 도트 16px × 3
+  const st = { cam: { x: 0, y: 0, z: 1 }, sel: null, info: null, dirty: true, map: null, mapKey: '', cv: null, mini: null, raf: 0, ptrs: {}, drag: null, anim: null, tick: 0 };
+  // ---------- 도트 타일 ----------
+  const PAL = {
+    grass: ['#6aa64c', '#5a9140', '#86bf62', '#4c7d36'], mead: ['#86b85a', '#9cc96c', '#e8d870', '#e88a8a'], dirt: ['#b89a68', '#a1845a', '#cdb486', '#7d6748'],
+    snow: ['#eef2f5', '#d3dde6', '#ffffff', '#b8c6d2'], swamp: ['#5f7f4a', '#4e6c3c', '#4a6f7a', '#3f5a30'], water: ['#3a78b8', '#2e6098', '#7fb0e0', '#d8c890'],
+    ford: ['#6aa0c8', '#5a8fb8', '#a8a89c', '#8a8a80'], wood: ['#a07a48', '#7a5a32', '#c49a62', '#5a3d22'], tree: ['#3f7a38', '#2f5f2a', '#5a9a48', '#5a3d22'],
+    rock: ['#8c8474', '#6f6859', '#aaa292', '#55504a'], stone: ['#b0a890', '#958e7a', '#c8c0a8', '#7a7364'], wall: ['#a39d92', '#7a756b', '#bdb7ac', '#5a564f'],
+    roof: ['#a04a3a', '#7a3428', '#c46450', '#e0d0b0'], gate: ['#6b4626', '#4a2e18', '#8a5e36', '#caa14a'], tent: ['#e0d8c0', '#b8ae94', '#c8443a', '#3f74c9']
+  };
+  const TCACHE = {};
+  function hash(x, y, k) { let h = (x * 374761393 + y * 668265263 + (k || 0) * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  function mkCan(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+  // 16×H 도트 캔버스에 그리기. top: 위로 넘치는 높이(나무·산·성벽 윗부분)
+  function tile(t, v, mask, top, wint) {
+    const key = t + v + '|' + mask + (wint ? 'w' : ''); if (TCACHE[key]) return TCACHE[key];
+    const H = 16 + top, c = mkCan(16, H), g = c.getContext('2d');
+    const r = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y + top, w, h); };
+    const p = (x, y, col) => r(x, y, 1, 1, col);
+    const rn = (i) => hash(v, i, t.charCodeAt(0));
+    const ground = (P) => { r(0, 0, 16, 16, P[0]); for (let i = 0; i < 9; i++) p(Math.floor(rn(i) * 16), Math.floor(rn(i + 20) * 16), i % 3 ? P[1] : P[2]); };
+    const tuft = (x, y, P) => { p(x, y, P[1]); p(x + 1, y - 1, P[1]); p(x + 2, y, P[1]); };
+    const grass = () => { if (wint) { ground(PAL.snow); return; } ground(PAL.grass); for (let i = 0; i < 3; i++) tuft(Math.floor(rn(i + 40) * 13), 2 + Math.floor(rn(i + 50) * 12), PAL.grass); };
+    const treeAt = (cx, cy, s) => { const P = PAL.tree; r(cx - 1, cy + s - 1, 2, 3, P[3]); for (let y = -s; y <= s; y++) for (let x = -s; x <= s; x++) if (x * x + y * y <= s * s + 1) p(cx + x, cy + y - 1, y > s / 3 ? P[1] : (x < 0 && y < 0 ? P[2] : P[0])); p(cx - s, cy - 1, '#1f3a1a'); p(cx + s, cy - 1, '#1f3a1a'); };
+    const N = mask & 1, E = mask & 2, S = mask & 4, Wm = mask & 8; // 같은 지형이 이웃에 있는지 (위·오른쪽·아래·왼쪽)
+    switch (t) {
+      case 'P': grass(); break;
+      case 'G': ground(PAL.mead); for (let i = 0; i < 4; i++) p(Math.floor(rn(i + 60) * 15), Math.floor(rn(i + 70) * 15), i % 2 ? PAL.mead[2] : PAL.mead[3]); break;
+      case 'D': ground(PAL.dirt); for (let i = 0; i < 3; i++) { const x = Math.floor(rn(i + 80) * 14), y = Math.floor(rn(i + 90) * 14); r(x, y, 2, 1, PAL.dirt[3]); } break;
+      case 'S': ground(PAL.snow); for (let i = 0; i < 2; i++) tuft(Math.floor(rn(i + 40) * 13), 2 + Math.floor(rn(i + 50) * 12), PAL.grass); break;
+      case 'W': ground(PAL.swamp); for (let i = 0; i < 3; i++) { const x = Math.floor(rn(i + 100) * 11), y = Math.floor(rn(i + 110) * 13); r(x, y, 4, 2, PAL.swamp[2]); } for (let i = 0; i < 4; i++) { const x = Math.floor(rn(i + 120) * 15), y = 3 + Math.floor(rn(i + 130) * 11); r(x, y - 2, 1, 3, PAL.swamp[3]); } break;
+      case 'F': grass(); treeAt(4, 5, 3); treeAt(11, 4, 3); treeAt(8, 11, 3); if (rn(5) > .5) treeAt(13, 12, 2); break;
+      case 'H': grass(); for (let y = 3; y < 15; y++) { const hw = Math.round(Math.sqrt(Math.max(0, 1 - Math.pow((y - 10) / 7, 2))) * 7); for (let x = 8 - hw; x < 8 + hw; x++) p(x, y, x < 8 - hw / 3 ? '#9cc070' : x > 8 + hw / 2 ? '#4f7a38' : '#7aa858'); } r(3, 14, 10, 1, '#4c7d36'); break;
+      case 'M': { const P = PAL.rock; if (mask & 15) { r(0, 0, 16, 16, wint ? '#cfd6dc' : P[1]); for (let i = 0; i < 8; i++) p(Math.floor(rn(i + 220) * 16), Math.floor(rn(i + 230) * 16), i % 2 ? P[3] : P[0]); } else grass(); for (let y = -top + 1; y < 15; y++) { const k = (y + top) / (15 + top); const hw = Math.round(k * 8); for (let x = 8 - hw; x < 8 + hw; x++) p(x, y, x < 8 ? (x < 8 - hw / 2 ? P[2] : P[0]) : P[1]); } for (let y = -top + 1; y < -top + 4; y++) { const hw = Math.round((y + top) / (15 + top) * 8); for (let x = 8 - hw; x < 8 + hw; x++) p(x, y, '#f0f0f0'); } for (let i = 0; i < 4; i++) p(5 + Math.floor(rn(i + 140) * 6), 6 + Math.floor(rn(i + 150) * 7), P[3]); break; }
+      case 'R': case 'X': { const P = t === 'R' ? PAL.water : PAL.ford; r(0, 0, 16, 16, P[0]); for (let i = 0; i < 3; i++) { const x = Math.floor(rn(i + 160) * 12), y = 2 + Math.floor(rn(i + 170) * 12); r(x, y, 3, 1, P[2]); p(x + 3, y + 1, P[2]); }
+        if (t === 'X') for (let i = 0; i < 4; i++) { const x = 1 + Math.floor(rn(i + 180) * 13), y = 1 + Math.floor(rn(i + 190) * 13); r(x, y, 2, 2, P[2]); p(x, y, '#c8c8bc'); }
+        const sh = PAL.water[3]; if (!N) r(0, 0, 16, 2, sh); if (!S) r(0, 14, 16, 2, sh); if (!Wm) r(0, 0, 2, 16, sh); if (!E) r(14, 0, 2, 16, sh);
+        if (!N) r(0, 2, 16, 1, PAL.water[1]); break; }
+      case 'B': { r(0, 0, 16, 16, PAL.water[0]); const P = PAL.wood; r(0, 2, 16, 12, P[0]); for (let x = 1; x < 16; x += 3) r(x, 2, 1, 12, P[1]); r(0, 2, 16, 1, P[3]); r(0, 13, 16, 1, P[3]); r(1, 1, 2, 2, P[3]); r(13, 1, 2, 2, P[3]); break; }
+      case 'V': { grass(); const P = PAL.roof; r(3, 8, 10, 6, P[3]); r(3, 13, 10, 1, '#9a8a6a'); for (let i = 0; i < 6; i++) r(2 + i / 2 | 0, 7 - i, 12 - i, 1, i < 2 ? P[1] : P[0]); r(7, 10, 2, 4, '#5a3d22'); r(4, 9, 2, 2, '#4a6f7a'); r(10, 9, 2, 2, '#4a6f7a'); break; }
+      case 'C': { ground(PAL.dirt); const P = PAL.tent; for (let i = 0; i < 6; i++) r(5 - i, 3 + i, 1 + i * 2, 1, i % 2 ? P[1] : P[0]); r(4, 7, 3, 2, '#5a3d22'); r(11, 1, 1, 8, '#5a3d22'); r(12, 1, 3, 2, P[2]); for (let x = 0; x < 16; x += 2) r(x, 12, 1, 4, PAL.wood[1]); r(0, 13, 16, 1, PAL.wood[0]); break; }
+      case 'I': { r(0, 0, 16, 16, wint ? '#e4e8ea' : '#d6c9a4'); const L = wint ? '#c4ccd2' : '#bfb08a'; for (let y = 0; y < 16; y += 8) r(0, y, 16, 1, L); for (let y = 0; y < 16; y += 8) for (let x = (y / 8 % 2) * 4; x < 16; x += 8) r(x, y, 1, 8, L); if (rn(3) > .6) r(Math.floor(rn(4) * 12), Math.floor(rn(6) * 12), 3, 2, wint ? '#ffffff' : '#c2b48e'); break; }
+      case 'K': { const P = PAL.stone; r(0, 0, 16, 16, P[0]); r(1, 6, 14, 9, '#a03020'); r(2, 8, 2, 7, '#7a2418'); r(12, 8, 2, 7, '#7a2418'); r(6, 10, 4, 5, '#3a2a1e'); for (let i = 0; i < 6 + top; i++) r(Math.max(0, 1 - i / 3 | 0), 6 - i, 16 - Math.max(0, 2 - i / 3 | 0) * 2, 1, i % 2 ? '#3a3448' : '#4a4460'); r(0, -top + 1, 16, 1, PAL.gate[3]); break; }
+      case 'L': case 'T': case 'O': { const P = PAL.wall; r(0, -top, 16, 16 + top, P[0]); for (let y = -top; y < 16; y += 4) { r(0, y, 16, 1, P[1]); for (let x = (Math.abs(y / 4) % 2) * 4; x < 16; x += 8) r(x, y, 1, 4, P[1]); }
+        if (!N) { for (let x = 0; x < 16; x += 4) r(x, -top, 2, 2, P[2]); r(0, -top + 2, 16, 1, P[3]); } r(0, 15, 16, 1, P[3]);
+        if (t === 'T') { const G0 = PAL.gate; r(3, 2, 10, 14, G0[0]); r(3, 2, 10, 1, G0[1]); r(7, 2, 2, 14, G0[1]); for (let y = 5; y < 15; y += 4) { p(5, y, G0[3]); p(10, y, G0[3]); } }
+        if (t === 'O') { r(3, 4, 10, 12, '#3a2a1e'); for (let i = 0; i < 6; i++) r(2 + Math.floor(rn(i + 200) * 11), 10 + Math.floor(rn(i + 210) * 5), 2, 2, P[1]); }
+        break; }
+      default: grass();
+    }
+    TCACHE[key] = c; return c;
+  }
+  const TOP = { F: 3, M: 7, K: 4, L: 5, T: 5, O: 5 };
+  // 같은 종류 이웃 (물: 강·여울·다리 / 성벽: 성벽·성문)
+  const SAME = { R: 'RXB', X: 'RXB', L: 'LTO', T: 'LTO', O: 'LTO' };
+  function maskAt(W, x, y) { const t = W.map[y][x].t; const s = SAME[t] || t; let m = 0; [[0, -1, 1], [1, 0, 2], [0, 1, 4], [-1, 0, 8]].forEach(([dx, dy, b]) => { const c = V4.at(x + dx, y + dy); if (!c || s.includes(c.t)) m |= b; }); return m; }
+  // 지도 전체를 한 장으로 미리 그림 (지형이 바뀌면 다시)
+  function bakeMap() {
+    const W = V4.W; const key = (W.winter ? 'w' : '') + W.map.map(r => r.map(c => c.t).join('')).join('/'); if (st.map && st.mapKey === key) return st.map;
+    const c = mkCan(W.w * TS, W.h * TS), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { const t = W.map[y][x].t; const v = Math.floor(hash(x, y) * 4); const top = TOP[t] || 0; const tc = tile(t, v, maskAt(W, x, y), top, W.winter); g.drawImage(tc, x * TS, y * TS - top * PS, TS, (16 + top) * PS); }
+    st.map = c; st.mapKey = key; st.miniImg = null; return c;
+  }
+  // ---------- 부대 그림 (임시: 기존 도트 병사. 2.5단계에서 48px 4방향으로 교체) ----------
+  const UCACHE = {};
+  function unitCan(u) {
+    const kind = { 기병: '기병', 궁기병: '기병', 궁병: '궁병', 공성: '공성', 수군: '수군' }[u.cls] || '보병';
+    const team = V4.W.playerSide === 'D' ? (u.side === 'D' ? 'A' : 'E') : (u.side === 'D' ? 'E' : 'A');
+    const flip = u.dir === 'w' || (u.dir !== 'e' && team === 'E');
+    const pose = (st.tick % 2) ? 1 : 0; const key = [u.gen, kind, team, pose, flip].join('|'); if (UCACHE[key]) return UCACHE[key];
+    const look = u.gen && typeof pxLook === 'function' ? pxLook(u.gen) : {}; const spr = pxSprite(kind, look, team, pose); let g0 = spr.g; if (flip) g0 = pxFlip(g0);
+    const c = mkCan(PX.W, PX.H), g = c.getContext('2d'); g0.forEach((row, y) => row.forEach((k, x) => { if (!k) return; g.fillStyle = spr.pal[k] || '#f0f'; g.fillRect(x, y, 1, 1); }));
+    if (u.side === 'R') { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(230,200,60,.28)'; g.fillRect(0, 0, PX.W, PX.H); }
+    UCACHE[key] = c; return c;
+  }
+  // ---------- 그리기 ----------
+  function viewSize() { const cv = st.cv; return { w: cv.clientWidth, h: cv.clientHeight }; }
+  function clampCam() { const W = V4.W, v = viewSize(), z = st.cam.z; const mw = W.w * TS * z, mh = W.h * TS * z; st.cam.x = mw <= v.w ? (mw - v.w) / 2 / z : clamp(st.cam.x, 0, (mw - v.w) / z); st.cam.y = mh <= v.h ? (mh - v.h) / 2 / z : clamp(st.cam.y, -TS / 3, (mh - v.h) / z); }
+  function draw() {
+    const cv = st.cv; if (!cv || !V4.W) return; const W = V4.W; const dpr = window.devicePixelRatio || 1; const v = viewSize();
+    if (cv.width !== Math.round(v.w * dpr) || cv.height !== Math.round(v.h * dpr)) { cv.width = Math.round(v.w * dpr); cv.height = Math.round(v.h * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#1a1f12'; g.fillRect(0, 0, cv.width, cv.height);
+    clampCam(); const z = st.cam.z * dpr; g.setTransform(z, 0, 0, z, -st.cam.x * z, -st.cam.y * z); g.imageSmoothingEnabled = false;
+    g.drawImage(bakeMap(), 0, 0);
+    // 이동·공격 범위
+    if (st.reach) { g.fillStyle = 'rgba(70,140,255,.38)'; st.reach.forEach(c => g.fillRect(c.x * TS + 1, c.y * TS + 1, TS - 2, TS - 2)); }
+    if (st.atk) { g.fillStyle = 'rgba(255,70,60,.30)'; st.atk.forEach(c => g.fillRect(c.x * TS + 1, c.y * TS + 1, TS - 2, TS - 2)); }
+    // 성문·성벽 내구
+    for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { const c = W.map[y][x]; if ((c.t === 'T') && c.max && c.hp < c.max) { g.fillStyle = '#1d1611'; g.fillRect(x * TS + 6, y * TS + 2, TS - 12, 5); g.fillStyle = '#d8b04a'; g.fillRect(x * TS + 7, y * TS + 3, (TS - 14) * c.hp / c.max, 3); } }
+    // 부대: 위 줄부터 (아래 줄이 위를 가림)
+    W.units.filter(u => u.alive).sort((a, b) => a.y - b.y).forEach(u => {
+      const px = u.x * TS, py = u.y * TS; const sel = st.sel === u.id;
+      g.fillStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.ellipse(px + TS / 2, py + TS - 5, 15, 5, 0, 0, Math.PI * 2); g.fill();
+      if (sel) { g.strokeStyle = '#ffe680'; g.lineWidth = 2; g.strokeRect(px + 2, py + 2, TS - 4, TS - 4); }
+      const im = unitCan(u); const sw = PX.W * 1.5, sh = PX.H * 1.5; const done = u.acted && W.phase === u.side;
+      if (done) g.filter = 'grayscale(1) brightness(.75)';
+      g.drawImage(im, px + (TS - sw) / 2, py + TS - sh - 2, sw, sh); g.filter = 'none';
+      // 총대장 깃발
+      if (W.hq[u.side === 'D' ? 'D' : 'A'] === u.id) { g.fillStyle = '#5a3d22'; g.fillRect(px + TS - 9, py - 6, 2, 18); g.fillStyle = u.side === 'D' ? '#c8443a' : '#3f74c9'; g.fillRect(px + TS - 7, py - 6, 8, 6); g.fillStyle = '#ffd84a'; g.fillRect(px + TS - 5, py - 4, 2, 2); }
+      // 상태이상 점
+      const fx = Object.keys(u.fx || {}); if (fx.length) { g.fillStyle = '#b07ae8'; g.fillRect(px + 3, py + 3, 6, 6); }
+    });
+    drawMini(); st.dirty = false;
+  }
+  function drawMini() {
+    const mc = st.mini; if (!mc) return; const W = V4.W; const s = 4; if (mc.width !== W.w * s) { mc.width = W.w * s; mc.height = W.h * s; }
+    const g = mc.getContext('2d'); const COL = { P: '#6aa64c', G: '#86b85a', D: '#b89a68', S: '#e6ecf0', W: '#5f7f4a', F: '#2f5f2a', H: '#8db864', M: '#8c8474', R: '#3a78b8', X: '#6aa0c8', B: '#a07a48', V: '#c46450', C: '#d8d0b8', I: '#b0a890', K: '#a03020', L: '#5a564f', T: '#6b4626', O: '#3a2a1e' };
+    W.map.forEach((r, y) => r.forEach((c, x) => { g.fillStyle = COL[c.t] || '#6aa64c'; g.fillRect(x * s, y * s, s, s); }));
+    W.units.filter(u => u.alive).forEach(u => { g.fillStyle = u.side === 'D' ? '#ff4a3a' : u.side === 'R' ? '#ffd84a' : '#4ab0ff'; g.fillRect(u.x * s, u.y * s, s, s); });
+    const v = viewSize(), z = st.cam.z; g.strokeStyle = '#fff'; g.lineWidth = 1; g.strokeRect(st.cam.x / TS * s + .5, st.cam.y / TS * s + .5, v.w / z / TS * s, v.h / z / TS * s);
+  }
+  function loop() { st.raf = 0; if (!st.cv || !document.body.contains(st.cv)) return; if (st.anim) stepAnim(); if (st.dirty || st.anim) draw(); st.raf = requestAnimationFrame(loop); }
+  function kick() { st.dirty = true; if (!st.raf) st.raf = requestAnimationFrame(loop); }
+  // ---------- 카메라 ----------
+  function focus(x, y, smooth) { const v = viewSize(), z = st.cam.z; const tx = (x + .5) * TS - v.w / z / 2, ty = (y + .5) * TS - v.h / z / 2; if (!smooth) { st.cam.x = tx; st.cam.y = ty; kick(); return; } st.anim = { fx: st.cam.x, fy: st.cam.y, tx, ty, t0: performance.now(), dur: 380 }; kick(); }
+  function stepAnim() { const a = st.anim, k = Math.min(1, (performance.now() - a.t0) / a.dur), e = 1 - Math.pow(1 - k, 3); st.cam.x = a.fx + (a.tx - a.fx) * e; st.cam.y = a.fy + (a.ty - a.fy) * e; if (k >= 1) st.anim = null; }
+  function zoomAt(nz, sx, sy) { nz = clamp(nz, 0.6, 1.6); const z = st.cam.z; const wx = st.cam.x + sx / z, wy = st.cam.y + sy / z; st.cam.z = nz; st.cam.x = wx - sx / nz; st.cam.y = wy - sy / nz; kick(); }
+  // ---------- 입력: 끌기 = 스크롤, 짧게 누르기 = 칸 선택, 두 손가락 = 확대 ----------
+  function bind() {
+    const cv = st.cv; const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); st.ptrs[e.pointerId] = pos(e); const ids = Object.keys(st.ptrs); if (ids.length === 1) st.drag = { ...pos(e), cx: st.cam.x, cy: st.cam.y, moved: false }; else if (ids.length === 2) { const [a, b] = ids.map(i => st.ptrs[i]); st.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: st.cam.z }; st.drag = null; } });
+    cv.addEventListener('pointermove', e => { if (!st.ptrs[e.pointerId]) return; st.ptrs[e.pointerId] = pos(e); const ids = Object.keys(st.ptrs);
+      if (ids.length === 2 && st.pinch) { const [a, b] = ids.map(i => st.ptrs[i]); const d = Math.hypot(a.x - b.x, a.y - b.y); zoomAt(st.pinch.z * d / st.pinch.d, (a.x + b.x) / 2, (a.y + b.y) / 2); return; }
+      const d = st.drag; if (!d) return; const p = pos(e); if (Math.abs(p.x - d.x) + Math.abs(p.y - d.y) > 8) d.moved = true; if (d.moved) { st.cam.x = d.cx - (p.x - d.x) / st.cam.z; st.cam.y = d.cy - (p.y - d.y) / st.cam.z; st.anim = null; kick(); } });
+    const up = e => { const d = st.drag; const wasTap = d && !d.moved && Object.keys(st.ptrs).length === 1; delete st.ptrs[e.pointerId]; if (Object.keys(st.ptrs).length < 2) st.pinch = null; if (!Object.keys(st.ptrs).length) st.drag = null;
+      if (wasTap) { const p = pos(e); const x = Math.floor((st.cam.x + p.x / st.cam.z) / TS), y = Math.floor((st.cam.y + p.y / st.cam.z) / TS); if (V4.at(x, y)) tap(x, y); } };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('wheel', e => { e.preventDefault(); const p = pos(e); zoomAt(st.cam.z * (e.deltaY < 0 ? 1.1 : 1 / 1.1), p.x, p.y); }, { passive: false });
+    const mc = st.mini; const miniGo = e => { const r = mc.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * V4.W.w, y = (e.clientY - r.top) / r.height * V4.W.h; focus(x - .5, y - .5, false); };
+    mc.addEventListener('pointerdown', e => { e.stopPropagation(); mc.setPointerCapture(e.pointerId); st.miniDrag = true; miniGo(e); });
+    mc.addEventListener('pointermove', e => { if (st.miniDrag) miniGo(e); }); mc.addEventListener('pointerup', () => { st.miniDrag = false; });
+    window.addEventListener('resize', kick);
+  }
+  // ---------- 칸 누르기 (3단계에서 명령 흐름으로 확장) ----------
+  function tap(x, y) {
+    const u = V4.unitAt(x, y); st.reach = st.atk = null;
+    if (u) { st.sel = u.id; const rs = V4.reach(u); st.reach = rs; const a = {}; rs.forEach(c => { for (let yy = c.y - 4; yy <= c.y + 4; yy++) for (let xx = c.x - 4; xx <= c.x + 4; xx++) { if (!V4.at(xx, yy) || rs.some(q => q.x === xx && q.y === yy)) continue; const ox = u.x, oy = u.y; if (V4.inRange && isHit(u, xx, yy, c.x, c.y)) a[xx + ',' + yy] = { x: xx, y: yy }; } }); st.atk = Object.values(a); }
+    else st.sel = null;
+    st.info = u ? u.id : null; panel(); kick();
+  }
+  function isHit(u, tx, ty, fx, fy) { const s = V4.CLS[u.cls].rg[u.tier]; return V4.inRange(s, tx - fx, ty - fy); }
+  // ---------- 화면 ----------
+  function top() { const W = V4.W; const sum = s => W.units.filter(u => u.alive && (s === 'D' ? u.side === 'D' : u.side !== 'D')).reduce((a, u) => a + u.troops, 0); const me = W.playerSide === 'D' ? 'D' : 'A';
+    const ph = { A: '공격측', D: '수비측', R: '우군' }[W.phase] + ' 차례';
+    return `<span class="v4t">제 ${W.turn}턴<small>/${W.limit}</small></span><span>${W.weather}</span><span>${ph}</span><span class="v4me">아군 ${fmt(sum(me))}</span><span class="v4en">적 ${fmt(sum(me === 'D' ? 'A' : 'D'))}</span>`; }
+  function panelHTML() {
+    const W = V4.W; const u = st.info != null && W.units.find(x => x.id === st.info);
+    if (!u) return `<div class="v4dim">부대를 누르면 정보가 나옵니다. 끌어서 지도를 움직이고, 두 손가락(또는 휠)으로 확대합니다. 오른쪽 위 작은 지도를 눌러도 이동합니다.</div>`;
+    const s = V4.stats(u); const n = (k, l) => `<span>${l} <b>${s[k]}</b>${s[k] !== s.base[k] ? `<i class="${s[k] > s.base[k] ? 'up' : 'dn'}">${s[k] > s.base[k] ? '+' : ''}${s[k] - s.base[k]}</i>` : ''}</span>`;
+    const deps = [['부장', u.vg], ['참모', u.st], ['종군', u.jg]].filter(x => x[1]).map(x => `${x[0]} ${x[1]}`).join(' · ');
+    return `<div class="v4u">${u.gen ? face(u.gen, 44) : ''}<div class="v4ub"><b>${u.gen || '수비대'}</b> <small>${V4.clsName(u)} · ${u.side === 'D' ? '수비' : u.side === 'R' ? '우군' : '공격'}${W.hq[u.side === 'D' ? 'D' : 'A'] === u.id ? ' · 총대장' : ''}</small>
+      <div class="v4bars"><span>병력 ${fmt(u.troops)}/${fmt(u.max)}${u.wd ? ` <small>(부상 ${fmt(u.wd)})</small>` : ''}</span>${barH(u.troops / u.max * 100, '#e05a4a', 6)}<span>MP ${u.mp}/${u.mpMax} · 사기 ${u.mor}</span>${barH(u.mp / u.mpMax * 100, '#4ab0ff', 6)}</div></div></div>
+      <div class="v4st">${n('A', '공격')}${n('D', '방어')}${n('I', '정신')}${n('E', '순발')}${n('M', '사기')}</div>${deps ? `<div class="v4dep">${deps}</div>` : ''}`;
+  }
+  function panel() { const el = document.getElementById('v4panel'); if (el) el.innerHTML = fixJosa(panelHTML()); const t = document.getElementById('v4top'); if (t) t.innerHTML = top(); }
+  function view() {
+    return `<div class="scr v4"><div class="v4top" id="v4top">${top()}</div><div class="v4view"><canvas id="v4c"></canvas><canvas id="v4mini"></canvas></div><div class="v4panel" id="v4panel">${panelHTML()}</div>
+      <div class="v4bar">${btn('AI 한 차례', 'v4Step', '', { p: 1 })}${btn('맵 새로', 'v4New', '')}${btn('지형', 'v4Terr', '')}${btn('나가기', 'v4Quit', '', { s: 1 })}</div></div>`;
+  }
+  function mount() { const cv = document.getElementById('v4c'); if (!cv || cv === st.cv) return; st.cv = cv; st.mini = document.getElementById('v4mini'); bind(); const me = V4.W.units.find(u => u.id === V4.W.hq[V4.W.playerSide === 'D' ? 'D' : 'A']); requestAnimationFrame(() => { if (me) focus(me.x, me.y - 2, false); kick(); }); }
+  // 서 있는 동작 (숨쉬기)
+  setInterval(() => { if (st.cv && document.body.contains(st.cv)) { st.tick++; kick(); } }, 520);
+  return { st, view, mount, draw, kick, focus, panel, tap, TS };
+})();
+// 화면 연결: UI.scr === 'v4'
+{ const f = render; render = function () { if (UI.scr !== 'v4') return f.apply(this, arguments); const a = $('#app'); if (!document.getElementById('v4c')) { a.innerHTML = fixJosa(V4UI.view()); } V4UI.mount(); V4UI.panel(); V4UI.kick(); renderSheet(); }; }
+const V4T = { terr: ['평지', '산악', '강변', '나루', '관문', '남만'], i: 0, siege: true };
+function v4TestOpen() {
+  if (!S) return toast('게임을 먼저 시작하세요.', false);
+  const from = capitalOf(S.player) || citiesOf(S.player)[0].n; const to = ADJ[from].find(n => C(n).owner && C(n).owner !== S.player) || ADJ[from][0];
+  const us = autoUnits(gensIn(from, S.player), Math.max(6000, Math.min(20000, C(from).troops)), 5);
+  const tc = C(to), saveT = tc.terr; tc.terr = V4T.terr[V4T.i];
+  const dg = tc.owner ? gensIn(to, tc.owner) : []; const du = dg.length ? autoUnits(dg, Math.max(6000, tc.troops), 5) : null;
+  V4.start(S.player, from, to, us, 4000, 'A', V4T.siege ? '농성' : '야전', { dUnits: du || undefined, defTroops: Math.max(6000, tc.troops) });
+  tc.terr = saveT; V4UI.st.sel = V4UI.st.info = null; V4UI.st.reach = V4UI.st.atk = null; V4UI.st.cv = null; UI.v4back = UI.scr === 'v4' ? UI.v4back : UI.scr; UI.scr = 'v4'; closeAll(); $('#app').innerHTML = ''; render();
+}
+ACT.v4Test = () => v4TestOpen();
+ACT.v4New = () => v4TestOpen();
+ACT.v4Terr = () => openSheet('시험 전장', () => `<div class="col">${V4T.terr.map((t, i) => btn((i === V4T.i ? '● ' : '') + t, 'v4TerrSet', i)).join('')}${btn(V4T.siege ? '● 공성전 (누르면 야전)' : '● 야전 (누르면 공성전)', 'v4Siege', '')}</div>`);
+ACT.v4TerrSet = v => { V4T.i = +v; closeAll(); v4TestOpen(); };
+ACT.v4Siege = () => { V4T.siege = !V4T.siege; closeAll(); v4TestOpen(); };
+ACT.v4Quit = () => { UI.scr = UI.v4back || 'main'; V4UI.st.cv = null; render(); };
+// AI 한 차례: 지금 차례 쪽을 AI로 움직이고 다음 차례로. 마지막으로 움직인 부대로 카메라 이동
+ACT.v4Step = () => { const W = V4.W; if (!W || W.over) { toast(W && W.over ? `전투 끝: ${W.over === 'A' ? '공격측' : '수비측'} 승리 (${W.why})` : '전투가 없습니다.'); return; }
+  const ev0 = W.ev.length; V4.runPhaseAI(W.phase); const mv = W.ev.slice(ev0).filter(e => e.t === 'move' || e.t === 'hit').pop(); if (!W.over) V4.endPhase();
+  const u = mv && W.units.find(x => x.id === (mv.id || mv.a)); if (u) V4UI.focus(u.x, u.y, true); V4UI.panel(); V4UI.kick(); if (W.over) toast(`전투 끝: ${W.over === 'A' ? '공격측' : '수비측'} 승리 (${W.why})`); };
+// 메뉴에 시험 단추
+{ const f = ACT.sys; ACT.sys = function () { f.apply(this, arguments); const top = UI.sheets[UI.sheets.length - 1]; if (top && typeof top.body === 'function') { const b0 = top.body; top.body = () => b0() + `<div class="col" style="margin-top:8px">${btn('새 전투 시험 (조조전식 v4 · 작업판)', 'v4Test', '', { s: 1 })}</div>`; renderSheet(); } }; }
 </script>
 </body>
 </html>
