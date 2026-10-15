@@ -19,6 +19,11 @@ const SCN = {
   go: async (w) => { const t = await near(w); if (!t) return; w.ACT.v4cAtk(); await sl(200); w.V4UI.tap(t.x, t.y); await sl(200); w.ACT.v4cGo(); },
   enemy: async (w) => { const t = await near(w); if (!t) return; w.ACT.v4cWait(); w.V4.W.units.forEach(u => { if (u.side === 'A') u.acted = true; }); w.V4UI.endTurn(); },
   spell: async (w) => { const t = await near(w, true); if (!t) return; w.ACT.v4cSp(); },
+  // 책략을 실제로 씀 (효과음 시험): 쓸 수 있는 첫 책략을 골라 사거리 안의 적(없으면 첫 칸)에 건다
+  cast: async (w) => { const t = await near(w, true); if (!t) return; const V4 = w.V4, ui = w.V4UI.ui; const u = V4.W.units.find(x => x.id === ui.sel); if (!u) return; w.ACT.v4cSp(); await sl(150);
+    const sp = V4.spellsOf(u).find(s => s.ok); if (!sp) return; w.ACT.v4cSpPick(sp.id); await sl(150);
+    if (ui.mode === 'spellT') { const cells = ui.gold || []; const c = cells.find(c => V4.unitAt(c.x, c.y) && V4.canCast(u, sp.id, c.x, c.y)) || cells.find(c => V4.canCast(u, sp.id, c.x, c.y)); if (!c) return; w.V4UI.tap(c.x, c.y); await sl(150); }
+    w.ACT.v4cCast(); await sl(2500); },
   duel: async (w) => { const t = await near(w); if (!t) return; if (w.V4.duelTargets(w.V4UI.ui.sel != null ? w.V4.W.units.find(u => u.id === w.V4UI.ui.sel) : null).length) w.ACT.v4cDuel(); },
   // 7단계 작전 회의: council = 회의 창 그대로 / plan = ?plan=야습 등을 골라 적용한 뒤 (개전 연출이 끝난) 첫 차례 화면. ?w=맑음 으로 날씨를 고정할 수 있다
   council: async () => { },
@@ -55,6 +60,14 @@ function status(g) {
     plan: V4.W && V4.W.plan, limit: V4.W && V4.W.limit, siege: V4.W && V4.W.siege, weather: V4.W && V4.W.weather, night: V4.W && V4.W.night, burn: V4.W && V4.W.units.filter(u => u.sts.burn).map(u => u.gen), ambush: V4.W && V4.W.units.filter(u => u.ambush).map(u => u.gen), log: V4.W && V4.W.log.filter(l => /작전/.test(l)) })`);
   document.body.insertAdjacentHTML('beforeend', `<pre id="st" style="position:fixed;left:0;bottom:0;z-index:9;margin:0;padding:2px 4px;color:#9f9;background:rgba(0,0,0,.7);font:10px monospace">${s}</pre>`);
 }
+// 효과음 기록(window.__sfxLog: JSND 가 남김)을 장면·파일·결과별로 세어 보여 준다 (id="sfx", --dump-dom 으로 읽음)
+// 결과: play=틀었음 queued=풀어서 트는 중 html=HTMLAudio 로 틀었음 noctx=소리 장치 없음 off=효과음 꺼짐 skip4=4배속이라 건너뜀 gap=너무 잦아 건너뜀 nomap=대응표 없음 notv4=전투 화면 아님
+function sfxStatus(g) {
+  let log = [], bgm = {}; try { log = JSON.parse(g.eval('JSON.stringify(window.__sfxLog || [])')); bgm = JSON.parse(g.eval('JSON.stringify({ key: typeof JSND !== "undefined" ? JSND.bgmKey : null, hold: typeof JSND !== "undefined" && JSND.bgmHold, has: typeof JOJO_BGM !== "undefined" ? Object.keys(JOJO_BGM) : [], sfxClips: typeof JOJO_SFX !== "undefined" ? Object.keys(JOJO_SFX.clips).length : 0, ctx: !!(SND && SND.ctx), state: SND && SND.ctx ? SND.ctx.state : "", scene: SND && SND.scene, bgmOn: BGM.on, sfxOn: SND.sfxOn, speed: V4UI.ui.speed })')); } catch (e) { log = [{ s: 'err', r: String(e) }]; }
+  const cnt = {}; log.forEach(e => { const k = e.bgm ? `bgm:${e.bgm}` : `${e.s}${e.loop ? '(loop)' : ''}`; const kk = `${k} ${e.c || ''} ${e.r || ''}`; cnt[kk] = (cnt[kk] || 0) + 1; });
+  const s = JSON.stringify(bgm) + '\n' + Object.entries(cnt).map(([k, n]) => `${k} x${n}`).join('\n');
+  document.body.insertAdjacentHTML('beforeend', `<pre id="sfx" style="position:fixed;right:0;top:0;z-index:9;margin:0;padding:2px 4px;color:#ff9;background:rgba(0,0,0,.7);font:10px monospace;max-height:100%;overflow:auto">${s}</pre>`);
+}
 document.getElementById('g').addEventListener('load', () => setTimeout(async () => {
   const g = document.getElementById('g').contentWindow;
   const scene = Q.get('s') || 'sel';
@@ -68,11 +81,17 @@ document.getElementById('g').addEventListener('load', () => setTimeout(async () 
     else g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; V4T.siege = ${Q.get('siege') === '1'}; V4T.i = ${+(Q.get('terr') || 0)}; v4TestOpen();`);
     // V4·V4UI·ACT는 const라 창 속성이 아님 → eval로 꺼냄
     const w = { V4: g.eval('V4'), V4UI: g.eval('V4UI'), ACT: g.eval('ACT') };
+    // 효과음·BGM 시험: ?audio=1 이면 소리 장치를 미리 만들고(헤드리스는 --autoplay-policy=no-user-gesture-required 와 함께), ?spd=4 는 4배속, ?mute=1 은 효과음 끔, ?bgmoff=1 은 배경음악 끔
+    if (Q.get('audio')) g.eval('try { sndInit(); } catch (e) { }');
+    if (Q.get('spd')) w.V4UI.ui.speed = +Q.get('spd');
+    if (Q.get('mute')) g.eval('SND.sfxOn = false');
+    if (Q.get('bgmoff')) g.eval('BGM.setOn(false)');
     await sl(+(Q.get('wait') || 2200));
     // 7단계: 전투 앞에 작전 회의 창이 뜬다. council·plan 장면이 아니면 정공으로 넘기고 개전 연출을 기다린다
     if (scene !== 'council' && scene !== 'plan' && await pickPlan(w, g, '정공')) await sl(1800);
     const f = REAL[scene] || SCN[scene]; if (f) await f(w, g);
     if (REAL[scene] || scene === 'council' || scene === 'plan') status(g);
+    if (Q.get('sfx') || ['go', 'enemy', 'spell', 'duel', 'realover', 'realret'].includes(scene)) { await sl(+(Q.get('sfxwait') || 1500)); sfxStatus(g); }
   } catch (e) { document.body.insertAdjacentHTML('afterbegin', `<pre style="position:fixed;z-index:9;color:#f55;background:#000;white-space:pre-wrap">${e.stack}</pre>`); }
 }, 200));
 </script>
