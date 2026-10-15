@@ -20,7 +20,15 @@ const SCN = {
   enemy: async (w) => { const t = await near(w); if (!t) return; w.ACT.v4cWait(); w.V4.W.units.forEach(u => { if (u.side === 'A') u.acted = true; }); w.V4UI.endTurn(); },
   spell: async (w) => { const t = await near(w, true); if (!t) return; w.ACT.v4cSp(); },
   duel: async (w) => { const t = await near(w); if (!t) return; if (w.V4.duelTargets(w.V4UI.ui.sel != null ? w.V4.W.units.find(u => u.id === w.V4UI.ui.sel) : null).length) w.ACT.v4cDuel(); },
+  // 7단계 작전 회의: council = 회의 창 그대로 / plan = ?plan=야습 등을 골라 적용한 뒤 (개전 연출이 끝난) 첫 차례 화면. ?w=맑음 으로 날씨를 고정할 수 있다
+  council: async () => { },
+  // ?freeze=1: 화공 불길이 뜨는 순간을 잡는다 (불 효과가 보이면 효과 시간을 늘리고 연출 속도를 거의 멈춤)
+  plan: async (w, g) => { const ui = w.V4UI.ui; const p = pickPlan(w, g, Q.get('plan') || '정공');
+    if (Q.get('freeze')) { for (let i = 0; i < 200; i++) { await sl(50); if (ui.fxs.some(f => f.kind === 'fire')) { ui.fxs.forEach(f => f.dur = 1e7); ui.speed = 0.001; w.V4UI.kick(); break; } } }
+    await p; await sl(+(Q.get('after') || 3500)); },
 };
+// 작전 회의 창이 떠 있으면 작전을 고른다 (다른 장면은 정공으로 넘어감)
+async function pickPlan(w, g, id) { const d = document.getElementById('g').contentDocument; if (!d.getElementById('v4plan')) return false; w.ACT.v4Plan(id); await sl(300); return true; }
 // 핵심만 몇 턴 돌려 양쪽을 붙이고, 칠 수 있는 아군을 그 칸으로 움직임
 async function near(w, wantSpell) {
   const V4 = w.V4, W = V4.W;
@@ -43,21 +51,28 @@ const REAL = {
 };
 // 확인용 상태 표시(화면 왼쪽 아래 작은 글씨, --dump-dom으로도 읽힘)
 function status(g) {
-  const s = g.eval(`JSON.stringify({ scr: UI.scr, owner: C('진류').owner, jinTroops: C('진류').troops, choTroops: C('초').troops, Bnull: typeof B === 'undefined' || B === null, over: V4.W && V4.W.over, why: V4.W && V4.W.why, sheet: UI.sheets.length ? UI.sheets[UI.sheets.length - 1].title : null, real: V4UI.ui.real, mode: V4UI.ui.mode })`);
+  const s = g.eval(`JSON.stringify({ scr: UI.scr, owner: C('진류').owner, jinTroops: C('진류').troops, choTroops: C('초').troops, Bnull: typeof B === 'undefined' || B === null, over: V4.W && V4.W.over, why: V4.W && V4.W.why, sheet: UI.sheets.length ? UI.sheets[UI.sheets.length - 1].title : null, real: V4UI.ui.real, mode: V4UI.ui.mode,
+    plan: V4.W && V4.W.plan, limit: V4.W && V4.W.limit, siege: V4.W && V4.W.siege, weather: V4.W && V4.W.weather, night: V4.W && V4.W.night, burn: V4.W && V4.W.units.filter(u => u.sts.burn).map(u => u.gen), ambush: V4.W && V4.W.units.filter(u => u.ambush).map(u => u.gen), log: V4.W && V4.W.log.filter(l => /작전/.test(l)) })`);
   document.body.insertAdjacentHTML('beforeend', `<pre id="st" style="position:fixed;left:0;bottom:0;z-index:9;margin:0;padding:2px 4px;color:#9f9;background:rgba(0,0,0,.7);font:10px monospace">${s}</pre>`);
 }
 document.getElementById('g').addEventListener('load', () => setTimeout(async () => {
   const g = document.getElementById('g').contentWindow;
   const scene = Q.get('s') || 'sel';
   try {
-    if (REAL[scene]) g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; UI.city = '초'; const us = autoUnits(gensIn('초', '조조'), 8000, 5); C('초').troops -= 8000; C('초').food -= 2000;
-      startBattle('조조', '초', '진류', us, 2000, 'A', '${Q.get('siege') === '0' ? '야전' : '농성'}'); UI.after = () => { UI.scr = 'main'; render(); }; enterBattle();`);
+    // 날씨 고정(?w=맑음)과 군사 지력(?iq=80): 작전 회의 조건을 시험하기 위해 V4.start 결과를 손본다
+    if (Q.get('w') || Q.get('iq')) g.eval(`{ const s0 = V4.start; V4.start = function () { const W = s0.apply(this, arguments); ${Q.get('w') ? `W.weather = '${Q.get('w')}'; W.wslot = { 맑음: 0, 흐림: 1 }['${Q.get('w')}'] ?? 2;` : ''} ${Q.get('iq') ? `const a = advisorOf(S.player); if (a) a.i = ${+Q.get('iq')};` : ''} return W; }; }`);
+    // ?def=1: 장막이 진류에서 초를 쳐 플레이어(조조)가 수비측이 되는 실제 경로. 작전 회의의 지구전(공성)·매복(야전, ?terr=산악)을 시험한다
+    if (REAL[scene] || Q.get('def')) g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; UI.city = '초'; ${Q.get('terr') && Q.get('def') ? `C('초').terr = '${Q.get('terr')}';` : ''}
+      const us = autoUnits(gensIn(${Q.get('def') ? `'진류', '장막'` : `'초', '조조'`}), 8000, 5); C('${Q.get('def') ? '진류' : '초'}').troops -= 8000; C('${Q.get('def') ? '진류' : '초'}').food -= 2000;
+      startBattle(${Q.get('def') ? `'장막', '진류', '초'` : `'조조', '초', '진류'`}, us, 2000, '${Q.get('def') ? 'D' : 'A'}', '${Q.get('siege') === '0' ? '야전' : '농성'}'); UI.after = () => { UI.scr = 'main'; render(); }; enterBattle();`);
     else g.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 6)}; V4T.siege = ${Q.get('siege') === '1'}; V4T.i = ${+(Q.get('terr') || 0)}; v4TestOpen();`);
     // V4·V4UI·ACT는 const라 창 속성이 아님 → eval로 꺼냄
     const w = { V4: g.eval('V4'), V4UI: g.eval('V4UI'), ACT: g.eval('ACT') };
     await sl(+(Q.get('wait') || 2200));
+    // 7단계: 전투 앞에 작전 회의 창이 뜬다. council·plan 장면이 아니면 정공으로 넘기고 개전 연출을 기다린다
+    if (scene !== 'council' && scene !== 'plan' && await pickPlan(w, g, '정공')) await sl(1800);
     const f = REAL[scene] || SCN[scene]; if (f) await f(w, g);
-    if (REAL[scene]) status(g);
+    if (REAL[scene] || scene === 'council' || scene === 'plan') status(g);
   } catch (e) { document.body.insertAdjacentHTML('afterbegin', `<pre style="position:fixed;z-index:9;color:#f55;background:#000;white-space:pre-wrap">${e.stack}</pre>`); }
 }, 200));
 </script>

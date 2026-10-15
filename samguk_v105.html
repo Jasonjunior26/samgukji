@@ -12114,9 +12114,10 @@ const V4 = (() => {
     if (!kTile()) { const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2; let b = null, bd = 1e9; W.map.forEach((r, y) => r.forEach((c, x) => { if (inCastle(x, y) && 'IECJ'.includes(c.t)) { const d = Math.abs(x - cx) + Math.abs(y - cy); if (d < bd) { bd = d; b = c; } } })); if (b) b.t = 'K'; }
   }
   // 배치 구역: 야전은 긴 쪽 양 끝, 공성은 성에서 가장 먼 가장자리 ↔ 성 안. 서로 길이 이어진 칸만
+  // 가장자리에서 depthMax 줄 안쪽까지의 배치 후보 칸 (작전 회의의 우회에서도 씀)
+  const edgeZone = (edge, depthMax) => { const out = []; for (let d = 0; d < depthMax; d++) { const line = []; if (edge === 'top' || edge === 'bottom') { const y = edge === 'top' ? d : W.h - 1 - d; for (let x = 0; x < W.w; x++) line.push({ x, y, d }); } else { const x = edge === 'left' ? d : W.w - 1 - d; for (let y = 0; y < W.h; y++) line.push({ x, y, d }); } line.forEach(p => { const c = at(p.x, p.y); if (passFoot(c) && c.t !== 'K' && !inCastle(p.x, p.y)) out.push(p); }); } return out; };
+  const mid = (edge, p) => (edge === 'top' || edge === 'bottom') ? Math.abs(p.x - W.w / 2) : Math.abs(p.y - W.h / 2);
   function computeZones() {
-    const edgeZone = (edge, depthMax) => { const out = []; for (let d = 0; d < depthMax; d++) { const line = []; if (edge === 'top' || edge === 'bottom') { const y = edge === 'top' ? d : W.h - 1 - d; for (let x = 0; x < W.w; x++) line.push({ x, y, d }); } else { const x = edge === 'left' ? d : W.w - 1 - d; for (let y = 0; y < W.h; y++) line.push({ x, y, d }); } line.forEach(p => { const c = at(p.x, p.y); if (passFoot(c) && c.t !== 'K' && !inCastle(p.x, p.y)) out.push(p); }); } return out; };
-    const mid = (edge, p) => (edge === 'top' || edge === 'bottom') ? Math.abs(p.x - W.w / 2) : Math.abs(p.y - W.h / 2);
     const opp = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
     let eA, dZone;
     if (W.siege && W.castle) {
@@ -12242,7 +12243,7 @@ const V4 = (() => {
   // 이 게임 공성 규칙: 성 밖에서 쏜 화살은 성벽에 막힘, 성 안 수비는 성벽 덕을 봄
   function siegeMul(a, d) { if (!W.siege || team(d) !== 'D' || !inCastle(d.x, d.y)) return 1; let m = 1 / (1 + (C(W.to).def || 0) / 100 * 0.3); if ([2, 4].includes(famOf(a)) && !inCastle(a.x, a.y)) m *= 0.5; return m; }
   function forecast(a, d) {
-    const p = { hit: hitPct(a, d), dmg: Math.min(d.troops, Math.round(toTroops(dmgJ(a, d, false), a, d) * siegeMul(a, d))), crit: critPct(a, d), dbl: dblPct(a, d) };
+    const p = { hit: a.ambush ? 100 : hitPct(a, d), dmg: Math.min(d.troops, Math.round(toTroops(dmgJ(a, d, false), a, d) * siegeMul(a, d))), crit: a.ambush ? 100 : critPct(a, d), dbl: dblPct(a, d) };
     if (canCounter(d, a)) p.counter = { hit: hitPct(d, a), dmg: Math.min(a.troops, Math.round(toTroops(dmgJ(d, a, true), d, a) * siegeMul(d, a))), crit: critPct(d, a) };
     return p;
   }
@@ -12262,9 +12263,10 @@ const V4 = (() => {
   // 한 번 치기: 명중 → 피해(−2~+4) → 회심 ×1.5 (formulas §3.3·3.4)
   function strike(a, d, counter) {
     const r = { a: a.id, d: d.id, counter: !!counter, hit: false, crit: false, dmg: 0 };
-    if (!chance(hitPct(a, d))) return r;
+    const amb = !!a.ambush && !counter; if (amb) delete a.ambush; // 매복(작전 회의): 숨어 있던 부대의 첫 공격은 반드시 맞고 회심
+    if (!amb && !chance(hitPct(a, d))) return r;
     r.hit = true; let j = dmgJ(a, d, counter); const x = rn(7); j = x <= 2 ? Math.max(j - x, 1) : j + x - 2;
-    if (chance(critPct(a, d))) { r.crit = true; j = Math.floor(j * 3 / 2); }
+    if (amb || chance(critPct(a, d))) { r.crit = true; j = Math.floor(j * 3 / 2); }
     r.dmg = hurt(d, Math.min(d.troops, Math.round(toTroops(j, a, d) * siegeMul(a, d))), a);
     a.xp.w += 1;
     return r;
@@ -12407,14 +12409,16 @@ const V4 = (() => {
   // ---------- 턴 진행 (formulas §5·8) ----------
   function beginPhase(side) {
     W.phase = side; W.ev.push({ t: 'phase', side, turn: W.turn });
+    // 야습(작전 회의): 적의 첫 2차례는 요격만 하고, 그 뒤 원래 AI로 되돌린다
+    if (W.night && W.night.side === side) { if (W.night.left > 0) W.night.left--; else { W.units.forEach(u => { if (u.ai0 != null) { u.ai = u.ai0; delete u.ai0; } }); delete W.night; log('야습의 효과가 끝났다. 적이 움직이기 시작한다'); } }
     W.units.filter(u => u.alive && u.side === side).forEach(u => {
       u.acted = false; u.moved = false; u.ox = null;
       const lk = luck(u); const recov = lk, expire = lk > 50 ? 10 : 60 - lk;
       // 상태 회복: 이웃 8칸에 아군 무희가 있으면 모두, 아니면 운
-      if (Object.keys(u.sts).length) { if (W.units.some(o => o.alive && !foe(o, u) && famOf(o) === 12 && Math.max(Math.abs(o.x - u.x), Math.abs(o.y - u.y)) === 1)) u.sts = {}; else { ['stuck', 'seal', 'poison'].forEach(k => { if (u.sts[k] && chance(recov)) delete u.sts[k]; }); if (u.sts.conf && chance(Math.max(recov - 15, 10))) delete u.sts.conf; } }
+      if (Object.keys(u.sts).length) { if (W.units.some(o => o.alive && !foe(o, u) && famOf(o) === 12 && Math.max(Math.abs(o.x - u.x), Math.abs(o.y - u.y)) === 1)) u.sts = {}; else { ['stuck', 'seal', 'poison', 'burn'].forEach(k => { if (u.sts[k] && chance(recov)) delete u.sts[k]; }); if (u.sts.conf && chance(Math.max(recov - 15, 10))) delete u.sts.conf; } }
       // 버프 단계 되돌아감
       Object.keys(u.buf).forEach(k => { const l = u.buf[k]; if (l >= 5) u.buf[k] = l - 1; else if (l <= 1) u.buf[k] = l + 1; else if (l === 4 && chance(expire)) u.buf[k] = 3; else if (l === 2 && chance(recov)) u.buf[k] = 3; });
-      if (u.sts.poison) { const n = Math.min(u.troops - 1, Math.max(1, Math.round(u.max / 20))); if (n > 0) { hurt(u, n, null); W.ev.push({ t: 'poison', id: u.id, n }); } }
+      if (u.sts.poison || u.sts.burn) { const n = Math.min(u.troops - 1, Math.max(1, Math.round(u.max / 20))); if (n > 0) { hurt(u, n, null); W.ev.push({ t: 'poison', id: u.id, n, burn: !u.sts.poison }); } } // 화상(화공)은 독과 같이 매 차례 병력이 준다
       if (!u.alive) return;
       const c = at(u.x, u.y);
       // 이 게임 규칙: 부상병은 성 안(성내·성)에서만 조금 회복 (최대병력 2%, 군의 3%)
@@ -12540,8 +12544,86 @@ const V4 = (() => {
     log(`${side === 'A' ? '공격측' : '수비측'} 퇴각. 전투 종료: ${W.over === 'A' ? '공격측' : '수비측'} 승리`); W.ev.push({ t: 'over', win: W.over, why: W.why });
     return W.over;
   }
+
+  // ---------- 7단계: 작전 회의 (조조전의 출진 전 선택지) ----------
+  // 플레이어 편만 쓴다. 시험기(simulate)와 AI 편은 부르지 않으므로 아무 효과가 없다.
+  const PLAN = {
+    정공: { n: '정공', d: '정면으로 부딪친다. 특별한 효과는 없다.', cost: '' },
+    야습: { n: '야습', d: '어둠을 타고 다가간다. 첫 2턴 동안 적은 제자리에서 요격만 하고, 적 사기 −10.', cost: '제한 턴 −3' },
+    우회: { n: '우회', d: '산과 숲을 끼고 돌아 옆에서 나타난다. 아군 배치가 측면 가장자리로 바뀐다.', cost: '제한 턴 −4' },
+    화공: { n: '화공', d: '개전과 함께 적 진채에 불을 지른다. 성공하면 적 부대 셋까지가 불길에 휩싸여 병력이 줄고 화상을 입는다.', cost: '실패하면 아군 사기 −5' },
+    유인: { n: '유인', d: '약한 척 물러나 적을 성 밖으로 끌어낸다. 야전이 되어 수비측이 성을 나오고 적 2부대가 돌격해 온다.', cost: '아군 총대장 사기 −10' },
+    지구전: { n: '지구전', d: '성문을 굳게 닫고 버틴다. 성문·성벽 내구 +20%, 적 군량이 빨리 다해 제한 턴 −2.', cost: '' },
+    매복: { n: '매복', d: '아군 2부대를 숲에 숨긴다. 사기 +15, 숨은 부대의 첫 공격은 반드시 맞고 회심.', cost: '' },
+  };
+  const EDGE_KO = { left: '서쪽', right: '동쪽', top: '북쪽', bottom: '남쪽' };
+  const enemiesOf = side => W.units.filter(u => u.alive && (u.side === 'D') !== (side === 'D'));
+  // 군사: 그 편 세력의 군사(advisorOf), 없으면 출진 장수·부장·참모·종군 중 지력이 가장 높은 이
+  function advisor(side) {
+    const fid = side === 'D' ? W.def : W.att; let g = null;
+    try { if (fid && typeof advisorOf === 'function') g = advisorOf(fid); } catch (e) { g = null; }
+    if (!g) { const gs = []; W.units.filter(u => u.alive && u.side === side).forEach(u => ['gen', 'vg', 'st', 'jg'].forEach(k => { if (u[k] && G(u[k])) gs.push(G(u[k])); })); g = gs.sort((a, b) => stat(b, 'i') - stat(a, 'i'))[0] || null; }
+    return g ? { n: g.n, i: stat(g, 'i'), lv: lvOf({ gen: g.n }) } : { n: null, i: 40, lv: 12 };
+  }
+  const hasTerr = chars => W.map.some(r => r.some(c => chars.includes(c.t)));
+  const fireAble = side => W.units.some(u => u.alive && u.side === side && u.gen && (has(u, '화계') || spellsOf(u).some(sp => sp.s.el === 'fire')));
+  // 우회: 공격측 배치 가장자리와 직각인 두 가장자리 중, 수비 배치와 길이 이어지고 부대 수만큼 칸이 있는 쪽 (칸이 더 많은 쪽)
+  function flankZone(side) {
+    const eA = W.zones ? W.zones.edgeA : 'bottom'; const n = W.units.filter(u => u.alive && u.side === side).length || 1;
+    const dStart = W.zones && W.zones.D.length ? W.zones.D.slice(0, 1) : enemiesOf(side).slice(0, 1).map(u => ({ x: u.x, y: u.y }));
+    if (!dStart.length) return []; const conn = flood(dStart, true); const foeAt = p => { const o = unitAt(p.x, p.y); return o && o.side !== side; };
+    let best = [];
+    ((eA === 'top' || eA === 'bottom') ? ['left', 'right'] : ['top', 'bottom']).forEach(e => {
+      let z = []; for (let dep = 3; dep <= 9 && z.length < n; dep += 3) z = edgeZone(e, dep).filter(p => conn.has(p.x + ',' + p.y) && !foeAt(p));
+      if (z.length >= n && z.length > best.length) { z.sort((p, q) => p.d - q.d || mid(e, p) - mid(e, q)); z.edge = e; best = z; }
+    });
+    return best;
+  }
+  // 가까운 빈 숲 칸 (매복)
+  function nearForest(u) { let b = null, bd = 99; for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { const c = W.map[y][x]; if (c.t !== 'F' || unitAt(x, y)) continue; const d = Math.abs(x - u.x) + Math.abs(y - u.y); if (d <= 5 && d < bd) { bd = d; b = { x, y }; } } return b; }
+  // 고를 수 있는 작전 (조건은 설계 §10.2). 정공 + 최대 2안
+  function planOptions(side) {
+    if (!W || W.over || W.plan || !side) return []; const adv = advisor(side); const ids = ['정공'];
+    const fine = W.weather === '맑음' || W.weather === '흐림';
+    if (side !== 'D') {
+      if (W.siege) ids.push('유인');
+      if (W.weather === '맑음' && fireAble(side) && enemiesOf(side).some(t => elOk({ el: 'fire' }, t.x, t.y))) ids.push('화공'); // 불이 붙는 칸에 적이 있어야
+      if (fine && adv.i >= 75) ids.push('야습');
+      if (hasTerr('FMH') && flankZone(side).length) ids.push('우회');
+    } else if (W.siege) ids.push('지구전');
+    else if (hasTerr('F') && W.units.filter(u => u.alive && u.side === side && u.id !== W.hq.D).length) ids.push('매복');
+    return ids.slice(0, 3).map(id => { const o = Object.assign({ id, adv }, PLAN[id]); if (id === '화공') o.d += ` 성공률 ${clamp(adv.i - 20, 5, 95)}% (군사 지력 − 20).`; return o; });
+  }
+  // 고른 작전을 전투 상태에 적용한다. 연출용 사건(plan·fire)은 첫 차례 띠보다 앞에 끼워 넣는다
+  function applyPlan(side, id) {
+    const opts = planOptions(side); const o = opts.find(p => p.id === id) || opts[0]; if (!o) return null;
+    const adv = o.adv, mine = W.units.filter(u => u.alive && u.side === side), en = enemiesOf(side), hq = W.units.find(u => u.id === W.hq[side === 'D' ? 'D' : 'A']);
+    const res = { id: o.id, n: o.n, adv: adv.n, lines: [] }; const say = t => { res.lines.push(t); log(t); };
+    const evs = [{ t: 'plan', side, id: o.id, n: o.n, adv: adv.n }];
+    W.plan = { side, id: o.id, n: o.n, adv: adv.n };
+    if (o.id === '야습') { W.limit = Math.max(1, W.limit - 3); en.forEach(u => { if (u.ai === 0 || u.ai === 1) { u.ai0 = u.ai; u.ai = 3; } u.mor = clamp(u.mor - 10, 0, 100); }); W.night = { side: side === 'D' ? 'A' : 'D', left: 2 }; say(`작전 야습: 적이 첫 2턴 동안 제자리에서 요격만 한다. 적 사기 −10, 제한 턴 −3 (${W.limit}턴)`); }
+    else if (o.id === '우회') { const z = flankZone(side); W.limit = Math.max(1, W.limit - 4); const dir = { left: 'e', right: 'w', top: 's', bottom: 'n' }[z.edge]; mine.forEach((u, i) => { const p = z[i]; if (p) { u.x = p.x; u.y = p.y; u.dir = dir; } }); if (W.zones) { W.zones.A = z; W.zones.edgeA = z.edge; } say(`작전 우회: 아군이 ${EDGE_KO[z.edge]} 가장자리로 돌아 들어간다. 제한 턴 −4 (${W.limit}턴)`); }
+    else if (o.id === '화공') {
+      const p = clamp(adv.i - 20, 5, 95);
+      if (!chance(p)) { mine.forEach(u => { u.mor = clamp(u.mor - 5, 0, 100); }); res.fire = { ok: false }; say(`작전 화공 실패: 불이 붙지 않았다 (성공률 ${p}%). 아군 사기 −5`); }
+      else {
+        // 군사를 시전자로 삼아 책략(업화)과 같은 식으로 피해를 낸다. 병력 환산은 아군 총대장 기준
+        const s = SPL[1] || { pw: 9 }; const cand = en.filter(t => elOk({ el: 'fire' }, t.x, t.y)).sort(() => rnd() - .5).slice(0, 3); const fr = [];
+        cand.forEach(t => { const d = stats(t); let b = adv.lv + 25; b = adv.i >= d.I ? b + Math.floor((adv.i - d.I) / 3) : Math.max(b - Math.floor((d.I - adv.i) / 3), 0); let j = Math.floor(b * s.pw / 10); const q = rn(7); j = q <= 2 ? Math.max(j - q, 1) : j + q - 2; const dmg = hurt(t, Math.min(t.troops, toTroops(j, hq || mine[0] || t, t)), hq); if (t.alive) t.sts.burn = true; fr.push({ id: t.id, gen: t.gen, x: t.x, y: t.y, dmg }); });
+        res.fire = { ok: true, res: fr }; evs.push({ t: 'fire', res: fr });
+        say(fr.length ? `작전 화공 성공 (성공률 ${p}%): ${fr.map(r => (r.gen || '부대') + ' −' + r.dmg).join(', ')} — 불길에 휩싸여 화상을 입었다` : `작전 화공: 불을 놓았지만 불이 번질 자리에 적이 없었다`);
+      }
+    }
+    else if (o.id === '유인') { W.siege = false; W.mode = '야전'; let k = 0; en.forEach(u => { if (k < 2 && u.id !== W.hq.D) { u.ai = 1; k++; } }); if (!k && en[0]) { en[0].ai = 1; k = 1; } /* 수비 부대가 총대장뿐이면 총대장이 나온다 */ if (hq) hq.mor = clamp(hq.mor - 10, 0, 100); say(`작전 유인: 수비측이 성 밖으로 나온다 (야전으로 바뀜, 본성 점령 없이 총대장 퇴각·전멸로 승부). 적 ${k}부대 돌격, 아군 총대장 사기 −10`); }
+    else if (o.id === '지구전') { W.map.forEach(r => r.forEach(c => { if ((c.t === 'T' || c.t === 'L') && c.max) { c.max = Math.round(c.max * 1.2); c.hp = Math.round(c.hp * 1.2); } })); W.limit = Math.max(1, W.limit - 2); say(`작전 지구전: 성문·성벽 내구 +20%, 적 군량이 빨리 다한다 (제한 ${W.limit}턴)`); }
+    else if (o.id === '매복') { const picks = mine.filter(u => u.id !== W.hq.D).sort((a, b) => stats(b).A - stats(a).A).slice(0, 2); let inF = 0; picks.forEach(u => { u.ambush = true; u.mor = clamp(u.mor + 15, 0, 100); const f = nearForest(u); if (f) { u.x = f.x; u.y = f.y; inF++; } }); say(`작전 매복: ${picks.map(u => u.gen || '부대').join('·')}이(가) ${inF ? '숲에 숨어' : '길목에 엎드려'} 적을 기다린다. 사기 +15, 첫 공격은 반드시 회심`); }
+    else say('작전 정공: 정면으로 부딪친다');
+    const at0 = W.ev.findIndex(e => e.t === 'phase'); W.ev.splice(at0 < 0 ? W.ev.length : at0, 0, ...evs);
+    check(); return res;
+  }
   return { CLS, TN, LT, get JR() { return JR; }, get W() { return W; }, set W(v) { W = v; }, start, stats, retreat, clsName, famOf, reach, pathTo, targets, attackCells, canHit, gateTargets, forecast, attack, hitGate,
-    spellsOf, castRange, areaCells, duelTargets, duel, aiQueue: side => aiOrder(W.units.filter(u => u.alive && u.side === side && !u.acted)), spellTargetsAt, canCast, castPreview, cast, moveTo, undoMove, wait, beginPhase, endPhase, check, aiAct, runPhaseAI, simulate, toLegacy, unitAt, at, inCastle: (x, y) => inCastle(x, y), kTile: () => kTile(), terrMod, moveCost, movePts, get SPL() { return SPL; } };
+    spellsOf, castRange, areaCells, duelTargets, duel, aiQueue: side => aiOrder(W.units.filter(u => u.alive && u.side === side && !u.acted)), spellTargetsAt, canCast, castPreview, cast, moveTo, undoMove, wait, beginPhase, endPhase, check, aiAct, runPhaseAI, simulate, toLegacy, unitAt, at, inCastle: (x, y) => inCastle(x, y), kTile: () => kTile(), terrMod, moveCost, movePts, get SPL() { return SPL; },
+    advisor, planOptions, applyPlan, PLAN };
 })();
 </script>
 <style>
@@ -12569,6 +12651,14 @@ const V4 = (() => {
 .v4cmd{padding:5px 8px;border-top:1px solid rgba(201,162,74,.4);display:grid;gap:5px}.v4cmd.g2{grid-template-columns:1fr 1fr}.v4cmd .dim{color:#aab3c5;font-size:11px;line-height:1.4}
 .v4cmd .b{min-height:36px;padding:4px 6px;font-size:13px}.v4spl{grid-template-columns:1fr 1fr;max-height:150px;overflow:auto}.v4spl .b small{display:block;font-size:10px;color:#aab3c5;font-weight:400}
 .v4sys{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:5px 8px 8px;background:#0f1428}.v4sys .b{min-height:32px;font-size:12px;padding:2px 4px}
+/* 작전 회의 (7단계): 전투 화면 위의 어두운 창 — 군사 초상·대사·작전 단추 2~3개 */
+.v4plan{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;background:rgba(4,6,14,.8)}
+.v4pbox{width:min(600px,94%);max-height:94%;overflow:auto;padding:12px 14px;background:#1a2340;border:2px solid #c9a24a;border-radius:4px;box-shadow:0 0 28px #000}
+.v4ptitle{font-size:11px;letter-spacing:3px;color:#c9a24a;margin-bottom:6px}
+.v4padv{display:flex;gap:12px;align-items:flex-start}.v4padv b{font-size:15px;color:#ffd84a}.v4padv small{display:block;color:#aab3c5;margin-top:1px}.v4padv p{margin:5px 0 0;font-size:13px;line-height:1.5}
+.v4popt{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:10px}
+.v4popt .b{min-height:70px;padding:6px 7px;font-size:13px;text-align:left;align-items:flex-start;justify-content:flex-start;white-space:normal;line-height:1.3}
+.v4popt .b small{display:block;font-size:10.5px;line-height:1.35;color:#c3cadc;font-weight:400;margin-top:3px}.v4popt .b i{font-style:normal;color:#ffb070}.v4popt .b.p small{color:#3a2e10}.v4popt .b.p i{color:#7a3a10}
 </style>
 <script>
 // ===== 전투 v4 (조조전식) 2·3·4단계: 전장 그리기 · 명령 · 연출 (가로 화면) — 16px 도트 타일 ×3(48px) · 끌어서 스크롤 · 두 손가락 확대 · 전체 지도 · 카메라 따라가기 =====
@@ -12691,7 +12781,7 @@ const V4UI = (() => {
   }
   // ---------- 화면 상태 ----------
   // mode: idle 대기 · move 이동 칸 고르기 · act 행동 메뉴 · target 공격 대상 · spells 책략 목록 · spellT 책략 대상 · confirm 예상 확인 · enemy 적 정보
-  const ui = { mode: 'idle', sel: null, info: null, reach: null, red: null, gold: null, area: null, fore: null, spell: null, tgt: null, busy: false, speed: 1, banner: null, pops: [], anim: {}, fxs: [], show: {}, eng: null, evi: 0, msg: null, done: null };
+  const ui = { mode: 'idle', sel: null, info: null, reach: null, red: null, gold: null, area: null, fore: null, spell: null, tgt: null, busy: false, speed: 1, banner: null, pops: [], anim: {}, fxs: [], show: {}, eng: null, evi: 0, msg: null, done: null, planRes: null };
   const sleep = ms => new Promise(r => setTimeout(r, ms / ui.speed));
   const me = () => (V4.W && V4.W.playerSide) || 'A';
   const mine = u => u && u.side === me();
@@ -12731,7 +12821,7 @@ const V4UI = (() => {
       // 병력 막대 (조조전 HP 막대 대신 칸 아래 얇게)
       const show = ui.show[u.id] ?? u.troops; g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(px + 6, py + TS - 5, TS - 12, 4); g.fillStyle = mine(u) ? '#ff6a50' : u.side === 'R' ? '#ffd84a' : '#5aa8ff'; g.fillRect(px + 7, py + TS - 4, (TS - 14) * clamp(show / u.max, 0, 1), 2);
       // 상태 표시
-      const tags = []; if (u.sts.conf) tags.push(['혼', '#b07ae8']); if (u.sts.stuck) tags.push(['부', '#8a6a3a']); if (u.sts.seal) tags.push(['금', '#4a7ad8']); if (u.sts.poison) tags.push(['독', '#4aa84a']);
+      const tags = []; if (u.sts.conf) tags.push(['혼', '#b07ae8']); if (u.sts.stuck) tags.push(['부', '#8a6a3a']); if (u.sts.seal) tags.push(['금', '#4a7ad8']); if (u.sts.poison) tags.push(['독', '#4aa84a']); if (u.sts.burn) tags.push(['화', '#e8602a']); if (u.ambush) tags.push(['복', '#2f7a3a']);
       ['A', 'D', 'I', 'E', 'M', 'V'].forEach(k => { if (u.buf[k] >= 4) tags.push(['↑', '#3aa85a']); else if (u.buf[k] <= 2) tags.push(['↓', '#d84a3a']); });
       tags.slice(0, 3).forEach(([t, c], i) => { g.fillStyle = c; g.fillRect(px + 2 + i * 11, py + 2, 10, 10); g.fillStyle = '#fff'; g.font = 'bold 9px sans-serif'; g.fillText(t, px + 3 + i * 11, py + 10); });
       g.globalAlpha = 1;
@@ -12836,13 +12926,15 @@ const V4UI = (() => {
     const W = V4.W; const evs = W.ev.slice(ui.evi); ui.evi = W.ev.length; const routs = evs.filter(e => e.t === 'rout'); const done = new Set();
     for (const e of evs) {
       if (e.t === 'phase') await banner(`제 ${e.turn}턴 · ${e.side === me() ? '아군' : e.side === 'R' ? '우군' : '적군'} 차례`, e.side === me() ? '#ff7a5a' : e.side === 'R' ? '#ffd84a' : '#6ab0ff');
+      else if (e.t === 'plan') { ui.msg = { face: e.adv, text: `작전은 ${e.n}이다!` }; await banner(`작전 · ${e.n}`, '#ffd84a'); ui.msg = null; panel(); }
+      else if (e.t === 'fire') { await animFire(e); for (const r of routs) if (!done.has(r) && e.res.some(q => q.id === r.id)) { done.add(r); await animRout(r); } }
       else if (e.t === 'move') await animMove(e);
       else if (e.t === 'atk') { await animAttack(e); for (const r of routs) if (!done.has(r) && (r.id === e.a || r.id === e.d)) { done.add(r); await animRout(r); } }
       else if (e.t === 'spell') { await animSpell(e); for (const r of routs) if (!done.has(r) && e.res.some(q => q.id === r.id)) { done.add(r); await animRout(r); } }
       else if (e.t === 'gate') await animGate(e);
       else if (e.t === 'duel') { await animDuel(e); for (const r of routs) if (!done.has(r)) { done.add(r); await animRout(r); } }
       else if (e.t === 'heal') { const u = U(e.id); if (u) pop(u.x, u.y, '+' + fmt(e.n), '#7fe08a'); }
-      else if (e.t === 'poison') { const u = U(e.id); if (u) pop(u.x, u.y, '독 −' + fmt(e.n), '#9ad86a'); }
+      else if (e.t === 'poison') { const u = U(e.id); if (u) pop(u.x, u.y, (e.burn ? '화상 −' : '독 −') + fmt(e.n), e.burn ? '#ff9a4a' : '#9ad86a'); }
     }
     for (const r of routs) if (!done.has(r)) { done.add(r); await animRout(r); }
     ui.show = {}; panel(); kick();
@@ -12887,6 +12979,13 @@ const V4UI = (() => {
     if (s.ty === 23) pop(a.x, a.y, '날씨 ' + V4.W.weather, '#bfe0ff', true);
     kick(); await sleep(600); e.res.forEach(r => delete ui.anim[r.id]); delete ui.anim[a.id]; ui.msg = null; kick();
   }
+  // 화공(작전 회의): 개전과 함께 적 부대 둘레에 불길, 피해 숫자
+  async function animFire(e) {
+    const W = V4.W; ui.msg = { face: W.plan && W.plan.adv, text: '불을 질러라!' }; panel();
+    for (const r of e.res) { follow(r.x, r.y); [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { if (V4.at(r.x + dx, r.y + dy)) ui.fxs.push({ kind: 'fire', x: r.x + dx, y: r.y + dy, t0: performance.now(), dur: 1000 / ui.speed }); }); kick(); await sleep(350);
+      ui.anim[r.id] = { pose: { kind: 'spc', f: 3 }, shake: 1 }; pop(r.x, r.y, '−' + fmt(r.dmg), '#ff5a4a'); pop(r.x, r.y - .5, '화상', '#ff9a4a'); kick(); await sleep(650); delete ui.anim[r.id]; }
+    ui.msg = null; panel(); kick();
+  }
   async function animRout(r) { const u = U(r.id); if (!u) return; follow(u.x, u.y); ui.msg = { face: u.gen, text: routLine(u, r.fled) }; panel(); for (let i = 0; i < 6; i++) { ui.anim[u.id] = { alpha: i % 2 ? .25 : 1, pose: { kind: 'spc', f: 3 } }; kick(); await sleep(110); } ui.anim[u.id] = { alpha: 0 }; kick(); await sleep(500); delete ui.anim[u.id]; ui.msg = null; panel(); kick(); }
   async function animDuel(e) { const a = U(e.a), d = U(e.d); if (!a || !d) return; follow(d.x, d.y); const box = document.getElementById('v4duel'); if (box) { box.className = 'v4duel on'; box.innerHTML = duelHTML(e, -1); }
     for (let i = 0; i < e.rounds.length; i++) { const r = e.rounds[i]; const att = r.by === 'a' ? a : d, def = r.by === 'a' ? d : a; for (let f = 0; f < 4; f++) { ui.anim[att.id] = { pose: { kind: 'atk', f } }; kick(); await sleep(70); } ui.anim[def.id] = { pose: { kind: 'spc', f: r.hit ? 3 : 0 }, shake: r.hit ? 1 : 0 }; if (box) box.innerHTML = duelHTML(e, i); kick(); await sleep(380); delete ui.anim[att.id]; delete ui.anim[def.id]; }
@@ -12901,12 +13000,12 @@ const V4UI = (() => {
   function finish() { const W = V4.W; ui.busy = false; clear(); setMode('over'); const win = (W.over === me()) || (W.over === 'A' && me() === 'A'); ui.msg = null; banner(win ? '승리!' : '패배…', win ? '#ffd84a' : '#9aa6c0'); if (ui.done) try { ui.done(W); } catch (e) { } }
   // ---------- 오른쪽 창 ----------
   function topHTML() { const W = V4.W; const sum = s => W.units.filter(u => u.alive && (s === 'D' ? u.side === 'D' : u.side !== 'D')).reduce((a, u) => a + u.troops, 0); const m = me();
-    return `<div class="v4t1"><b>제 ${W.turn}턴</b><small>/${W.limit}</small><span>${W.weather}${W.eastwind ? ' · 동남풍' : ''}</span></div><div class="v4t2"><span class="v4me">아군 ${fmt(sum(m))}</span><span class="v4en">적 ${fmt(sum(m === 'D' ? 'A' : 'D'))}</span></div><div class="v4goal">${W.siege ? (m === 'A' ? '승리: 성 점령 · 적 총대장 퇴각' : '승리: 성 사수 · 적 총대장 퇴각') : '승리: 적 총대장 퇴각 · 적 전멸'}</div>`; }
+    return `<div class="v4t1"><b>제 ${W.turn}턴</b><small>/${W.limit}</small><span>${W.weather}${W.eastwind ? ' · 동남풍' : ''}</span></div><div class="v4t2"><span class="v4me">아군 ${fmt(sum(m))}</span><span class="v4en">적 ${fmt(sum(m === 'D' ? 'A' : 'D'))}</span></div><div class="v4goal">${W.siege ? (m === 'A' ? '승리: 성 점령 · 적 총대장 퇴각' : '승리: 성 사수 · 적 총대장 퇴각') : '승리: 적 총대장 퇴각 · 적 전멸'}</div>${W.plan ? `<div class="v4goal">작전: <b style="color:#ffd84a">${W.plan.n}</b>${W.night && W.night.left > 0 ? ` · 적 요격만 ${W.night.left}턴 남음` : ''}</div>` : ''}`; }
   function unitHTML(u, compact) {
     const s = V4.stats(u); const n = (k, l) => `<span>${l}<b>${s[k]}</b>${s[k] !== s.base[k] && k !== 'M' ? `<i class="${s[k] > s.base[k] ? 'up' : 'dn'}">${s[k] > s.base[k] ? '+' : ''}${s[k] - s.base[k]}</i>` : ''}</span>`;
     const deps = [['부장', u.vg], ['참모', u.st], ['종군', u.jg]].filter(x => x[1]).map(x => `${x[0]} ${x[1]}`).join(' · ');
     const shown = ui.show[u.id] ?? u.troops; const W = V4.W; const tag = W.hq[u.side === 'D' ? 'D' : 'A'] === u.id ? ' · 총대장' : '';
-    const sts = [u.sts.conf && '혼란', u.sts.stuck && '부동', u.sts.seal && '금책', u.sts.poison && '독'].filter(Boolean).join(' ');
+    const sts = [u.sts.conf && '혼란', u.sts.stuck && '부동', u.sts.seal && '금책', u.sts.poison && '독', u.sts.burn && '화상', u.ambush && '매복(첫 공격 회심)'].filter(Boolean).join(' ');
     return `<div class="v4u">${u.gen ? face(u.gen, compact ? 38 : 48) : ''}<div class="v4ub"><b>${u.gen || '수비대'}</b> <small>Lv${u.lv} ${V4.clsName(u)}${tag}</small>
       <div class="v4bars"><span>병력</span>${barH(shown / u.max * 100, mine(u) ? '#ff6a50' : '#5aa8ff', 7)}<small>${fmt(shown)}/${fmt(u.max)}${u.wd ? ` · 부상 ${fmt(u.wd)}` : ''}</small>
       ${compact ? '' : `<span>MP</span>${barH(u.mp / Math.max(1, u.mpMax) * 100, '#4ab0ff', 7)}<small>${u.mp}/${u.mpMax}</small>`}</div></div></div>
@@ -12945,8 +13044,19 @@ const V4UI = (() => {
     ui.retOk = false; clear(); ui.sel = null; ui.fore = null; V4.retreat(me()); ui.evi = W.ev.length; finish(); };
   function view() { return `<div id="v4root"><div class="v4map"><canvas id="v4c"></canvas><canvas id="v4mini"></canvas><div id="v4ban" class="v4ban"></div><div id="v4duel" class="v4duel"></div></div><div class="v4side" id="v4side"></div></div>`; }
   function mount() { const cv = document.getElementById('v4c'); if (!cv || cv === st.cv) return; st.cv = cv; st.mini = document.getElementById('v4mini'); bind(); orient(); panel();
-    setTimeout(async () => { const W = V4.W; const m = W.units.find(u => u.id === W.hq[me()]); if (m) focus(m.x, m.y, false); ui.busy = true; await play(); ui.busy = false; if (W.phase !== me()) { ui.busy = true; await aiPhases(); ui.busy = false; if (W.over) return finish(); } startMyPhase(); }, 30); }
-  function reset() { Object.assign(ui, { mode: 'idle', sel: null, info: null, busy: false, pops: [], anim: {}, fxs: [], show: {}, eng: null, evi: 0, msg: null, banner: null, retOk: false }); clear(); st.cv = null; st.map = null; }
+    setTimeout(async () => { const W = V4.W; const m = W.units.find(u => u.id === W.hq[me()]); if (m) focus(m.x, m.y, false); ui.busy = true; panel();
+      // 7단계: 첫 차례 전에 작전 회의. 고른 작전이 배치를 바꿀 수 있으니 끝난 뒤 총대장을 다시 비춘다
+      if (!W.plan && !W.over) { await council(); const m2 = W.units.find(u => u.id === W.hq[me()]); if (m2) focus(m2.x, m2.y, false); }
+      await play(); ui.busy = false; if (W.over) return finish(); if (W.phase !== me()) { ui.busy = true; await aiPhases(); ui.busy = false; if (W.over) return finish(); } startMyPhase(); }, 30); }
+  function reset() { Object.assign(ui, { mode: 'idle', sel: null, info: null, busy: false, pops: [], anim: {}, fxs: [], show: {}, eng: null, evi: 0, msg: null, banner: null, retOk: false, planRes: null }); clear(); st.cv = null; st.map = null; }
+  // ---------- 7단계: 작전 회의 (전투 시작 전 1장면) — 군사 초상·대사, 작전 단추 2~3개. 고르면 V4.applyPlan ----------
+  function councilHTML(opts) {
+    const W = V4.W, adv = opts[0].adv, mine = me() === 'A';
+    const line = W.siege ? (mine ? '성을 치는 길은 하나가 아닙니다. 어떻게 하시겠습니까?' : '적이 성 아래까지 이르렀습니다. 어떻게 맞서시겠습니까?') : (mine ? '적진이 보입니다. 어떤 작전으로 가시겠습니까?' : '적이 다가옵니다. 어떻게 맞서시겠습니까?');
+    return `<div id="v4plan" class="v4plan"><div class="v4pbox"><div class="v4ptitle">작전 회의</div><div class="v4padv">${adv.n ? face(adv.n, 60) : ''}<div><b>${esc(adv.n || '참모')}</b><small>${adv.n ? `군사 · 지력 ${adv.i}` : '군사 없음'}</small><p>${esc(line)}</p></div></div><div class="v4popt">${opts.map(o => btn(`<b>${o.n}</b><small>${esc(o.d)}${o.cost ? ` <i>대가: ${esc(o.cost)}</i>` : ''}</small>`, 'v4Plan', o.id, { p: o.id === '정공' })).join('')}</div></div></div>`;
+  }
+  function council() { return new Promise(res => { const opts = V4.planOptions(me()); const root = document.getElementById('v4root'); if (!opts.length || !root) return res(null); root.insertAdjacentHTML('beforeend', fixJosa(councilHTML(opts))); ui.planRes = res; }); }
+  ACT.v4Plan = v => { const r = ui.planRes; if (!r) return; ui.planRes = null; const el = document.getElementById('v4plan'); if (el) el.remove(); const out = V4.applyPlan(me(), String(v || '정공')); panel(); kick(); r(out); };
   // 서 있는 동작 (걷기 두 장 번갈아)
   setInterval(() => { if (st.cv && document.body.contains(st.cv)) { st.tick++; kick(); } }, 480);
   return { st, ui, view, mount, draw, kick, focus, panel, tap, TS, jojoUnit, jojoIndex, reset, tryLandscape, leaveFull, orient, endTurn };
