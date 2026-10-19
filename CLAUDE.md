@@ -11,6 +11,10 @@
 
 형식과 문서 지도는 `docs/README.md`.
 
+## 빌드·모델 운영
+- **빌드는 지시 후에**: 변경을 곧바로 `samguk_v105.html`에 반영하지 않는다. 충분히 숙고하고 시뮬레이션(`tools/`)과 결과 기록(`docs/변화_*.md`)을 끝낸 뒤, 사용자가 "빌드하자"고 할 때만 html을 고치고 커밋한다.
+- **모델**: 기본은 Sonnet(`.claude/settings.json`), 서브에이전트도 모델을 따로 지정하지 않는다. 요청이 다른 모델에 맞으면 작업 전에 먼저 알린다: 단순 잡무만이면 Haiku, 구조를 크게 바꾸는 설계면 Opus. 이때 "`/model <모델>`로 바꾸세요"를 함께 말한다.
+
 ## 환경
 - Windows. 파이썬은 `PYTHONIOENCODING=utf-8`, 긴 스크립트는 파일로 만들어 실행.
 - 시뮬레이션: `node tools/battle_sim.js`, `node tools/battle_calib.js`. 출력은 파일로 저장 후 `head`/`grep`.
