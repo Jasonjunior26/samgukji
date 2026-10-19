@@ -45,7 +45,7 @@ vm.runInContext(`(() => {
     // 첫 해 플레이어도 국책을 갖게 (월 갱신은 플레이어를 건너뜀)
     const end = {}; fids.forEach(f => end[f] = snap(f));
     aiPickPolicy = orig;
-    return { forced, fids, start, end, picks, forcedMap, over: S.over };
+    return { forced, fids, start, end, picks, forcedMap, hist, over: S.over };
   }
   const res = [];
   for (let g = 0; g < N; g++) {
@@ -93,4 +93,17 @@ if (fr.length) {
   const top = Object.entries(byPair).filter(([k, a]) => a.length >= 4).sort((a, b) => mean(b[1].map(x => x.dd)) - mean(a[1].map(x => x.dd)));
   console.log('\n[강제] 조합 상·하위 (표본 4 이상)');
   top.slice(0, 5).concat(top.slice(-5)).forEach(([k, a]) => console.log('  ' + k.padEnd(18, ' ') + String(a.length).padStart(4) + ('  ' + mean(a.map(x => x.dd)).toFixed(2)).padStart(8)));
+}
+
+// 3. 자원 쌓임: 해마다 살아 있는 세력의 금·군량이 병력 월 유지비(금=병력/250, 군량=병력/20)의 몇 개월분인지 중앙값
+const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : NaN; };
+const nat2 = res.filter(r => !r.forced && r.hist && r.hist.length);
+if (nat2.length) {
+  console.log('\n[자원] 해마다 중앙값 (금·군량 몇 개월분 / 도시당 금·군량 / 생존 세력 수), 판수 ' + nat2.length);
+  const yrs = Math.max(...nat2.map(r => r.hist.length));
+  for (let y = 0; y < yrs; y++) {
+    const rows = []; nat2.forEach(r => { const h = r.hist[y]; if (h) h.forEach(s => { if (s.cities > 0 && s.troops > 0) rows.push(s); }); });
+    if (!rows.length) continue;
+    console.log('  ' + String(y + 1).padStart(2) + '년차  금 ' + med(rows.map(s => s.gold / (s.troops / 250))).toFixed(0).padStart(5) + '개월  군량 ' + med(rows.map(s => s.food / (s.troops / 20))).toFixed(0).padStart(5) + '개월  도시당 금 ' + med(rows.map(s => s.gold / s.cities)).toFixed(0).padStart(6) + ' 군량 ' + med(rows.map(s => s.food / s.cities)).toFixed(0).padStart(7) + '  세력 ' + (rows.length / nat2.length).toFixed(1));
+  }
 }
