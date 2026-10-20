@@ -12162,6 +12162,29 @@ const V4 = (() => {
     W.castle = { x0, y0, x1, y1 };
     if (!kTile()) { const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2; let b = null, bd = 1e9; W.map.forEach((r, y) => r.forEach((c, x) => { if (inCastle(x, y) && 'IECJ'.includes(c.t)) { const d = Math.abs(x - cx) + Math.abs(y - cy); if (d < bd) { bd = d; b = c; } } })); if (b) b.t = 'K'; }
   }
+  // v4.11 자동 성문 + 틈 메우기: 공성(siege)이고 성곽은 있으나 성문 칸(T)이 0개인 원본 지도에만 (야전 작은 성 11·16·17·20 제외).
+  // 공격이 오는 쪽(성 중심에서 가장 먼 가장자리, computeZones 와 같은 기준) 변의 한가운데 성벽 칸을 T로, 성곽 상자 둘레의 통행 가능한 비벽 칸은 성벽 L로 (tools/gate2_sim.js 'mid+fill' 과 같은 규칙)
+  const AUTO_GATE_GAP_MAX = 16;
+  function autoGate() {
+    if (!W.siege || !W.castle) return null; const C = W.castle;
+    let nT = 0; W.map.forEach(r => r.forEach(c => { if (c.t === 'T' || c.t === 'O') nT++; })); if (nT) return null;
+    const cx = (C.x0 + C.x1) / 2, cy = (C.y0 + C.y1) / 2; const dists = { top: cy, bottom: W.h - 1 - cy, left: cx, right: W.w - 1 - cx };
+    const eA = Object.keys(dists).sort((a, b) => dists[b] - dists[a])[0];
+    const onPer = (x, y) => x === C.x0 || x === C.x1 || y === C.y0 || y === C.y1;
+    const pass = (x, y) => { const c = at(x, y); return !!c && !'LTOWM'.includes(c.t); };
+    const per = []; for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0; x <= C.x1; x++) if (onPer(x, y) && W.map[y][x].t === 'L') per.push({ x, y });
+    if (!per.length) return null;
+    const reach4 = p => { const n4 = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => ({ x: p.x + a, y: p.y + b })); return n4.some(q => inCastle(q.x, q.y) && pass(q.x, q.y)) && n4.some(q => !inCastle(q.x, q.y) && pass(q.x, q.y)); };
+    let cand = per.filter(reach4); if (!cand.length) cand = per;
+    const sidePts = cand.filter(p => eA === 'right' ? p.x === C.x1 : eA === 'left' ? p.x === C.x0 : eA === 'bottom' ? p.y === C.y1 : p.y === C.y0); const pool = sidePts.length ? sidePts : cand;
+    const mx = eA === 'right' ? C.x1 : eA === 'left' ? C.x0 : cx, my = eA === 'bottom' ? C.y1 : eA === 'top' ? C.y0 : cy;
+    const pick = pool.reduce((b, p) => (!b || Math.abs(p.x - mx) + Math.abs(p.y - my) < Math.abs(b.x - mx) + Math.abs(b.y - my)) ? p : b, null);
+    let gap = 0; for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0; x <= C.x1; x++) if (onPer(x, y) && pass(x, y)) gap++;
+    if (gap > AUTO_GATE_GAP_MAX) { W.autoGate = null; W.autoGateSkip = { gap }; return null; } // 상자 둘레 대부분이 틈이면 성곽이 아님(지도 32)
+    W.map[pick.y][pick.x].t = 'T'; let filled = 0;
+    for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0; x <= C.x1; x++) if (onPer(x, y) && pass(x, y)) { W.map[y][x].t = 'L'; filled++; }
+    W.autoGate = { x: pick.x, y: pick.y, side: eA, filled }; return W.autoGate;
+  }
   // 배치 구역: 야전은 긴 쪽 양 끝, 공성은 성에서 가장 먼 가장자리 ↔ 성 안. 서로 길이 이어진 칸만
   // 가장자리에서 depthMax 줄 안쪽까지의 배치 후보 칸 (작전 회의의 우회에서도 씀)
   const edgeZone = (edge, depthMax) => { const out = []; for (let d = 0; d < depthMax; d++) { const line = []; if (edge === 'top' || edge === 'bottom') { const y = edge === 'top' ? d : W.h - 1 - d; for (let x = 0; x < W.w; x++) line.push({ x, y, d }); } else { const x = edge === 'left' ? d : W.w - 1 - d; for (let y = 0; y < W.h; y++) line.push({ x, y, d }); } line.forEach(p => { const c = at(p.x, p.y); if (passFoot(c) && c.t !== 'K' && !inCastle(p.x, p.y)) out.push(p); }); } return out; };
@@ -12253,7 +12276,7 @@ const V4 = (() => {
   }
   function terrMod(u, x, y) { return teff(famOf(u), at(x == null ? u.x : x, y == null ? u.y : y)); }
   function moveCost(u, c) {
-    if (!c) return 99; if (c.t === 'T') return u.side === 'D' ? 1 : 99; // 수비측은 자기 성문을 드나듦
+    if (!c) return 99; if (c.t === 'T') return u.side === 'D' && u.ai === 7 ? 1 : 99; // v4.11 R3: 닫힌 성문은 AI 통과 불가. 플레이어 조종 수비 부대만 열기 확인(V4UI) 뒤 지나감
     let v = tcost(famOf(u), c); if (v >= 99) return 99; if (has(u, '산악')) v = 1; return v;
   }
   function movePts(u) { if (u.sts.stuck) return 0; const row = clsRow(u.jc); let m = (row ? row.mv : 4) + (has(u, '신속') ? 2 : 0) + ((u.chem && u.chem.fx.mov) || 0); if (u.buf.V >= 4) m += 2; else if (u.buf.V <= 2) m = Math.max(0, m - 1); return m; }
@@ -12273,7 +12296,10 @@ const V4 = (() => {
   // ---------- 공격 범위 (조조전 HITAREA) ----------
   function shapeId(u) { const row = clsRow(u.jc); let s = row ? row.rg : 0; if (u.cls === '궁병' && has(u, '신궁') && s === 3) s = 4; return s; }
   const SH = id => (JR && JR.hit[String(id)]) || [[0, -1], [1, 0], [0, 1], [-1, 0]];
-  function canHit(u, tx, ty, fx, fy) { const x = fx == null ? u.x : fx, y = fy == null ? u.y : fy; const dx = tx - x, dy = ty - y; if (!dx && !dy) return false; const s = shapeId(u); if (s === 10) return true; return SH(s).some(([a, b]) => a === dx && b === dy); }
+  // v4.11 R2: 성곽 상자 안↔밖의 부대끼리는 원거리 병종(famOf 2·4·5)만 칠 수 있다(양방향 대칭). 열린·부서진 문(O)이 하나라도 있으면 해제. 부대가 없는 칸(성문·성벽 공격)은 제한 없음
+  function wallOk(u, tx, ty, fx, fy) { if (!W || !W.castle) return true; const o = unitAt(tx, ty); if (!o) return true; const x = fx == null ? u.x : fx, y = fy == null ? u.y : fy; if (inCastle(x, y) === inCastle(tx, ty)) return true; if ([2, 4, 5].includes(famOf(u))) return true; return gateOpen(); }
+  function canHit(u, tx, ty, fx, fy) { return canHit0(u, tx, ty, fx, fy) && wallOk(u, tx, ty, fx, fy); }
+  function canHit0(u, tx, ty, fx, fy) { const x = fx == null ? u.x : fx, y = fy == null ? u.y : fy; const dx = tx - x, dy = ty - y; if (!dx && !dy) return false; const s = shapeId(u); if (s === 10) return true; return SH(s).some(([a, b]) => a === dx && b === dy); }
   function attackCells(u, fx, fy) { const x = fx == null ? u.x : fx, y = fy == null ? u.y : fy; return SH(shapeId(u)).map(([a, b]) => ({ x: x + a, y: y + b })).filter(p => at(p.x, p.y)); }
   function targets(u, fx, fy) { return W.units.filter(o => o.alive && foe(o, u) && canHit(u, o.x, o.y, fx, fy)); }
   // 성문·성벽: 성문은 근접 부대·포차, 성벽은 포차만 (이 게임 규칙)
@@ -12419,12 +12445,12 @@ const V4 = (() => {
     const winter = [12, 1, 2].includes(S.m);
     const terr = kindOf(toCn) === '관문' ? '관문' : kindOf(toCn) === '나루' ? '나루' : (tc.terr || CDATA[toCn].지형 || '평지');
     const jm = opt.noJojo ? null : pickJMap(terr, siege, winter, aUnits.length + dUnits.length, opt.mapId);
-    let gm; if (jm) { gm = { m: jmapGrid(jm), castle: null }; if (siege) (jm.gates || []).forEach(q => { const c = gm.m[q.y] && gm.m[q.y][q.x]; if (c && c.t !== 'L') c.t = 'T'; }); }
+    let gm; if (jm) { gm = { m: jmapGrid(jm), castle: null }; (jm.gates || []).forEach(q => { const c = gm.m[q.y] && gm.m[q.y][q.x]; if (c && c.t !== 'L') { c.t0 = c.t; c.t = 'T'; } }); } // v4.11 R1: 성 있는 지도는 야전에도 성문(기본 닫힘). 성곽 없는 지도는 아래서 되돌림
     else { const [w0, h0] = mapSize(aUnits.length + dUnits.length, siege); gm = genMap(terr, w0, h0, siege, winter); }
     const w = gm.m[0].length, h = gm.m.length;
     W = { att, def, from: fromCn, to: toCn, w, h, map: gm.m, castle: gm.castle, siege, terr, jmap: jm ? jm.id : null, units: [], uid: 1, turn: 1, phase: null, log: [], ev: [], captured: [], rescue: [], over: null,
       weather: rollWeather(), food, playerSide: playerSide || null, mode: siege ? '농성' : '야전', winter };
-    if (jm) { if (jm.snow) W.winter = true; castleFromMap(); if (W.siege && !W.castle) { W.siege = false; W.mode = '야전'; } computeZones(); }
+    if (jm) { if (jm.snow) W.winter = true; castleFromMap(); if (W.siege && !W.castle) { W.siege = false; W.mode = '야전'; } if (!W.castle) W.map.forEach(r => r.forEach(c => { if (c.t === 'T' && c.t0 != null) c.t = c.t0; })); autoGate(); computeZones(); }
     if (W.winter && W.weather === '비') W.weather = '눈';
     W.wslot = W.weather === '맑음' ? 0 : W.weather === '흐림' ? 1 : 2;
     const ctx = { from: fromCn, to: toCn, water: terr === '강변' || terr === '나루' };
@@ -12469,6 +12495,7 @@ const V4 = (() => {
   // ---------- 턴 진행 (formulas §5·8) ----------
   function beginPhase(side) {
     W.phase = side; W.ev.push({ t: 'phase', side, turn: W.turn });
+    if (side === 'D') gateAI();
     // 야습(작전 회의): 적의 첫 2차례는 요격만 하고, 그 뒤 원래 AI로 되돌린다
     if (W.night && W.night.side === side) { if (W.night.left > 0) W.night.left--; else { W.units.forEach(u => { if (u.ai0 != null) { u.ai = u.ai0; delete u.ai0; } }); delete W.night; log('야습의 효과가 끝났다. 적이 움직이기 시작한다'); } }
     W.units.filter(u => u.alive && u.side === side).forEach(u => {
@@ -12516,6 +12543,20 @@ const V4 = (() => {
 
   // ---------- AI (formulas §9, 줄여서) ----------
   function gateOpen() { for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) if (W.map[y][x].t === 'O') return true; return false; }
+  // v4.11 성문 열기: T → O (opened 표시, 내구 0). 한 번 열린 문은 닫히지 않는다(R4). 공격측은 열 수 없고 부순다(R5, hitGate)
+  function openGate(x, y, who) { const c = at(x, y); if (!c || c.t !== 'T') return false; c.t = 'O'; c.opened = 1; c.hp = 0; log(`${who ? who.gen + '이(가) ' : '수비군이 '}${x},${y} ${TN.T}을 열었다`); W.ev.push({ t: 'open', x, y, id: who ? who.id : null }); return true; }
+  // 수비 AI 열기 기준(확정): 수비 총병력 ≥ 공격 총병력 × GATE_RATIO 일 때만, 닫힌 문이 있고 열린 문이 없으면 적에게 가장 가까운 문 하나를 연다.
+  // 열려 있고 기준을 만족하면 출격(W.sortie): 본진·원거리·플레이어·야습 중 부대를 뺀 수비 대기(3)를 돌격(1)으로, 기준이 깨지면 대기로 되돌림(복귀 규칙은 없음). 플레이어가 수비면 AI가 대신 열지 않는다
+  const GATE_RATIO = 1.3;
+  function gateAI() {
+    if (!W.castle || W.playerSide === 'D') return;
+    const A = W.units.filter(u => u.alive && u.side !== 'D'), D = W.units.filter(u => u.alive && u.side === 'D');
+    const tA = A.reduce((s, u) => s + u.troops, 0), tD = D.reduce((s, u) => s + u.troops, 0);
+    const ok = A.length > 0 && tD >= GATE_RATIO * tA;
+    if (ok && !gateOpen()) { let best = null; for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) if (W.map[y][x].t === 'T') { const d = Math.min(...A.map(a => Math.abs(a.x - x) + Math.abs(a.y - y))); if (!best || d < best.d) best = { x, y, d }; } if (best) { openGate(best.x, best.y, null); W.aiOpened = (W.aiOpened || 0) + 1; } }
+    W.sortie = ok && gateOpen();
+    D.forEach(u => { if (u.id === W.hq.D || u.ai === 7 || u.ai0 != null || [2, 4, 5].includes(famOf(u))) return; if (W.sortie) { if (u.ai === 3) { u.ai = 1; u.sortie = 1; } } else if (u.sortie) { u.ai = 3; u.sortie = 0; } });
+  }
   function nearestGate(u) { let b = null, bd = 1e9; for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) if (W.map[y][x].t === 'T') { const d = Math.abs(x - u.x) + Math.abs(y - u.y); if (d < bd) { bd = d; b = { x, y }; } } return b; }
   function objective(u) {
     if (team(u) === 'A' && W.siege) { const k = kTile(); if (!k) return null; const open = flood([{ x: u.x, y: u.y }], false).has(k.x + ',' + k.y); return open ? k : (nearestGate(u) || k); }
@@ -12545,7 +12586,7 @@ const V4 = (() => {
   function aiAct0(u) {
     if (u.sts.conf) { wait(u); return; }
     let rs = u.moved || u.ai === 2 ? [{ x: u.x, y: u.y, c: 0 }] : reach(u);
-    if (W.siege && team(u) === 'D') rs = rs.filter(c => W.castle ? inCastle(c.x, c.y) : true);
+    if (W.siege && team(u) === 'D' && !W.sortie) rs = rs.filter(c => W.castle ? inCastle(c.x, c.y) : true); // v4.11 출격 중이면 성 밖 허용
     const en = W.units.filter(o => o.alive && foe(o, u));
     const hqU = W.units.find(o => o.id === W.hq[team(u)]);
     // 목표 칸 점수 (§9.3 bonus): 돌격은 가장 가까운 적, 공성 공격은 성문/본성, 후퇴는 총대장 곁
@@ -12681,7 +12722,7 @@ const V4 = (() => {
     const at0 = W.ev.findIndex(e => e.t === 'phase'); W.ev.splice(at0 < 0 ? W.ev.length : at0, 0, ...evs);
     check(); return res;
   }
-  return { CLS, TN, LT, get JR() { return JR; }, get W() { return W; }, set W(v) { W = v; }, start, stats, retreat, clsName, famOf, reach, pathTo, targets, attackCells, canHit, gateTargets, forecast, attack, hitGate,
+  return { CLS, TN, LT, get JR() { return JR; }, get W() { return W; }, set W(v) { W = v; }, start, stats, retreat, clsName, famOf, reach, pathTo, targets, attackCells, canHit, gateTargets, forecast, attack, hitGate, openGate, gateOpen,
     spellsOf, castRange, areaCells, duelTargets, duel, aiQueue: side => aiOrder(W.units.filter(u => u.alive && u.side === side && !u.acted)), spellTargetsAt, canCast, castPreview, cast, moveTo, undoMove, wait, beginPhase, endPhase, check, aiAct, runPhaseAI, simulate, toLegacy, unitAt, at, inCastle: (x, y) => inCastle(x, y), kTile: () => kTile(), terrMod, moveCost, movePts, get SPL() { return SPL; },
     advisor, planOptions, applyPlan, PLAN };
 })();
@@ -12965,7 +13006,13 @@ const V4UI = (() => {
     clear(); ui.sel = null; ui.info = o ? o.id : null; if (o) enemyInfo(o); else setMode('idle');
   }
   function enemyInfo(o) { const t = threat(o); ui.reach = t.rs; ui.red = t.red; setMode('enemy'); }
+  // v4.11 R3: 플레이어 수비 부대의 이동 경로(목적지 포함)에 닫힌 성문(T)이 있으면 "성문을 열겠습니까?" Y/N. Y면 열고(되돌릴 수 없음) 그대로 이동, N이면 이동 취소
+  function gateOnPath(u, x, y) { if (u.side !== 'D' || !ui.reach || !ui.reach.prev) return null; const p = V4.pathTo(u, x, y, ui.reach); return p.find(q => { const c = V4.at(q.x, q.y); return c && c.t === 'T'; }) || null; }
+  function askGate(g) { return new Promise(res => { const root = document.getElementById('v4root'); if (!root) return res(false); ui.gateRes = res; root.insertAdjacentHTML('beforeend', `<div id="v4gate" class="v4plan"><div class="v4pbox"><div class="v4ptitle">성문</div><div class="v4padv"><div><p>${g.x},${g.y}의 성문을 열겠습니까? 한 번 연 성문은 다시 닫을 수 없습니다.</p></div></div><div class="v4popt">${btn('<b>연다</b><small>문을 열고 그대로 이동</small>', 'v4GateYes', '', { p: 1 })}${btn('<b>열지 않는다</b><small>이동 취소</small>', 'v4GateNo', '')}</div></div></div>`); }); }
+  const gateAnswer = v => { const r = ui.gateRes; if (!r) return; ui.gateRes = null; const el = document.getElementById('v4gate'); if (el) el.remove(); sfx(v ? 'menu.ok' : 'menu.cancel'); r(v); };
+  ACT.v4GateYes = () => gateAnswer(true); ACT.v4GateNo = () => gateAnswer(false);
   async function doMove(u, x, y) {
+    if ((x !== u.x || y !== u.y) && !ui.busy) { const g = gateOnPath(u, x, y); if (g) { ui.busy = true; const yes = await askGate(g); ui.busy = false; if (!yes) return; V4.openGate(g.x, g.y, u); } }
     clear(); const from = { x: u.x, y: u.y }; if (x !== u.x || y !== u.y) { V4.moveTo(u, x, y); ui.busy = true; await play(); ui.busy = false; } else { u.ox = u.x; u.oy = u.y; u.odir = u.dir; u.moved = true; }
     if (V4.W.over) return finish(); openAct(u);
   }
@@ -13006,6 +13053,7 @@ const V4UI = (() => {
       else if (e.t === 'atk') { await animAttack(e); for (const r of routs) if (!done.has(r) && (r.id === e.a || r.id === e.d)) { done.add(r); await animRout(r); } }
       else if (e.t === 'spell') { await animSpell(e); for (const r of routs) if (!done.has(r) && e.res.some(q => q.id === r.id)) { done.add(r); await animRout(r); } }
       else if (e.t === 'gate') await animGate(e);
+      else if (e.t === 'open') await animOpen(e);
       else if (e.t === 'duel') { await animDuel(e); for (const r of routs) if (!done.has(r)) { done.add(r); await animRout(r); } }
       else if (e.t === 'heal') { const u = U(e.id); if (u) pop(u.x, u.y, '+' + fmt(e.n), '#7fe08a'); }
       else if (e.t === 'poison') { const u = U(e.id); if (u) pop(u.x, u.y, (e.burn ? '화상 −' : '독 −') + fmt(e.n), e.burn ? '#ff9a4a' : '#9ad86a'); }
@@ -13043,6 +13091,7 @@ const V4UI = (() => {
     for (const r of e.seq) { if (r.counter) await animStrike(d, a, r); else await animStrike(a, d, r); if (r.dbl) pop(a.x, a.y, '연속!', '#ffd84a'); }
     await sleep(250); ui.eng = null;
   }
+  async function animOpen(e) { follow(e.x, e.y); sfx('gate.hit'); ui.fxs.push({ kind: 'dust', x: e.x, y: e.y, t0: performance.now(), dur: 500 }); pop(e.x, e.y, '성문 개방', '#ffd84a', true); kick(); await sleep(500); }
   async function animGate(e) { const a = U(e.a); if (!a) return; follow(e.x, e.y); for (let f = 0; f < 4; f++) { ui.anim[a.id] = { pose: { kind: 'atk', f } }; kick(); if (f === 1) sfx(swingKey(a)); await sleep(90); } sfx('gate.hit'); ui.fxs.push({ kind: 'dust', x: e.x, y: e.y, t0: performance.now(), dur: 500 }); pop(e.x, e.y, '−' + fmt(e.dmg), '#ffcf6a'); delete ui.anim[a.id]; kick(); await sleep(300); if (e.broke) { sfx('gate.break'); pop(e.x, e.y, '성문 붕괴!', '#ffd84a', true); await sleep(500); } }
   async function animSpell(e) {
     const a = U(e.a); if (!a) return; follow(e.x, e.y); const s = V4.SPL[e.sid]; const kind = s.el || (s.tg === 'ally' ? 'buff' : [15, 16, 17, 18].includes(s.ty) ? 'status' : 'debuff');

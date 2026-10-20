@@ -1,0 +1,87 @@
+== 원본 지도 (id kind terr w×h gates)
+0 field 평지 20×20 gates 0
+1 siege 관문 20×20 gates 0
+2 siege 관문 20×20 gates 0
+3 field 강변 28×20 gates 0
+4 field 산악 20×20 gates 0
+7 siege 평지 32×28 gates 0
+8 siege 평지 24×24 gates 4
+9 field 평지 20×20 gates 0
+11 field 남만 24×24 gates 0
+14 siege 평지 28×28 gates 0
+16 field 강변 20×20 gates 0
+17 field 평지 24×24 gates 0
+20 field 산악 24×28 gates 0
+23 siege 평지 20×20 gates 4
+25 field 산악 20×32 gates 0
+26 field 나루 32×24 gates 1
+30 siege 평지 20×20 gates 4
+31 field 강변 20×32 gates 10
+32 siege 관문 28×20 gates 0
+34 field 나루 24×40 gates 0
+36 field 강변 28×28 gates 0
+42 siege 평지 24×24 gates 6
+47 siege 산악 24×24 gates 0
+48 siege 강변 20×24 gates 0
+
+== 지도별 시작 상태 (id 모드 castle T O 자동문 틈메움 수비안/밖 공격안/밖)
+0 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+1 농성 1,4-4,14 T 1 O 0 자동문 4,8(right) 틈 8 수비 2/0 공격 0/3
+2 농성 0,4-6,15 T 4 O 0 - - 수비 2/0 공격 0/3
+3 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+4 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+7 농성 2,3-25,24 T 1 O 0 자동문 25,12(right) 틈 8 수비 2/0 공격 0/3
+8 농성 8,0-23,13 T 4 O 0 - - 수비 2/0 공격 0/3
+9 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+11 야전 10,10-14,14 T 0 O 0 - - 수비 0/2 공격 0/3
+14 농성 7,10-20,21 T 1 O 0 자동문 12,10(top) 틈 8 수비 2/0 공격 0/3
+16 야전 14,15-19,19 T 0 O 0 - - 수비 0/2 공격 0/3
+17 야전 7,18-15,23 T 0 O 0 - - 수비 0/2 공격 0/3
+20 야전 0,21-5,27 T 0 O 0 - - 수비 0/2 공격 0/3
+23 농성 9,0-19,10 T 4 O 0 - - 수비 2/0 공격 0/3
+25 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+26 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+30 농성 7,0-19,12 T 4 O 0 - - 수비 2/0 공격 0/3
+31 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+32 농성 2,6-27,19 T 0 O 0 - - 수비 2/0 공격 0/3
+34 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+36 야전 - T 0 O 0 - - 수비 0/2 공격 0/3
+42 농성 2,0-23,15 T 12 O 0 - - 수비 2/0 공격 0/3
+47 농성 12,12-19,19 T 1 O 0 자동문 14,12(top) 틈 8 수비 2/0 공격 0/3
+48 농성 10,0-19,12 T 2 O 0 - - 수비 2/0 공격 0/3
+성곽 있는 지도: 1 2 7 8 11 14 16 17 20 23 30 32 42 47 48
+공성 자동문 지도(원래 T 0개): 1 7 14 47
+
+== 야전 작은 성 (11·16·17·20) 야전 시작
+11 siege false castle true T 0 autoGate false 수비 성안 0
+16 siege false castle true T 0 autoGate false 수비 성안 0
+17 siege false castle true T 0 autoGate false 수비 성안 0
+20 siege false castle true T 0 autoGate false 수비 성안 0
+
+== 수비 AI 열기 (병력비 1.3): 지도 수비배율 → 열림턴 aiOpened sortie 승자 턴
+1 x2 열림(4,8) aiOpened 1 sortie true 승 - 턴 19
+1 x1 열림(4,8) aiOpened 1 sortie true 승 - 턴 19
+2 x2 열림(6,9) aiOpened 1 sortie true 승 - 턴 19
+2 x1 안 열림 aiOpened 0 sortie true 승 - 턴 19
+7 x2 열림(25,12) aiOpened 1 sortie true 승 - 턴 19
+7 x1 안 열림 aiOpened 0 sortie false 승 - 턴 19
+8 x2 열림(19,13) aiOpened 1 sortie true 승 - 턴 19
+8 x1 안 열림 aiOpened 0 sortie false 승 - 턴 19
+14 x2 열림(12,10) aiOpened 1 sortie true 승 - 턴 19
+14 x1 안 열림 aiOpened 0 sortie false 승 - 턴 19
+23 x2 열림(14,10) aiOpened 1 sortie true 승 - 턴 19
+23 x1 안 열림 aiOpened 0 sortie true 승 - 턴 19
+30 x2 열림(14,12) aiOpened 1 sortie true 승 - 턴 19
+30 x1 안 열림 aiOpened 0 sortie false 승 - 턴 19
+42 x2 열림(13,11) aiOpened 1 sortie true 승 - 턴 19
+42 x1 안 열림 aiOpened 0 sortie true 승 - 턴 19
+47 x2 열림(14,12) aiOpened 1 sortie true 승 - 턴 19
+47 x1 안 열림 aiOpened 0 sortie false 승 - 턴 19
+48 x2 열림(10,3) aiOpened 1 sortie true 승 - 턴 19
+48 x1 안 열림 aiOpened 0 sortie false 승 - 턴 19
+수비 2배: 열린 판 10/10 · 수비 1배: 열린 판 1/10
+
+== R2 점검 (문 닫힘·열림일 때 성 안 근접 ↔ 성 밖 근접 canHit)
+같은 쪽 인접: true · 안↔밖 인접(문 닫힘): false · 안↔밖 인접(문 열림): true (수비 병종 fam 1)
+
+== moveCost 닫힌 T: 수비 AI 99 수비 플레이어 1 공격 99 · 열린 O 공격 1
