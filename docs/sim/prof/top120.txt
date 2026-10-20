@@ -1,0 +1,15 @@
+총 241.8s
+  50.97 citiesOf block0:139
+  36.72 costMul block0:239
+   9.45 gensOf block0:141
+   6.39 bget block0:1122
+   5.51 (anon) block0:620
+   4.79 isCabinet block0:4195
+   4.69 clamp block0:16
+   3.70 (anon) block0:4889
+   3.55 gensIn block0:5592
+   3.48 stat block0:147
+   3.20 cityNeedNext block0:4097
+   3.07 installArms block0:5129
+   2.94 salary block0:2724
+   2.48 (anon) block0:139

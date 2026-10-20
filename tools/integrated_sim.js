@@ -7,6 +7,7 @@
 // 주요 파라미터(기본값): roots(forced|nat|none) a(1) b(0.3) pass(0.6) cap(0.10 연 상한) hubGain(0.5) land(true) tradeFrac(0.5) openAll(false) noPrice(false)
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const cmd = process.argv[2];
+if (cmd === 'pair') { pair(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'cause') { cause(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'report') { report(process.argv.slice(3)); process.exit(0); }
 const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1 }, JSON.parse(process.argv[3] || '{}'));
@@ -194,6 +195,252 @@ vm.runInContext(`(() => {
     const r = f.apply(this, arguments); syncOwn('기타', (c, old, now) => (cq[c.n] && cq[c.n] === now) ? '환원' : null); return r; }; }
   { const f = aiTurn; aiTurn = function () { const r = f.apply(this, arguments); syncOwn('기타'); return r; }; }
 
+  // ================= §21 서명 장치 시험 레이어 (PR.devices: "gwisun,idan,tuhang,merc,maesu,dhx" 또는 "all") =================
+  // 켜지 않으면 아래 래퍼는 원본을 그대로 부른다(난수 소비 없음). 장치는 별도 난수열(DR)을 써서 기준선과 짝지어 비교하기 쉽게 한다.
+  const DVS = String(PR.devices || '').split(',').map(s => s.trim()).filter(Boolean);
+  const DV = k => DVS.includes('all') || DVS.includes(k);
+  const ANYDV = DVS.length > 0;
+  let dseed = ((PR.seed >>> 0) ^ 0x9E3779B9) >>> 0;
+  const DR = () => { dseed = (dseed + 0x6D2B79F5) >>> 0; let t = dseed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const dbump = (k, v) => { IT.dv = IT.dv || {}; IT.dv[k] = (IT.dv[k] || 0) + (v === undefined ? 1 : v); };
+  const rootOf = f => (IT && IT.st && IT.st[f] && IT.st[f].root) || 'none';
+  const hashN = s => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
+  const KIN = ['부자', '형제', '의형제'];
+  function kinOrBond(a, b) { // 혈연·의형제·옛 은인
+    if (!a || !b) return false;
+    if (RELS.some(x => KIN.includes(x.종류) && x.장수.includes(a) && x.장수.includes(b))) return true;
+    const e = S.bond && S.bond[bkey(a, b)]; return !!(e && (e.t.includes('결의 형제') || e.t.includes('은인')));
+  }
+  const oppAllied = (a, b) => allied(a, b) || hasPact(a, b);
+
+  // ---- 경륜: 포섭도 + 귀순 ----
+  function swayGain(ag, gv) {
+    let v = 10 + (stat(ag, 'c') - 60) / 4 + (stat(ag, 'i') - stat(gv, 'i')) / 5 - Math.abs(axisOf(ag.n) - axisOf(gv.n)) / 5 - (gv.ui || 0) * (PR.swayUiK === undefined ? 1.5 : PR.swayUiK);
+    if (bget(ag.n, gv.n) >= 20 || kinOrBond(ag.n, gv.n)) v += 8; // 인맥(옛 동료·혈연·은인)
+    return Math.max(2, v) * (PR.swayMul || 1);
+  }
+  function swayEntry(f, gn) { S.sway[f] = S.sway[f] || {}; return S.sway[f][gn] || (S.sway[f][gn] = { v: 0, fail: 0 }); }
+  function swayAct(f) {
+    const cands = [];
+    Object.values(S.city).forEach(c => {
+      if (!c.owner || c.owner === f || !isCity(c) || !c.gov || oppAllied(f, c.owner)) return;
+      const g = G(c.gov); if (!g || g.st !== '현역' || g.fac !== c.owner || isRuler(g) || capitalOf(c.owner) === c.n) return;
+      const near = ADJ[c.n].filter(n => S.city[n] && S.city[n].owner === f); if (!near.length) return;
+      dbump('swayAdjGov'); if (g.loy < 65) dbump('swayLoyOk'); if ((g.ui || 0) < 12) dbump('swayUiOk'); dbump('swayLoySum', g.loy); dbump('swayUiSum', g.ui || 0);
+      if (!PR.swayAll && (g.loy >= (PR.swayLoy || 60) + 5 || (g.ui || 0) >= 12)) return;
+      const e = S.sway[f] && S.sway[f][g.n];
+      cands.push({ c, g, near, sc: (e ? e.v : 0) + (65 - g.loy) / 2 - (g.ui || 0) });
+    });
+    cands.sort((a, b) => b.sc - a.sc); dbump('swayCall'); dbump('swayCandSum', cands.length);
+    let used = 0; const maxA = PR.swayAgents || 2;
+    for (const t of cands) {
+      if (used >= maxA) break;
+      const ags = []; t.near.forEach(n => freeGens(n, f).forEach(g => { if (!isRuler(g) && !g.acted) ags.push(g); }));
+      ags.sort((a, b) => stat(b, 'c') - stat(a, 'c'));
+      while (ags.length && used < maxA) { const ag = ags.shift(); const e = swayEntry(f, t.g.n); const gn0 = swayGain(ag, t.g); e.v = Math.min(100, e.v + gn0); ag.acted = true; used++; dbump('swayAct'); dbump('swayGainSum', Math.round(gn0)); IT.dv.swayPeak = Math.max(IT.dv.swayPeak || 0, Math.round(e.v)); }
+      if (used) break; // 이번 달은 한 표적에 집중
+    }
+  }
+  function guisunExec(f, c, g, o) {
+    const ratio = 0.5 + 0.3 * clampN((g.t - 40) / 50, 0, 1);
+    const keep = Math.round(c.troops * ratio / 10) * 10, rest = c.troops - keep;
+    const cap = capitalOf(o);
+    // 나머지는 원 세력 인접 도시로 후퇴, 없으면 소멸
+    const back = ADJ[c.n].map(C).filter(x => x.owner === o).sort((a, b) => a.troops - b.troops)[0];
+    if (back && rest > 0) { back.troops += Math.min(rest, Math.max(0, garrisonCap(back) - back.troops)); }
+    gensIn(c.n, o).forEach(x => {
+      if (x === g) return;
+      const e = S.sway[f] && S.sway[f][x.n];
+      if (e && e.v >= 50 && !isRuler(x)) { joinFac(x, f, c.n, 70); x.guisunAt = IT.month; dbump('guisunJoin'); } else { x.loc = cap || x.loc; dbump('guisunRetreat'); }
+    });
+    c.owner = f; c.troops = keep; c.gov = g.n; joinFac(g, f, c.n, 75); g.guisunAt = IT.month; IT.low[c.n] = 0;
+    Object.keys(S.sway).forEach(ff => { if (S.sway[ff]) delete S.sway[ff][g.n]; });
+    syncOwn('귀순'); dbump('guisun');
+  }
+  function swayStep() {
+    S.sway = S.sway || {};
+    Object.keys(S.sway).forEach(f => { const m = S.sway[f]; Object.keys(m).forEach(gn => { m[gn].v -= 3; if (m[gn].v <= 0) delete m[gn]; }); });
+    Object.keys(S.sway).forEach(f => {
+      if (!S.fac[f] || !S.fac[f].alive) { delete S.sway[f]; return; }
+      Object.keys(S.sway[f] || {}).forEach(gn => {
+        const e = S.sway[f][gn]; if (!e || e.v < 100) return;
+        const g = G(gn); const c = g && C(g.loc); const o = g && g.fac;
+        if (!g || g.st !== '현역' || !o || o === f || !c || c.gov !== gn || c.owner !== o || !S.fac[o] || !S.fac[o].alive) { delete S.sway[f][gn]; return; }
+        const ruler = S.fac[o].ruler; const why = [];
+        if (!(g.loy < (PR.swayLoy || 60) && (g.ui || 0) < 12)) why.push('충성의리');
+        if (isRuler(g) || kinOrBond(g.n, ruler) || capitalOf(o) === c.n) why.push('군주수도혈연');
+        const opp = gensIn(c.n, o).filter(x => x !== g && x.loy >= 70).reduce((s, x) => s + x.t, 0);
+        if (!(opp < g.t * 1.5)) why.push('반대파');
+        if (bget(g.n, ruler) >= 80) why.push('관계');
+        if (!why.length) { guisunExec(f, c, g, o); return; }
+        e.fail++; dbump('swayBlock_' + why[0]);
+        if (e.fail >= 3) { e.v = 50; e.fail = 0; dbump('swayReset'); }
+      });
+    });
+  }
+  // 귀순 태수 24개월 이적 확률 절반: 원본의 월 3% 이적 판정에서 절반은 의리를 임시로 올려 건너뛴다
+  function halfDefectPre() {
+    const tmp = [];
+    Object.values(S.gen).forEach(g => { if (g.guisunAt !== undefined && IT.month - g.guisunAt < 24 && g.st === '현역' && g.loy < 55 && (g.ui || 0) < 10 && DR() < 0.5) { tmp.push([g, g.ui || 0]); g.ui = 99; dbump('halfDefect'); } });
+    return tmp;
+  }
+
+  // ---- 상략: 동맹 이간 ----
+  function breakPair(A, B) {
+    if (S.fac[A]) { delete S.fac[A].ally[B]; if (S.fac[A].pact) delete S.fac[A].pact[B]; if (S.fac[A].wed) delete S.fac[A].wed[B]; }
+    if (S.fac[B]) { delete S.fac[B].ally[A]; if (S.fac[B].pact) delete S.fac[B].pact[A]; if (S.fac[B].wed) delete S.fac[B].wed[A]; }
+  }
+  function idanTry(f, A, B, ag, c, cost) {
+    const pk = A < B ? A + '|' + B : B + '|' + A;
+    IT.idCd = IT.idCd || {}; IT.idFac = IT.idFac || {};
+    if ((IT.idCd[pk] || 0) > IT.month || (IT.idFac[f] || 0) > IT.month) return false;
+    if (c.gold < cost) return false;
+    c.gold -= cost; ag.acted = true; IT.idCd[pk] = IT.month + 12; IT.idFac[f] = IT.month + 3;
+    const ra = G(S.fac[A].ruler), rb = G(S.fac[B].ruler);
+    const wed = (S.fac[A].wed && S.fac[A].wed[B]);
+    let p = 20 + (stat(ag, 'i') - Math.max(stat(ra, 'i'), stat(rb, 'i'))) / 2 + hos(A, B) / 3 + (S.spy && S.spy[A] > S.y * 12 + S.m ? 10 : 0) - (wed ? 25 : 0);
+    p = clampN(Math.round(p), 0, 70); dbump('idanTry'); dbump('idanGold', cost);
+    if (DR() * 100 < p) {
+      breakPair(A, B); setHos(A, B, hos(A, B) + 20); IT.noAlly = IT.noAlly || {}; IT.noAlly[pk] = IT.month + 12; dbump('idanOk'); return true;
+    }
+    setHos(A, f, hos(A, f) + 15); setHos(B, f, hos(B, f) + 15); dbump('idanFail'); return false;
+  }
+  function idanAI(f) {
+    if ((IT.month + hashN(f)) % 6 !== 0) return;
+    const F = S.fac[f]; const E = F.lord && F.lord.enemy; dbump('idanCall'); if (!E || !S.fac[E] || !S.fac[E].alive) return; dbump('idanHasEnemy');
+    const cs = citiesOf(f).filter(isCity); if (!cs.length) return;
+    const surplus = cs.reduce((s, c) => s + Math.max(0, c.gold - reserveOf(c, f)), 0); if (surplus <= 1000) return;
+    let X = Object.keys(S.fac[E].ally).filter(x => x !== f && S.fac[x] && S.fac[x].alive && S.fac[E].ally[x] > 0 && S.fac[E].ally[x] < 900)[0]; let A = E;
+    if (!X && PR.idanAny) { const pr = []; Object.keys(S.fac).forEach(a => { if (a === f || !S.fac[a].alive) return; Object.keys(S.fac[a].ally || {}).forEach(b => { if (b > a && b !== f && S.fac[b] && S.fac[b].alive && S.fac[a].ally[b] > 0 && S.fac[a].ally[b] < 900 && (lordNeigh(f).includes(a) || lordNeigh(f).includes(b))) pr.push([a, b]); }); }); if (pr.length) { const q = pr[Math.floor(DR() * pr.length)]; A = q[0]; X = q[1]; } }
+    if (!X) return; dbump('idanHasAlly');
+    const nb = lordNeigh(f); if (!nb.includes(A) && !nb.includes(X)) return;
+    const P0 = (D && !PR.noPrice ? price(f) : 1) || 1; const cost = Math.round(400 * P0);
+    const rc = cs.slice().sort((a, b) => (b.gold - reserveOf(b, f)) - (a.gold - reserveOf(a, f)))[0]; if (rc.gold - reserveOf(rc, f) < cost) return;
+    const ag = gensOf(f).filter(g => !g.acted && !g.away && !(g.inj > 0) && !isRuler(g)).sort((a, b) => stat(b, 'i') - stat(a, 'i'))[0]; if (!ag) return;
+    idanTry(f, A, X, ag, rc, cost);
+  }
+  // ---- 상략: 매수 AI ----
+  function maesuAI(f) {
+    if ((IT.month + hashN(f)) % 3 !== 0) return;
+    const cs = citiesOf(f).filter(isCity); let best = null;
+    cs.forEach(c => {
+      const gold = c.gold - reserveOf(c, f) - 500; dbump('maesuCityScan'); if (gold <= 0) return; dbump('maesuGoldOk');
+      const ag = freeGens(c.n, f).filter(g => !isRuler(g)).sort((a, b) => stat(b, 'i') - stat(a, 'i'))[0]; if (!ag) return;
+      ADJ[c.n].forEach(n => { const tc = S.city[n]; if (!tc || !tc.owner || tc.owner === f || !isCity(tc) || oppAllied(f, tc.owner) || !tc.gov) return;
+        const tg = G(tc.gov); if (!tg || tg.st !== '현역' || isRuler(tg) || capitalOf(tc.owner) === tc.n) return;
+        const price = Math.round(cityPrice(tc) * 0.5 / 100) * 100; dbump('maesuTgt'); if (price > gold) return; dbump('maesuPriceOk');
+        const ch = schemeChance(ag, tg, '매수'); dbump('maesuChSum', ch); if (ch < (PR.maesuMin === undefined ? 35 : PR.maesuMin)) return;
+        if (!best || ch > best.ch) best = { c, ag, tc, ch }; });
+    });
+    if (!best) return;
+    const r = cmdScheme(best.c.n, best.ag.n, '매수', best.tc.n); dbump('maesuTry'); if (r && r.ok) dbump('maesuOk');
+  }
+  // ---- 용병: 계약제 + 상략 가중 + 상략 AI ----
+  function mercExpire() {
+    IT.mercs = (IT.mercs || []).filter(h => {
+      if (h.until > IT.month) return true;
+      const c = C(h.cn); const x = Math.min(h.amt, c.merc || 0, c.troops); if (x > 0) { c.merc -= x; c.troops -= x; dbump('mercDisbandN', x); } dbump('mercDisband'); return false; });
+  }
+  function mercAI(f) {
+    const cs = citiesOf(f).filter(isCity); const T = cs.reduce((s, c) => s + c.troops, 0), M = cs.reduce((s, c) => s + Math.min(c.merc || 0, c.troops), 0);
+    if (M >= 0.3 * T) return;
+    const c = cs.filter(x => isFront(x.n, f) && cityThreat(x, f) > 0.8).sort((a, b) => cityThreat(b, f) - cityThreat(a, f))[0]; if (!c) return;
+    if (c.gold <= reserveOf(c, f) + mercCost(c, 2000) * 2) return;
+    const g = freeGens(c.n, f)[0]; if (!g) return; const amt = Math.min(2000, Math.floor((0.3 * T - M) / 100) * 100); if (amt < 500) return;
+    const r = cmdMerc(c.n, g.n, amt); if (r && r.ok) dbump('mercAI');
+  }
+  { const f = mercCost; mercCost = function (c, amt) { const v = f.apply(this, arguments); return (ANYDV && DV('merc') && c && c.owner && rootOf(c.owner) === '상략') ? Math.round(v * 0.8) : v; }; }
+  { const f = cmdMerc; cmdMerc = function (cn, gn, amt) {
+    if (!(ANYDV && DV('merc'))) return f.apply(this, arguments);
+    const c = C(cn); const t0 = c.troops, tr0 = c.train; const r = f.apply(this, arguments);
+    if (r && r.ok) { const got = c.troops - t0;
+      if (rootOf(c.owner) === '상략') { c.train = Math.round((tr0 * t0 + 40 * got) / Math.max(1, c.troops)); dbump('mercHire상략'); } else dbump('mercHire기타');
+      (IT.mercs = IT.mercs || []).push({ cn, amt: got, until: IT.month + 12 }); }
+    return r; }; }
+
+  // ---- 덕화: 덕망 파급 + 민심 투항 ----
+  function tuhangStep() {
+    const mo = IT.month; IT.low = IT.low || {}; IT.exempt = IT.exempt || {}; IT.tlog = IT.tlog || {};
+    // 파급
+    const hit = {};
+    Object.values(S.city).forEach(c => {
+      if (!c.owner || !isCity(c) || rootOf(c.owner) !== '덕화' || c.loy < 80) return;
+      ADJ[c.n].forEach(n => { const t = S.city[n]; if (!t || !t.owner || t.owner === c.owner || !isCity(t) || oppAllied(c.owner, t.owner) || t.loy >= c.loy) return;
+        if ((hit[n] || 0) >= 2) return; const d = Math.min(0.8, 2 - (hit[n] || 0)); hit[n] = (hit[n] || 0) + d; t.loy = Math.max(0, t.loy - d);
+        const mv = Math.round(t.pop * 0.003); if (mv > 0) { t.pop -= mv; c.pop += mv; } dbump('spread'); });
+    });
+    // 저민충 연속 개월
+    Object.values(S.city).forEach(c => { if (!c.owner || !isCity(c)) { IT.low[c.n] = 0; return; } IT.low[c.n] = c.loy < (PR.tuLow || 30) ? (IT.low[c.n] || 0) + 1 : 0; });
+    // 투항 판정
+    Object.values(S.city).forEach(n => {
+      if (!n.owner || !isCity(n) || (IT.low[n.n] || 0) < 4) return;
+      const o = n.owner; if (capitalOf(o) === n.n) { dbump('tuhangCapital'); return; }
+      if ((IT.exempt[n.n] || 0) > mo) { dbump('tuhangExempt'); return; }
+      const nbs = ADJ[n.n].map(C).filter(m => m.owner && m.owner !== o && isCity(m) && rootOf(m.owner) === '덕화' && m.loy >= 70 && !oppAllied(m.owner, o)).sort((a, b) => b.loy - a.loy);
+      if (!nbs.length) { dbump('tuhangNoNeighbor'); return; }
+      if (!(DR() * 2 * (PR.tuLow || 30) < (PR.tuLow || 30) - n.loy)) return;
+      const f = nbs[0].owner;
+      if (n.troops >= 0.6 * garrisonCap(n)) { n.loy = Math.max(0, n.loy - 5); dbump('tuhangSuppress'); return; }
+      const lg = (IT.tlog[f] = (IT.tlog[f] || []).filter(t => mo - t < 12)); if (lg.length >= 2) { dbump('tuhangCap12'); return; }
+      lg.push(mo);
+      // 투항 실행
+      const cap = capitalOf(o);
+      gensIn(n.n, o).forEach(g => { g.loc = cap || g.loc; });
+      n.owner = f; n.troops = Math.round(n.troops * 0.3); n.loy = 50; n.gov = null; autoGov(n); n.conq = { from: o, t: S.y * 12 + S.m }; IT.low[n.n] = 0;
+      ADJ[n.n].map(C).forEach(m => { if (m.owner === o) IT.exempt[m.n] = mo + 6; });
+      syncOwn('투항'); dbump('tuhang'); (IT.dvlog = IT.dvlog || []).push([mo, f, o, n.n]);
+    });
+  }
+  // ---- 덕화 conqEff / 징병 / 법치·덕치 소속 가중 ----
+  { const f = conqEff; conqEff = function (c) {
+    if (ANYDV && DV('dhx') && c && c.conq && c.owner && rootOf(c.owner) === '덕화') { const t = S.y * 12 + S.m - c.conq.t; const dur = Math.max(12, 18); return t >= dur ? 1 : 0.7 + 0.3 * t / dur; }
+    return f.apply(this, arguments); }; }
+  { const f = facTroopCap; facTroopCap = function (fid) {
+    if (ANYDV && DV('dhx') && rootOf(fid) === '덕화') return Math.floor(citiesOf(fid).reduce((s, c) => s + (c.pop || 0), 0) * Math.min(0.6, ECO.draftShare + 0.10));
+    return f.apply(this, arguments); }; }
+  { const f = cmdDraft; cmdDraft = function (cn, gn, amt) {
+    if (!(ANYDV && DV('dhx'))) return f.apply(this, arguments);
+    const c = C(cn); const l0 = c.loy, t0 = c.troops; const r = f.apply(this, arguments);
+    if (r && r.ok && c.owner && rootOf(c.owner) === '덕화' && l0 >= 70 && c.troops > t0) c.train = Math.round(c.train + 5 * (c.troops - t0) / c.troops);
+    return r; }; }
+  function polAdjust() { // 법치(점령지 민충 +2)·덕치(전 도시 +0.6): 덕화 소속 1.0, 그 외 0.6 → 비소속은 차액을 되돌린다
+    Object.values(S.city).forEach(c => { if (!c.owner || rootOf(c.owner) === '덕화') return;
+      if (c.conq && hasPol(c.owner, '법치')) c.loy = Math.max(0, c.loy - 0.8);
+      if (hasPol(c.owner, '덕치')) c.loy = Math.max(0, c.loy - 0.24); });
+  }
+
+  // ---- AI 턴 앞에서 장치 행동 배정(AI가 장수를 다 쓰기 전에 설득·이간·매수·용병 담당을 먼저 뽑는다) ----
+  { const f = aiTurn; aiTurn = function (fid) {
+    if (ANYDV && IT && S.fac[fid] && S.fac[fid].alive) { const rt = rootOf(fid);
+      try { if (rt === '경륜' && DV('gwisun')) swayAct(fid); if (rt === '상략') { if (DV('idan')) idanAI(fid); if (DV('maesu')) maesuAI(fid); if (DV('merc')) mercAI(fid); } } catch (e) { IT.err = (IT.err || 0) + 1; IT.lastErr = 'ai ' + String(e && e.stack || e).slice(0, 300); } }
+    return f.apply(this, arguments); }; }
+  // ---- 작동 확인용 강제 시험(PR.devtest): 3개월째 조건을 강제로 만들어 실행 경로를 지나게 한다. 결과 비교에는 쓰지 않는다 ----
+  function devTest() {
+    S.sway = S.sway || {};
+    if (IT.month === 3 && DV('gwisun')) { let n = 0; Object.keys(S.fac).forEach(f => { if (!S.fac[f].alive || rootOf(f) !== '경륜' || n >= 3) return;
+      const c = Object.values(S.city).find(x => x.owner && x.owner !== f && isCity(x) && x.gov && ADJ[x.n].some(a => S.city[a].owner === f) && capitalOf(x.owner) !== x.n && !isRuler(G(x.gov)));
+      if (c) { const g = G(c.gov); g.loy = 40; g.ui = 3; swayEntry(f, g.n).v = 110; n++; } }); }
+    if (IT.month >= 3 && IT.month < 9 && DV('tuhang')) { Object.values(S.city).forEach(m => { if (!m.owner || rootOf(m.owner) !== '덕화' || !isCity(m)) return;
+      m.loy = Math.max(m.loy, 90); ADJ[m.n].forEach(a => { const n = S.city[a]; if (n && n.owner && n.owner !== m.owner && isCity(n) && capitalOf(n.owner) !== n.n && IT.month < 8) { n.loy = 10; if (IT.month === 3) { n.troops = 500; IT.low[n.n] = 3; } } }); }); }
+  }
+  // ---- 월 갱신에 얹기 ----
+  { const f = monthlyUpdate; monthlyUpdate = function () {
+    if (!ANYDV || !IT) return f.apply(this, arguments);
+    let tmp = [];
+    try {
+      IT.low = IT.low || {}; if (PR.devtest) devTest();
+      if (DV('merc')) mercExpire();
+      if (DV('gwisun')) { swayStep(); tmp = halfDefectPre(); }
+    } catch (e) { IT.err = (IT.err || 0) + 1; IT.lastErr = 'pre ' + String(e && e.stack || e).slice(0, 300); }
+    let r; try { r = f.apply(this, arguments); } finally { tmp.forEach(([g, u]) => { g.ui = u; }); }
+    try {
+      if (DV('idan') && IT.noAlly) Object.keys(IT.noAlly).forEach(pk => { if (IT.noAlly[pk] > IT.month) { const [a, b] = pk.split('|'); if (S.fac[a] && S.fac[b] && (allied(a, b) || hasPact(a, b))) { breakPair(a, b); dbump('noAllyEnforce'); } } });
+      if (DV('merc')) Object.values(S.city).forEach(c => { if (c.owner && rootOf(c.owner) === '상략' && (c.merc || 0) > 0 && c.troops > 0) c.gold += Math.round(0.5 * Math.min(c.merc, c.troops) / ECO.troopGold); });
+      if (DV('tuhang')) tuhangStep();
+      if (DV('dhx')) polAdjust();
+    } catch (e) { IT.err = (IT.err || 0) + 1; IT.lastErr = 'post ' + String(e && e.stack || e).slice(0, 300); }
+    return r; }; }
+
   const snap = fid => { const cs = citiesOf(fid); const ct = cs.filter(isCity); const tr = cs.reduce((s, c) => s + c.troops, 0); const gens = gensOf(fid); const top = gens.map(g => Math.max(g.w, g.t, g.i, g.p)).sort((a, b) => b - a).slice(0, 10);
     const front = ct.filter(c => isFront(c.n, fid)); installArms();
     return { cities: cs.length, troops: tr, gold: cs.reduce((s, c) => s + c.gold, 0), food: cs.reduce((s, c) => s + c.food, 0), gens: gens.length, gq: mean(top), alive: S.fac[fid].alive ? 1 : 0,
@@ -201,15 +448,41 @@ vm.runInContext(`(() => {
       gm: tr > 0 ? cs.reduce((s, c) => s + c.gold, 0) / (tr / ECO.troopGold) : 0, fm: tr > 0 ? cs.reduce((s, c) => s + c.food, 0) / (tr / ECO.troopFood) : 0 }; };
   function hubMap() { const all = new Set(PORTS.concat(PR.land ? LAND : [])); const o = {}; all.forEach(cn => o[cn] = S.city[cn] ? S.city[cn].owner : null); return o; }
 
+  // ================= 성능 캐시 (동작 불변; PR.nocache 로 끔) =================
+  // citiesOf/gensOf 는 매번 전체를 훑는 O(N) 이고 AI 가 O(N²) 로 불러 후반에 느려진다. 소유자·상태 필드에 세터를 달아 버전으로 무효화한다.
+  let CV = 0, GV = 0, cMap = null, cVer = -1, cRef = null, gMap = null, gVer = -1, gRef = null, smSet = null, smVer = -1, smRef = null;
+  function hookObj(o, keys, bump) { if (Object.prototype.hasOwnProperty.call(o, '__h')) return; Object.defineProperty(o, '__h', { value: 1, enumerable: false });
+    keys.forEach(k => { let v = o[k]; Object.defineProperty(o, k, { get() { return v; }, set(x) { if (x !== v) { v = x; bump(); } }, enumerable: true, configurable: true }); }); }
+  function cacheBump() { CV++; GV++; }
+  if (!PR.nocache) {
+    const cOrig = citiesOf, gOrig = gensOf, cmOrig = costMul;
+    citiesOf = function (fid) {
+      if (cVer !== CV || cRef !== S.city) { Object.values(S.city).forEach(c => hookObj(c, ['owner'], () => { CV++; })); cMap = {}; Object.values(S.city).forEach(c => { if (c.owner) (cMap[c.owner] = cMap[c.owner] || []).push(c); }); cVer = CV; cRef = S.city; }
+      if (PR.cachecheck && !globalThis.__bad_citiesOf) { const r = (cMap[fid] || []).map(x => x.n).join(), o = cOrig(fid).map(x => x.n).join(); if (r !== o) { globalThis.__bad_citiesOf = 1; PRINT('캐시불일치 citiesOf', fid, 'm', IT && IT.month, String(new Error().stack).slice(60, 700)); } }
+      const a = cMap[fid]; return a ? a.slice() : (fid === undefined || fid === null || fid === '' ? cOrig(fid) : []);
+    };
+    gensOf = function (fid) {
+      if (gVer !== GV || gRef !== S.gen) { Object.values(S.gen).forEach(g => hookObj(g, ['st', 'fac', 'loc'], () => { GV++; })); gMap = {}; Object.values(S.gen).forEach(g => { if (g.st === '현역' && g.fac) (gMap[g.fac] = gMap[g.fac] || []).push(g); }); gVer = GV; gRef = S.gen; }
+      if (PR.cachecheck && !globalThis.__bad_gensOf) { const r = (gMap[fid] || []).map(x => x.n).join(), o = gOrig(fid).map(x => x.n).join(); if (r !== o) { globalThis.__bad_gensOf = 1; PRINT('캐시불일치 gensOf', fid, 'm', IT && IT.month, String(new Error().stack).slice(60, 700)); } }
+      const a = gMap[fid]; return a ? a.slice() : (fid === undefined || fid === null || fid === '' ? gOrig(fid) : []);
+    };
+    if (!PR.nocm) costMul = function (c) { // 재정 특기 장수가 그 도시에 (소유 세력 소속으로) 있으면 0.8; 장수 목록 스캔 대신 도시 집합을 캐시
+      if (smVer !== GV || smRef !== S.gen) { gensOf('_'); smSet = new Set(); Object.values(S.gen).forEach(x => { if (x.st === '현역' && x.loc && x.fac && hasSk(x, '재정')) smSet.add(x.loc + '|' + x.fac); }); smVer = GV; smRef = S.gen; }
+      return c.owner && smSet.has(c.n + '|' + c.owner) ? 0.8 : 1; };
+    for (const k of ['makeTalent', 'addCustom', 'spawnRandom', 'pruneDead']) { const f = globalThis[k]; globalThis[k] = function () { try { return f.apply(this, arguments); } finally { GV++; } }; } // S.gen 에 장수를 넣거나 지우는 곳
+    for (const k of ['monthlyUpdate', 'aiTurn']) { const f = globalThis[k]; globalThis[k] = function () { cacheBump(); return f.apply(this, arguments); }; }
+  }
+
   function game() {
     newGame('조조', { rand: true, custom: true, scen: PR.scen, diff: 1 });
     S.opt.v4Battle = false;
-    IT = { st: {}, inc0: {}, Pf: {}, Pn: 1, avg0: 0, month: 0, foundTot: 0, nomAvg: 0, rotN: 0, acq: {}, lost: {}, evt: {}, ow: null, own50: {}, dead: {}, uni: -1 };
+    IT = { st: {}, inc0: {}, Pf: {}, Pn: 1, avg0: 0, month: 0, foundTot: 0, nomAvg: 0, rotN: 0, acq: {}, lost: {}, evt: {}, ow: null, own50: {}, dead: {}, uni: -1, dv: {}, dvlog: [] };
     const fids = Object.keys(S.fac); fids.forEach(f => { if (citiesOf(f).length) initFac(f); });
     updatePrice(); IT.Pn = 1; Object.keys(IT.Pf).forEach(f => IT.Pf[f] = 1);
     IT.ow = OWN(); const nCity = Object.values(S.city).filter(isCity).length;
     const start = {}; fids.forEach(f => start[f] = snap(f));
     const aiP = aiPickPolicy; aiPickPolicy = function (fid) { return aiP.apply(this, arguments); };
+    const TL0 = Date.now();
     const hist = [], hubs = [];
     hubs.push(hubMap());
     for (let i = 0; i < PR.months && !S.over; i++) {
@@ -220,6 +493,7 @@ vm.runInContext(`(() => {
         Object.keys(S.fac).forEach(f => { if (IT.dead[f] === undefined && IT.st[f] && !cnt[f]) IT.dead[f] = i + 1; }); }
       if (S.over === 'lose' || S.over === 'win') S.over = null;
       if (S.fac[S.player].alive && (!S.fac[S.player].pol || S.m === 1)) { try { aiPickPolicy(S.player); } catch (e) { } }
+      if (PR.tlog && i % 6 === 5) PRINT('t', i + 1, Date.now() - TL0);
       if (i % 12 === 11) {
         const snaps = {}; Object.keys(S.fac).forEach(f => { if (IT.st[f]) snaps[f] = snap(f); });
         hist.push({ snaps, Pn: IT.Pn, vanilla: origPrice(), nomAvg: IT.nomAvg, realAvg: worldInc(), alive: Object.keys(S.fac).filter(f => S.fac[f].alive && citiesOf(f).length).length });
@@ -230,7 +504,7 @@ vm.runInContext(`(() => {
     const end = {}; fids.forEach(f => end[f] = snap(f));
     const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, merc: s.merc || 0, Pf: IT.Pf[f], acq: IT.acq[f] || {}, lost: IT.lost[f] || {}, own50: IT.own50[f] === undefined ? -1 : IT.own50[f], dead: IT.dead[f] === undefined ? -1 : IT.dead[f] }; });
     aiPickPolicy = aiP;
-    return { params: PR, fids, start, end, hist, hubs, st: stOut, evt: IT.evt, nCity, own50: IT.own50, uni: IT.uni, over: S.over, foundTot: IT.foundTot, err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn };
+    return { params: PR, fids, start, end, hist, hubs, st: stOut, evt: IT.evt, nCity, own50: IT.own50, uni: IT.uni, over: S.over, foundTot: IT.foundTot, dv: IT.dv, dvlog: IT.dvlog || [], err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn };
   }
   const res = [];
   for (let g = 0; g < PR.games; g++) { res.push(game()); PRINT('판', g + 1, '/', PR.games); }
@@ -306,11 +580,35 @@ function cause(files) {
   console.log('[뿌리별 라벨(무작위 순환; v105는 뿌리가 동작에 영향 없음 → 라벨 잡음)] 뿌리 | 표본 | 성 취득합 | 자기방법 비율 | 도시수(말) 중앙/평균 | 멸망% | 도시50%도달%');
   ['강병', '경륜', '상략', '덕화'].forEach(rt => { const a = rows.filter(x => x.root === rt && x.start > 0); const own = a.reduce((s, x) => s + OWNM[rt].reduce((u, k) => u + (x.acq[k] || 0), 0), 0), all = a.reduce((s, x) => s + x.nacq, 0);
     console.log('  ' + rt + ' | ' + a.length + ' | ' + all + ' | ' + f1(100 * own / Math.max(1, all)) + '% | ' + f1(med(a.map(x => x.c30)), 1) + '/' + f1(mean(a.map(x => x.c30)), 2) + ' | ' + f1(100 * mean(a.map(x => x.alive ? 0 : 1)), 0) + '% | ' + f1(100 * mean(a.map(x => x.own50 > 0 ? 1 : 0)), 1) + '%'); });
-  console.log('[원인별 취득 비율: 뿌리 라벨별 (시작 시 도시 있던 세력)] 열: ' + ['전투', '매수', '매입', '할양', '항복', '독립', '환원', '기타', '이적'].join(' '));
+  console.log('[원인별 취득 비율: 뿌리 라벨별 (시작 시 도시 있던 세력)] 열: ' + ['전투', '귀순', '매수', '매입', '할양', '항복', '투항', '독립', '환원', '기타', '이적'].join(' '));
   ['강병', '경륜', '상략', '덕화'].forEach(rt => { const a = rows.filter(x => x.root === rt && x.start > 0); const k = {}; a.forEach(x => Object.entries(x.acq).forEach(([t, v]) => k[t] = (k[t] || 0) + v)); const all = Object.values(k).reduce((s, x) => s + x, 0);
-    console.log('  ' + rt + ' ' + ['전투', '매수', '매입', '할양', '항복', '독립', '환원', '기타', '이적'].map(t => f1(100 * (k[t] || 0) / Math.max(1, all)) + '%').join(' ') + ' (합 ' + all + ', 미열거: ' + Object.keys(k).filter(t => !['전투', '매수', '매입', '할양', '항복', '독립', '환원', '기타', '이적'].includes(t)).map(t => t + k[t]).join(',') + ')'); });
+    console.log('  ' + rt + ' ' + ['전투', '귀순', '매수', '매입', '할양', '항복', '투항', '독립', '환원', '기타', '이적'].map(t => f1(100 * (k[t] || 0) / Math.max(1, all)) + '%').join(' ') + ' (합 ' + all + ', 미열거: ' + Object.keys(k).filter(t => !['전투', '귀순', '매수', '매입', '할양', '항복', '투항', '독립', '환원', '기타', '이적'].includes(t)).map(t => t + k[t]).join(',') + ')'); });
+  const dvt = {}; R.forEach(r => Object.entries(r.dv || {}).forEach(([k, v]) => dvt[k] = (dvt[k] || 0) + v));
+  if (Object.keys(dvt).length) console.log('[장치 발동 합계] ' + Object.entries(dvt).map(([k, v]) => k + ' ' + v).join(' | '));
+  console.log('[판별 오류] ' + R.map(r => r.err).join(','));
   const u = R.map(r => r.uni), o50 = R.map(r => { const v = Object.values(r.own50 || {}).filter(x => x > 0); return v.length ? Math.min(...v) : -1; });
   console.log('[통일(전 도시 1세력) 달성 판] ' + u.filter(x => x > 0).length + '/' + R.length + ' 개월 ' + u.join(',') + ' | [도시 50% 최초 도달 개월] ' + o50.join(','));
   console.log('[말 시점 생존 세력수] ' + R.map(r => { const l = r.hist[r.hist.length - 1]; return l ? l.alive : '-'; }).join(','));
   console.log('[세력 단위 도시수(말) 분포: 최대 판별] ' + R.map(r => { const l = r.hist[r.hist.length - 1]; return l ? Math.max(...Object.values(l.snaps).map(s => s.cities)) : '-'; }).join(',') + ' / 전체 도시 ' + R[0].nCity);
+}
+
+// 짝지어 비교: node tools/integrated_sim.js pair 'base1.json,base2.json' 'dev1.json,dev2.json'  (파일은 같은 시드 순서)
+function pair(args) {
+  const mean = a => a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
+  const f1 = (x, n = 1) => (Number.isFinite(x) ? x.toFixed(n) : '-');
+  const load = l => l.split(',').flatMap(f => JSON.parse(fs.readFileSync(f, 'utf8')));
+  const [A, B] = [load(args[0]), load(args[1])];
+  const sum = R => { const o = {}; ['강병', '경륜', '상략', '덕화'].forEach(rt => o[rt] = { n: 0, c: 0, dead: 0, surv: [] });
+    R.forEach(r => { const hs = r.hist[r.hist.length - 1]; Object.keys(r.st).forEach(f => { const s = r.st[f]; if (!r.start[f] || r.start[f].cities <= 0) return; const sn = hs && hs.snaps[f]; const c = sn ? sn.cities : 0; const o1 = o[s.root]; if (!o1) return; o1.n++; o1.c += c; if (!(sn && sn.alive)) o1.dead++; else o1.surv.push(c); }); }); return o; };
+  const sa = sum(A), sb = sum(B);
+  console.log('판 ' + A.length + ' vs ' + B.length + ' | 열: 뿌리 | 표본 | 평균 도시(기준→장치) | 멸망%(기준→장치) | 생존 평균 도시');
+  let ta = 0, tb = 0, na = 0, nb = 0;
+  Object.keys(sa).forEach(rt => { const a = sa[rt], b = sb[rt]; ta += a.c; tb += b.c; na += a.n; nb += b.n;
+    console.log('  ' + rt + ' | ' + a.n + '/' + b.n + ' | ' + f1(a.c / a.n, 2) + ' → ' + f1(b.c / b.n, 2) + ' | ' + f1(100 * a.dead / a.n, 0) + '% → ' + f1(100 * b.dead / b.n, 0) + '% | ' + f1(mean(a.surv), 2) + ' → ' + f1(mean(b.surv), 2)); });
+  const dead = o => Object.values(o).reduce((s, x) => s + x.dead, 0), nn = o => Object.values(o).reduce((s, x) => s + x.n, 0);
+  console.log('  전체 멸망률 ' + f1(100 * dead(sa) / nn(sa)) + '% → ' + f1(100 * dead(sb) / nn(sb)) + '%');
+  const dr = o => Object.entries(o).map(([k, x]) => x.dead / Math.max(1, x.n)); const ra = dr(sa), rb = dr(sb);
+  const rel = r => { const m = r.map((x, i) => mean(r.filter((_, j) => j !== i))); return Math.max(...r.map((x, i) => m[i] > 0 ? x / m[i] : 0)); };
+  console.log('  멸망률 최대/다른평균 비 ' + f1(rel(ra), 2) + ' → ' + f1(rel(rb), 2));
+  console.log('  판별 말 생존 세력 / 최대 세력 도시: ' + A.map((r, i) => { const l = r.hist[r.hist.length - 1], m = B[i].hist[B[i].hist.length - 1]; const mx = h => Math.max(...Object.values(h.snaps).map(s => s.cities)); return 's' + (r.params.seed) + ' ' + l.alive + '→' + m.alive + ' / ' + mx(l) + '→' + mx(m); }).join(' | '));
 }
