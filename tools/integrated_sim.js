@@ -227,7 +227,7 @@ vm.runInContext(`(() => {
       const g = G(c.gov); if (!g || g.st !== '현역' || g.fac !== c.owner || isRuler(g) || capitalOf(c.owner) === c.n) return;
       const near = ADJ[c.n].filter(n => S.city[n] && S.city[n].owner === f); if (!near.length) return;
       dbump('swayAdjGov'); if (g.loy < 65) dbump('swayLoyOk'); if ((g.ui || 0) < 12) dbump('swayUiOk'); dbump('swayLoySum', g.loy); dbump('swayUiSum', g.ui || 0);
-      if (!PR.swayAll && (g.loy >= (PR.swayLoy || 60) + 5 || (g.ui || 0) >= 12)) return;
+      if (!PR.swayAll && ((!PR.swayProb && g.loy >= (PR.swayLoy || 60) + 5) || (PR.swayProb && g.loy >= 95) || (g.ui || 0) >= 12)) return;
       const e = S.sway[f] && S.sway[f][g.n];
       cands.push({ c, g, near, sc: (e ? e.v : 0) + (65 - g.loy) / 2 - (g.ui || 0) });
     });
@@ -259,7 +259,6 @@ vm.runInContext(`(() => {
   }
   function swayStep() {
     S.sway = S.sway || {};
-    Object.keys(S.sway).forEach(f => { const m = S.sway[f]; Object.keys(m).forEach(gn => { m[gn].v -= 3; if (m[gn].v <= 0) delete m[gn]; }); });
     Object.keys(S.sway).forEach(f => {
       if (!S.fac[f] || !S.fac[f].alive) { delete S.sway[f]; return; }
       Object.keys(S.sway[f] || {}).forEach(gn => {
@@ -267,7 +266,7 @@ vm.runInContext(`(() => {
         const g = G(gn); const c = g && C(g.loc); const o = g && g.fac;
         if (!g || g.st !== '현역' || !o || o === f || !c || c.gov !== gn || c.owner !== o || !S.fac[o] || !S.fac[o].alive) { delete S.sway[f][gn]; return; }
         const ruler = S.fac[o].ruler; const why = [];
-        if (!(g.loy < (PR.swayLoy || 60) && (g.ui || 0) < 12)) why.push('충성의리');
+        if (!((PR.swayProb ? DR() < clampN((100 - g.loy) / 60, 0, 1) : g.loy < (PR.swayLoy || 60)) && (g.ui || 0) < 12)) why.push('충성의리');
         if (isRuler(g) || kinOrBond(g.n, ruler) || capitalOf(o) === c.n) why.push('군주수도혈연');
         const opp = gensIn(c.n, o).filter(x => x !== g && x.loy >= 70).reduce((s, x) => s + x.t, 0);
         if (!(opp < g.t * 1.5)) why.push('반대파');
@@ -277,6 +276,8 @@ vm.runInContext(`(() => {
         if (e.fail >= 3) { e.v = 50; e.fail = 0; dbump('swayReset'); }
       });
     });
+    // 월 감소는 판정 뒤에(100 도달 직후 −3 으로 97 이 되어 영영 판정이 안 되던 버그 수정)
+    Object.keys(S.sway).forEach(f => { const m = S.sway[f]; Object.keys(m).forEach(gn => { m[gn].v -= 3; if (m[gn].v <= 0) delete m[gn]; }); });
   }
   // 귀순 태수 24개월 이적 확률 절반: 원본의 월 3% 이적 판정에서 절반은 의리를 임시로 올려 건너뛴다
   function halfDefectPre() {
