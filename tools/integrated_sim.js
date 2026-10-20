@@ -11,7 +11,7 @@ const cmd = process.argv[2];
 if (cmd === 'pair') { pair(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'cause') { cause(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'report') { report(process.argv.slice(3)); process.exit(0); }
-const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1, rec: false, foodFloor: 15, holdN: 12, holdRate: 0.03 }, JSON.parse(process.argv[3] || '{}'));
+const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1, rec: false, foodFloor: 15, holdN: 12, holdRate: 0.03, r3: false, lux: [40, 70, 100], luxM: [0.10, 0.20, 0.32], luxMer: 1.5, luxCap: 0.6, sinkFrac: 0.7, assign: false, deukBonus: 0.4, popT: [120000, 170000, 230000], popInc: 0.04, popLoy: 0.15, popFind: 0.006, foodBuyN: 0, sinkArm: 0.55 }, JSON.parse(process.argv[3] || '{}'));
 const OUT = process.argv[4] || '';
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v105.html'), 'utf8');
@@ -38,6 +38,11 @@ vm.runInContext(`(() => {
     eeu: ['대군', '안문', '서평', '무위', '장액'], weu: ['월수', '운남', '영창', '남해', '합포', '교지'], usa: ['건안', '회계', '오', '말릉', '광릉', '동해', '남해', '합포', '교지'] };
   const REGION = {}; ['양평', '북평', '남피', '북해'].forEach(c => REGION[c] = '동북'); ['동래', '낭야', '동해', '광릉', '말릉', '오', '회계', '건안'].forEach(c => REGION[c] = '동남해안'); ['남해', '합포', '교지'].forEach(c => REGION[c] = '남');
   ['대군', '안문'].forEach(c => REGION[c] = '북방'); ['서평', '무위', '장액'].forEach(c => REGION[c] = '서북'); ['월수', '운남', '영창'].forEach(c => REGION[c] = '서남');
+  // 이름 있는 군주 손 지정표 (r3 시험 §4-00000, 시나리오 190·200의 실제 세력 id). 지정에 없는 세력만 공식으로 고른다.
+  const ASSIGN = { 조조: '경륜', 원소: '경륜', 유표: '경륜', 유우: '경륜', 공융: '경륜', 왕랑: '경륜',
+    동탁: '강병', 공손찬: '강병', 마등: '강병', 한수: '강병', 맹획: '강병', 엄백호: '강병',
+    손견: '상략', 사섭: '상략', 원술: '상략', 포신: '상략', 공손도: '상략',
+    유비: '덕화', 도겸: '덕화', 유언: '덕화', 장로: '덕화' };
   const isCity = c => kindOf(c.n) === '도시';
   const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
   let IT = null, CURF = null;
@@ -53,11 +58,12 @@ vm.runInContext(`(() => {
     if (PR.roots === 'none') return 'none';
     if (PR.roots === 'rot') return ROOTS[(IT.rotN++) % 4];
     if (PR.roots === 'forced') return ROOTS[Math.floor(RND() * 4)];
+    if (PR.assign && ASSIGN[f]) return ASSIGN[f];
     const rs = fid => { const g = G(S.fac[fid].ruler); return { 경륜: g.i + g.p, 강병: g.w + g.t, 상략: g.c * 1.6, 덕화: (g.p + g.t + g.c) * 0.7 }; };
     const sc = rs(f);
     if (PR.rec) { // 쏠림 보정: 뿌리별 점수를 시나리오 전체 군주 평균·표준편차로 표준화한 상대 점수로 비교
       if (!IT.rm) { const all = Object.keys(S.fac).filter(x => S.fac[x].alive).map(rs); IT.rm = {}; ROOTS.forEach(r => { const m = mean(all.map(o => o[r])); IT.rm[r] = { m, sd: Math.max(1, Math.sqrt(mean(all.map(o => (o[r] - m) ** 2)))) }; }); }
-      ROOTS.forEach(r => sc[r] = (sc[r] - IT.rm[r].m) / IT.rm[r].sd);
+      ROOTS.forEach(r => sc[r] = (sc[r] - IT.rm[r].m) / IT.rm[r].sd + (PR.assign && r === '덕화' ? PR.deukBonus : 0));
     }
     return ROOTS.reduce((b, r) => sc[r] > sc[b] ? r : b, '경륜');
   }
@@ -95,6 +101,14 @@ vm.runInContext(`(() => {
       const s = amp(f, PART[d]) * (need ? need(d) : 1) + RND() * 0.3; if (s > bs) { bs = s; best = d; } }
     return best;
   }
+  function luxSink(f, cs, amt, P) { // 고가품 이익을 군비(전선 도시)·시설에 나눠 씀. 절반씩
+    const st = IT.st[f]; st.sink = st.sink || { 군비: 0, 시설: 0 }; st.pool = (st.pool || 0) + amt; let armB = st.pool * PR.sinkArm, facB = st.pool * (1 - PR.sinkArm); // 이익을 풀에 모아 비용이 차면 씀
+    const fr = cs.filter(c => isFront(c.n, f)); const pool = fr.length ? fr : cs; installArms();
+    for (let k = 0; k < 40 && armB > 0; k++) { const c = pool[k % pool.length]; const t = ['보병', '궁병', '기병'].sort((x, y) => (c.arm[x] || 0) - (c.arm[y] || 0))[0]; const cost = armCost(c, t); if (cost > armB || c.gold < cost + reserveOf(c, f)) break; c.gold -= cost; c.arm[t] = (c.arm[t] || 0) + 3; armB -= cost; st.pool -= cost; st.sink.군비 += cost; }
+    const keys = Object.keys(FACS);
+    for (const c of cs) { if (facB <= 0) break; c.facs = c.facs || []; if (c.facs.length >= gradeOf(c)) continue; const cost = Math.round(facCost(c) * P); if (cost > facB || c.gold < cost + reserveOf(c, f)) continue;
+      const fc = keys.filter(k => !c.facs.includes(k) && canFac(c, k))[Math.floor(RND() * 99) % Math.max(1, keys.length)]; if (!fc) continue; c.gold -= cost; c.facs.push(fc); facB -= cost; st.pool -= cost; st.sink.시설 += cost; }
+  }
   function tradeTurn(f) {
     const st = IT.st[f]; if (!st || st.root === 'none') return;
     const cs = citiesOf(f).filter(isCity); if (!cs.length) return;
@@ -123,6 +137,14 @@ vm.runInContext(`(() => {
           const margin = (PR.rec ? 0.06 + 0.14 * dAvg / 100 : 0.03 + 0.10 * dAvg / 100) * sat; const profit = x0 * margin * P; const fee = 0.01 * x0 * P; cs[0].gold += Math.round(profit - fee); bump(st.gain, '차익', profit); o.cost = fee;
           st.vol[Math.floor(RND() * 4)] += x0; return true; } }; cand.push(o); } }
         const fc = frontCity(f); if (fc) { const mc = mercCost(fc, 2000); const rsv = reserveOf(fc, f); if (fc.gold > mc + rsv * 2 && garrisonCap(fc) - fc.troops > 2000) { const gg = gensIn(fc.n, f).find(g => !g.acted && !g.away && !(g.inj > 0)); if (gg) cand.push({ name: '용병', cost: 0, sc: 1.2 * (0.8 + 0.4 * RND()), fn: () => { const r = cmdMerc(fc.n, gg.n, 2000); if (r.ok) { bump(st.spend, '용병', mc); st.merc = (st.merc || 0) + 2000; } return false; } }); } } }
+      if (PR.r3) { // 고가품: 교역도(방면별 최고)가 문턱을 넘을수록 등급 해금. 누구나 판매 가능, 상략은 상위 등급 증폭
+        const best = Math.max(...st.deg), tier = PR.lux.filter(x => best >= x).length;
+        if (tier > 0) { const mer = root === '상략'; const capL = PR.luxCap * incF * (mer ? PR.luxMer : 1) * tier; st.volL = st.volL || 0;
+          const sat = Math.max(0.2, 1 - st.volL / Math.max(1, capL)); const x0 = Math.min(budget / P + capL * 0.5, capL * 0.5);
+          if (x0 > 200) { const o = { name: '고가품', cost: 0, sc: 1.4 * (0.8 + 0.4 * RND()), noBudget: 1, fn: () => {
+            const mg = PR.luxM[tier - 1] * (mer && tier >= 2 ? PR.luxMer : 1) * sat; const profit = x0 * mg * P, fee = 0.01 * x0 * P;
+            cs[0].gold += Math.round(profit - fee); bump(st.gain, '고가품', profit); o.cost = fee; st.volL = st.volL * 0.9 + x0; st.tier = tier;
+            luxSink(f, cs, profit * PR.sinkFrac, P); return true; } }; cand.push(o); } } }
       if (open('강병') && st.deg.some(x => x >= 40)) push('물자', 1000, 1.3, () => { const fc = frontCity(f); if (!fc) return false; installArms(); const t = ['보병', '궁병', '기병'].sort((x, y) => (fc.arm[x] || 0) - (fc.arm[y] || 0))[0]; fc.arm[t] = (fc.arm[t] || 0) + 8; fc.train = Math.min(100, fc.train + 2); return true; });
       if (open('덕화')) {
         const lo = cs.slice().sort((x, y) => x.loy - y.loy)[0]; const fd = cs.slice().sort((x, y) => y.food - x.food)[0];
@@ -136,7 +158,7 @@ vm.runInContext(`(() => {
       cand.forEach(o => { o.sc = o.sc0 !== undefined ? o.sc0 : o.sc; });
       cand.forEach(o => { o.sc *= Math.pow(0.5, used[o.name] || 0) / P; });
       cand.sort((x, y) => y.sc - x.sc); const ch = cand[0]; used[ch.name] = (used[ch.name] || 0) + 1;
-      const ok = ch.fn();
+      const ok = ch.fn(); if (ok) { st.act = st.act || {}; st.act[ch.name] = (st.act[ch.name] || 0) + 1; }
       if (ch.name === '용병') continue;
       if (ok || ch.noBudget) { if (!ch.noBudget) { drawGold(f, ch.cost); budget -= ch.cost; } bump(st.spend, ch.name, ch.cost); } else break;
     }
@@ -170,6 +192,10 @@ vm.runInContext(`(() => {
         const ex = Math.round(base * (p - 1));
         if (c.gold >= ex) c.gold -= ex; else { c.gold = 0; const dd = Math.floor(c.troops * 0.02); c.troops -= dd; c.loy = clampN(c.loy - 1, 0, 100); if (st) st.bank++; }
         if (st) st.extra.upkeep += ex;
+        if (PR.r3 && st && st.root === '덕화' && c.pop) { const tt = PR.popT.filter(x => c.pop >= x).length; if (tt > 0) { c.gold += Math.round(inc * PR.popInc * tt); c.loy = Math.min(100, c.loy + PR.popLoy * tt); st.popTier = (st.popTier || 0) + tt; st.popN = (st.popN || 0) + 1;
+          if (RND() < PR.popFind * tt) { const g = spawnRandom(c.n); g.st = '현역'; g.fac = c.owner; g.loc = c.n; g.loy = 70; st.dFound = (st.dFound || 0) + 1; } } }
+        if (PR.r3 && PR.foodBuyN > 0 && st && st.root === '덕화') { const need = Math.ceil(c.troops / ECO.troopFood); // 덕화 군량 하한: 하한 밑이면 금으로 사들임
+          if (c.food < need * PR.foodBuyN && c.gold > reserveOf(c, c.owner) + 1000) { const amt = Math.min(need * 3, Math.floor((c.gold - reserveOf(c, c.owner)) / foodBuyPrice(c) * 100 / 1000) * 1000); if (amt >= 1000) { try { cmdFoodTrade(c.n, 'buy', amt); st.fbuy = (st.fbuy || 0) + amt; } catch (e) { } } } }
         if (PR.rec) { const exc = c.gold - PR.holdN * inc * p; if (exc > 0) { const h = Math.round(exc * PR.holdRate); c.gold -= h; if (st) st.extra.hold = (st.extra.hold || 0) + h; } } // 보유량 항
       });
       if (!PR.noTrade) Object.keys(S.fac).forEach(fid => { if (S.fac[fid].alive) tradeTurn(fid); });
@@ -455,7 +481,7 @@ vm.runInContext(`(() => {
     const front = ct.filter(c => isFront(c.n, fid)); installArms();
     return { cities: cs.length, troops: tr, gold: cs.reduce((s, c) => s + c.gold, 0), food: cs.reduce((s, c) => s + c.food, 0), gens: gens.length, gq: mean(top), alive: S.fac[fid].alive ? 1 : 0,
       train: mean(ct.map(c => c.train)), arm: mean(front.map(c => mean(Object.values(c.arm || {})))), inc: ct.reduce((s, c) => s + realInc(c), 0), loy: mean(ct.map(c => c.loy)),
-      gm: tr > 0 ? cs.reduce((s, c) => s + c.gold, 0) / (tr / ECO.troopGold) : 0, fm: tr > 0 ? cs.reduce((s, c) => s + c.food, 0) / (tr / ECO.troopFood) : 0 }; };
+      pop: ct.reduce((s, c) => s + (c.pop || 0), 0), nct: ct.length, gm: tr > 0 ? cs.reduce((s, c) => s + c.gold, 0) / (tr / ECO.troopGold) : 0, fm: tr > 0 ? cs.reduce((s, c) => s + c.food, 0) / (tr / ECO.troopFood) : 0 }; };
   function hubMap() { const all = new Set(PORTS.concat(PR.land ? LAND : [])); const o = {}; all.forEach(cn => o[cn] = S.city[cn] ? S.city[cn].owner : null); return o; }
 
   // ================= 성능 캐시 (동작 불변; PR.nocache 로 끔) =================
@@ -512,7 +538,7 @@ vm.runInContext(`(() => {
     }
     hubs.push(hubMap());
     const end = {}; fids.forEach(f => end[f] = snap(f));
-    const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, merc: s.merc || 0, Pf: IT.Pf[f], acq: IT.acq[f] || {}, lost: IT.lost[f] || {}, own50: IT.own50[f] === undefined ? -1 : IT.own50[f], dead: IT.dead[f] === undefined ? -1 : IT.dead[f] }; });
+    const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, act: s.act || {}, sink: s.sink || {}, dFound: s.dFound || 0, fbuy: s.fbuy || 0, popTier: s.popTier || 0, popN: s.popN || 0, tier: s.tier || 0, merc: s.merc || 0, Pf: IT.Pf[f], acq: IT.acq[f] || {}, lost: IT.lost[f] || {}, own50: IT.own50[f] === undefined ? -1 : IT.own50[f], dead: IT.dead[f] === undefined ? -1 : IT.dead[f] }; });
     aiPickPolicy = aiP;
     return { params: PR, fids, start, end, hist, hubs, st: stOut, evt: IT.evt, nCity, own50: IT.own50, uni: IT.uni, over: S.over, foundTot: IT.foundTot, dv: IT.dv, dvlog: IT.dvlog || [], err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn };
   }
