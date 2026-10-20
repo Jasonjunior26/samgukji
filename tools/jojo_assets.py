@@ -3,7 +3,7 @@
 사용: python -I tools/jojo_assets.py <reverse-engineering-jojo 경로>
   1) 원본 UNIT_MOV/ATK/SPC에서 필요한 병사 그림만 골라 한 장(assets/jojo_units.png)으로 묶고
   2) 장수 이름 → 그림 번호, 병과 → 그림 번호 표(assets/jojo_units.json)를 만든 뒤
-  3) samguk_v105.html 안 <script id="jojo-units"> 블록을 새로 써 넣는다 (그림은 data URL로 내장).
+  3) samguk_v107.html 안 <script id="jojo-units"> 블록을 새로 써 넣는다 (그림은 data URL로 내장).
 
 한 줄(높이 64) 배치: 이동 11칸 × 48 | 공격 12칸 × 64 | 특수 5칸 × 48 (48칸은 발밑 맞춰 아래 정렬).
 """
@@ -94,7 +94,7 @@ json.dump(meta, open(os.path.join(ROOT, 'assets', 'jojo_units.json'), 'w', encod
 b64 = base64.b64encode(open(png, 'rb').read()).decode()
 block = ('<script id="jojo-units">\n// 조조전 원본 병사 그림 (개인 플레이 전용, 배포 금지) — tools/jojo_assets.py가 만든 블록\n'
          f'const JOJO_UNITS = {json.dumps({**meta, "img": "data:image/png;base64," + b64}, ensure_ascii=False)};\n</script>\n')
-html = os.path.join(ROOT, 'samguk_v105.html')
+html = os.path.join(ROOT, 'samguk_v107.html')
 s = open(html, encoding='utf8', newline='').read()
 s = re.sub(r'<script id="jojo-units">[\s\S]*?</script>\n', '', s)
 i = s.rindex('</body>')

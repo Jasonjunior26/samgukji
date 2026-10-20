@@ -2,7 +2,7 @@
 
 사용: python -I tools/jojo_maps.py <reverse-engineering-jojo 경로> [품질=70]
   - 고른 지도(HMxx)를 WebP로, 지형표(HEXZMAP)를 글자열로 만들어
-  - samguk_v105.html 안 <script id="jojo-maps"> 블록을 새로 써 넣는다.
+  - samguk_v107.html 안 <script id="jojo-maps"> 블록을 새로 써 넣는다.
   - 성문은 원본 GATE 겹침 그림(닫힌 성문, 3×3칸)을 같이 넣는다. 원본 지도에는 성문이 빠져 있다.
 지형 글자: 원본 지형 번호 n → String.fromCharCode(65 + n)  (0 평지 … 29 지중)
 """
@@ -66,7 +66,7 @@ for k, spec in PICK.items():
 
 block = ('<script id="jojo-maps">\n// 조조전 원본 전장 지도 (개인 플레이 전용, 배포 금지) — tools/jojo_maps.py가 만든 블록\n'
          f'const JOJO_MAPS = {json.dumps(maps, ensure_ascii=False)};\n</script>\n')
-html = os.path.join(ROOT, 'samguk_v105.html')
+html = os.path.join(ROOT, 'samguk_v107.html')
 s = open(html, encoding='utf8', newline='').read()
 s = re.sub(r'<script id="jojo-maps">[\s\S]*?</script>\n', '', s)
 i = s.rindex('</body>'); s = s[:i] + block + s[i:]

@@ -3,7 +3,7 @@
 사용:
   python -I tools/jojo_audio.py <reverse-engineering-jojo 경로 또는 WAV 폴더> [--bgm <폴더>] [--table] [--all] [--no-ffmpeg]
 
-  samguk_v105.html 안의 <script id="jojo-sfx"> 블록(효과음)과 <script id="jojo-bgm"> 블록(BGM)을 새로 써 넣는다.
+  samguk_v107.html 안의 <script id="jojo-sfx"> 블록(효과음)과 <script id="jojo-bgm"> 블록(BGM)을 새로 써 넣는다.
   --bgm 을 주지 않으면 jojo-bgm 블록은 지운다(합성 BGM만 남음).
   --table  : 장면 ↔ 파일 대응표를 마크다운으로 출력한다 (docs/전투_설계_v4.md 에 붙여 넣는 용도).
   --all    : 대응표에 없는 SE·SE_M 파일까지 모두 넣는다 (기본은 대응표에 쓰인 파일만).
@@ -20,7 +20,7 @@ BGM 폴더: 장면 이름으로 된 파일을 찾는다 (mp3/ogg/opus/m4a/wav).
 import sys, os, re, json, glob, base64, struct, wave, shutil, subprocess, tempfile, io
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
-HTML = os.path.join(ROOT, 'samguk_v105.html')
+HTML = os.path.join(ROOT, 'samguk_v107.html')
 
 # ---------------------------------------------------------------------------
 # 장면 ↔ 파일 대응표 (근거: docs/scripts.md 효과음 절, extracted/asm/decomp_all.txt 의 sub_4768a0 호출, MEFF 헤더 sound id)
@@ -266,7 +266,7 @@ def main():
     html = replace_block(html, 'jojo-bgm', bblock)
     if not bgm_dir: print('BGM 블록 없음 (--bgm <폴더> 로 넣음)')
     open(HTML, 'w', encoding='utf8', newline='').write(html)
-    print('samguk_v105.html %dKB → %dKB' % (before // 1024, len(html.encode('utf8')) // 1024))
+    print('samguk_v107.html %dKB → %dKB' % (before // 1024, len(html.encode('utf8')) // 1024))
 
 if __name__ == '__main__':
     main()

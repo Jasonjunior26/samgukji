@@ -1,7 +1,7 @@
-// samguk_v105.html 에서 DB(도시·도로·세력)·RIVERS·FCOL 을 뽑는다. build.js 가 require 한다.
+// samguk_v107.html 에서 DB(도시·도로·세력)·RIVERS·FCOL 을 뽑는다. build.js 가 require 한다.
 const fs = require('fs');
 const path = require('path');
-const SRC = path.join(__dirname, '..', '..', 'samguk_v105.html');
+const SRC = path.join(__dirname, '..', '..', 'samguk_v107.html');
 
 function extract() {
   const lines = fs.readFileSync(SRC, 'utf8').split(/\r?\n/);

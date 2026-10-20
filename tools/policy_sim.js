@@ -4,7 +4,7 @@
 //  forced — 세력마다 8개 국책에서 서로 다른 두 분야 조합을 무작위 강제. 세력 고정효과를 빼고 국책별 평균 성과차 계산
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const N = +(process.argv[2] || 12), MONTHS = +(process.argv[3] || 60), MODE = process.argv[4] || 'both', OUT = process.argv[5] || '', SEED = +(process.argv[6] || 1);
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v105.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 // 시드 난수: 같은 시드면 같은 게임 (세력 시작 조건·AI 선택 재현)

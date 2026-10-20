@@ -1,7 +1,7 @@
 // 장수 전용 그림을 없앤 뒤(uniq 무시) 병과 × 단계 × 색 모든 조합이 아틀라스 행을 갖는지 확인한다.
 // 사용: node tools/jojo_index_check.js
 const fs = require('fs');
-const h = fs.readFileSync(__dirname + '/../samguk_v105.html', 'utf8');
+const h = fs.readFileSync(__dirname + '/../samguk_v107.html', 'utf8');
 const i = h.indexOf('<script id="jojo-units">'), j = h.indexOf('</script>', i);
 const J = new Function(h.slice(i + 24, j) + ';return JOJO_UNITS;')();
 const CLS = ['보병', '방진', '기병', '궁병', '궁기병', '산악병', '공성', '책사', '수군'];

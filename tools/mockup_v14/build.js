@@ -1,6 +1,6 @@
 // v1.4 메인 화면(휴대폰 가로) 정적 목업 빌더.
 // 사용: node tools/mockup_v14/build.js   → tools/mockup_v14/mockup.html 생성 + 해안선 검사·WCAG 대비표 출력
-// samguk_v105.html 은 읽기만 한다.
+// samguk_v107.html 은 읽기만 한다.
 const fs = require('fs');
 const path = require('path');
 const extract = require('./extract');

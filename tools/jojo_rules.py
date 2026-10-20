@@ -1,7 +1,7 @@
 """조조전 원본 규칙 표(병과·지형·책략·범위)를 전투 v4에 넣는 도구 (개인 플레이 전용).
 
 사용: python -I tools/jojo_rules.py <reverse-engineering-jojo 경로>
-  samguk_v105.html 안 <script id="jojo-rules"> 블록을 새로 써 넣는다.
+  samguk_v107.html 안 <script id="jojo-rules"> 블록을 새로 써 넣는다.
 위력·명중 보정은 docs/formulas.md §4.2·4.3 (EXE에서 읽은 값)을 옮겼다.
 """
 import sys, os, json, re
@@ -44,7 +44,7 @@ eff = {str(h['id']): h['cells'] for h in A['effarea']}
 rules = {'fam': FAM, 'classes': classes, 'terrain': terrain, 'strats': strats, 'hit': hit, 'eff': eff}
 block = ('<script id="jojo-rules">\n// 조조전 원본 규칙 표 (병과·지형·책략·범위) — tools/jojo_rules.py가 만든 블록\n'
          f'const JOJO_RULES = {json.dumps(rules, ensure_ascii=False, separators=(",", ":"))};\n</script>\n')
-html = os.path.join(ROOT, 'samguk_v105.html')
+html = os.path.join(ROOT, 'samguk_v107.html')
 s = open(html, encoding='utf8', newline='').read()
 s = re.sub(r'<script id="jojo-rules">[\s\S]*?</script>\n', '', s)
 # 규칙은 전투 코드보다 앞에서 읽히도록 jojo-units 앞(없으면 </body> 앞)에

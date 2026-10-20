@@ -1,7 +1,7 @@
 // 부장 반영 LV 변형 비교 (V4.start 직후 부대 LV 재계산)
 // 사용: node tools/lv_sub_sim.js [판수=40]
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v105.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },

@@ -1,7 +1,7 @@
 // 전투 v4 시험기: 게임 HTML을 Node에서 불러 AI끼리 전투를 돌림 (화면 없음)
 // 사용: node tools/battle_sim.js [판수=20] [log]
 const fs = require('fs'), vm = require('vm'), path = require('path');
-let html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v105.html'), 'utf8');
+let html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
 // 메모리에서만 패치(파일은 그대로): 훈련도 위력 계수 k = LO + (1-LO)*훈련/100 를 dmgJ 끝에 곱함
 const RE = /(if \(counter\) dmg = Math\.max\(Math\.floor\(dmg \* 3 \/ 4\), 1\);)(\s*return dmg;)/;
 if (!RE.test(html)) throw new Error('patch anchor not found');
