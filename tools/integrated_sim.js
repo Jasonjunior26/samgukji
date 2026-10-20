@@ -301,7 +301,7 @@ vm.runInContext(`(() => {
         const g = G(gn); const c = g && C(g.loc); const o = g && g.fac;
         if (!g || g.st !== '현역' || !o || o === f || !c || c.gov !== gn || c.owner !== o || !S.fac[o] || !S.fac[o].alive) { delete S.sway[f][gn]; return; }
         const ruler = S.fac[o].ruler; const why = [];
-        if (!((PR.swayProb ? DR() < clampN((100 - g.loy) / 60, 0, 1) : g.loy < (PR.swayLoy || 60)) && (g.ui || 0) < 12)) why.push('충성의리');
+        if (!((PR.swayProb ? DR() < clampN((100 - g.loy) / (PR.swayDiv || 60), 0, 1) : g.loy < (PR.swayLoy || 60)) && (g.ui || 0) < 12)) why.push('충성의리');
         if (isRuler(g) || kinOrBond(g.n, ruler) || capitalOf(o) === c.n) why.push('군주수도혈연');
         const opp = gensIn(c.n, o).filter(x => x !== g && x.loy >= 70).reduce((s, x) => s + x.t, 0);
         if (!(opp < g.t * 1.5)) why.push('반대파');
@@ -364,12 +364,12 @@ vm.runInContext(`(() => {
       const ag = freeGens(c.n, f).filter(g => !isRuler(g)).sort((a, b) => stat(b, 'i') - stat(a, 'i'))[0]; if (!ag) return;
       ADJ[c.n].forEach(n => { const tc = S.city[n]; if (!tc || !tc.owner || tc.owner === f || !isCity(tc) || oppAllied(f, tc.owner) || !tc.gov) return;
         const tg = G(tc.gov); if (!tg || tg.st !== '현역' || isRuler(tg) || capitalOf(tc.owner) === tc.n) return;
-        const price = Math.round(cityPrice(tc) * 0.5 / 100) * 100; dbump('maesuTgt'); if (price > gold) return; dbump('maesuPriceOk');
-        const ch = schemeChance(ag, tg, '매수'); dbump('maesuChSum', ch); if (ch < (PR.maesuMin === undefined ? 35 : PR.maesuMin)) return;
+        const price = Math.round(cityPrice(tc) * 0.5 * (PR.maesuK === undefined ? 1 : PR.maesuK) / 100) * 100; dbump('maesuTgt'); dbump('maesuPriceSum', price); dbump('maesuGoldSum', gold); if (price > gold) return; dbump('maesuPriceOk');
+        const ch = schemeChance(ag, tg, '매수') + ((PR.maesuBonus && schemeChance(ag, tg, '매수') >= 0) ? PR.maesuBonus : 0); dbump('maesuChSum', ch); if (ch < (PR.maesuMin === undefined ? 35 : PR.maesuMin)) return;
         if (!best || ch > best.ch) best = { c, ag, tc, ch }; });
     });
     if (!best) return;
-    const r = cmdScheme(best.c.n, best.ag.n, '매수', best.tc.n); dbump('maesuTry'); if (r && r.ok) dbump('maesuOk');
+    const cp0 = cityPrice; if (PR.maesuK !== undefined) cityPrice = c => Math.round(cp0(c) * PR.maesuK / 100) * 100; const sc0 = schemeChance; if (PR.maesuBonus) schemeChance = function (a, t, ty) { const q = sc0.apply(this, arguments); return ty === '매수' && q >= 0 ? Math.min(95, q + PR.maesuBonus) : q; }; let r; try { r = cmdScheme(best.c.n, best.ag.n, '매수', best.tc.n); } finally { cityPrice = cp0; schemeChance = sc0; } dbump('maesuTry'); if (r && r.ok) dbump('maesuOk');
   }
   // ---- 용병: 계약제 + 상략 가중 + 상략 AI ----
   function mercExpire() {
