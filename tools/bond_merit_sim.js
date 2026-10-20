@@ -13,7 +13,8 @@ const ctx = { console: quiet, Math: M, Date, JSON, setTimeout: () => 0, clearTim
   document: el(), navigator: { userAgent: 'node' }, location: { reload() { } } };
 ctx.window = ctx; vm.createContext(ctx);
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { } });
-ctx.PR = { GAMES, MONTHS, SCEN }; ctx.PRINT = (...a) => process.stderr.write(a.join(' ') + '\n');
+const OVL = require('./bm_overlay'); const OVP = OVL.fromEnv(); OVL.install(ctx, OVP);
+ctx.PR = { OVP, GAMES, MONTHS, SCEN }; ctx.PRINT = (...a) => process.stderr.write(a.join(' ') + '\n');
 
 vm.runInContext(`(() => {
   const pct = (a, p) => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * p))]; };
@@ -52,13 +53,19 @@ vm.runInContext(`(() => {
       monthlyUpdate(); MS.월갱신 += msum() - m3; BS.월갱신 += bsum() - b3;
       if (S.over === 'lose' || S.over === 'win') S.over = null;
       if (S.fac[S.player].alive && (!S.fac[S.player].pol || S.m === 1)) { try { aiPickPolicy(S.player); } catch (e) { } }
+      for (const g of Object.values(S.gen)) if (g._m0 === undefined && g.st === '현역') { g._m0 = g.merit || 0; g._t0 = i; }
       if (i % 12 === 11) hist.push(snap(i + 1));
     }
     // 상위 장수 기록: 공적 상위 10, 전투 횟수 대비
+    // 획득 공적(시작값 제외) — 5년 이상 활동한 현역 장수 기준, 연평균
+    const ep = Object.values(S.gen).filter(g => g.st === '현역' && g._m0 !== undefined && PR.MONTHS - g._t0 >= 60 && !isRuler(g)).map(g => ({ n: g.n, e: (g.merit || 0) - g._m0, y: (PR.MONTHS - g._t0) / 12, mil: isMil(g) }));
+    const per = a => a.map(x => x.e / x.y);
+    const earned = { n: ep.length, perYear: { p50: pct(per(ep), 0.5), p90: pct(per(ep), 0.9), max: Math.max(0, ...per(ep)) }, total: { p50: pct(ep.map(x => x.e), 0.5), p90: pct(ep.map(x => x.e), 0.9), max: Math.max(0, ...ep.map(x => x.e)) },
+      mil: { n: ep.filter(x => x.mil).length, perYear90: pct(per(ep.filter(x => x.mil)), 0.9) }, civ: { n: ep.filter(x => !x.mil).length, perYear90: pct(per(ep.filter(x => !x.mil)), 0.9) } };
     const top = Object.values(S.gen).filter(g => g.merit).sort((a, b) => b.merit - a.merit).slice(0, 10).map(g => ({ n: g.n, merit: g.merit, b: (g.rec && g.rec.b) || 0, rank: g.rank || 0, st: g.st }));
     const topB = Object.entries(S.bond || {}).sort((a, b) => b[1].v - a[1].v).slice(0, 10).map(([k, e]) => ({ k, v: e.v, c: e.c, t: e.t.join(',') }));
     const bc = Object.values(S.gen).map(g => (g.rec && g.rec.b) || 0).filter(x => x);
-    return { BYCMD, MS, BS, hist, top, topB, battleGens: bc.length, battleP50: pct(bc, 0.5), battleP90: pct(bc, 0.9), battleMax: Math.max(0, ...bc), battles: S._bm.n, bwin: S._bm.w };
+    return { earned, BYCMD, MS, BS, hist, top, topB, battleGens: bc.length, battleP50: pct(bc, 0.5), battleP90: pct(bc, 0.9), battleMax: Math.max(0, ...bc), battles: S._bm.n, bwin: S._bm.w };
   }
   const res = []; for (let g = 0; g < PR.GAMES; g++) { res.push(game()); PRINT('판', g + 1, '/', PR.GAMES); }
   globalThis.RESULT = res;
@@ -69,6 +76,7 @@ for (const [gi, r] of R.entries()) {
   console.log(`\n== 판 ${gi + 1}: 전투 ${r.battles}회(승 ${r.bwin}), 출전 경험 장수 ${r.battleGens}명, 출전수 p50 ${r.battleP50} p90 ${r.battleP90} 최대 ${r.battleMax}`);
   console.log('개월 | 생존 | 쌍 | 인연30+ 60+ 100 앙숙 | 결의 장수/최대 | 1인당 30+상대 avg/p90 | 공적 p50/p90/max/0 | 관직 없음·5·4·3·2·1품');
   r.hist.forEach(h => { if (h.m % 24 === 0 || h.m === MONTHS) console.log(`${h.m} | ${h.live} | ${h.pairs} | ${h.b30} ${h.b60} ${h.b100} ${h.neg} | ${h.broGens}/${h.broMax} | ${h.c30avg.toFixed(1)}/${h.c30p90} | ${h.merit.p50}/${h.merit.p90}/${h.merit.max}/${h.merit.zero} | ${h.rk.join('·')} | tags ${JSON.stringify(h.tags)}`); });
+  { const q = r.earned; const f = x => x.toFixed(1); console.log(`획득 공적(5년+ 활동 ${q.n}명): 연평균 p50 ${f(q.perYear.p50)} p90 ${f(q.perYear.p90)} 최대 ${f(q.perYear.max)} / 누계 p50 ${f(q.total.p50)} p90 ${f(q.total.p90)} 최대 ${f(q.total.max)} / 무관 p90 ${f(q.mil.perYear90)}(${q.mil.n}) 문관 p90 ${f(q.civ.perYear90)}(${q.civ.n})`); }
   console.log('명령별 공적(호출수/공적):', JSON.stringify(r.BYCMD));
   console.log('공적 증가 출처(합계):', JSON.stringify(r.MS), ' 인연(양수 합) 증가:', JSON.stringify(r.BS));
   console.log('공적 상위:', r.top.slice(0, 6).map(t => `${t.n} ${t.merit}(출전${t.b},${t.rank}품${t.st === '현역' ? '' : ',' + t.st})`).join(' / '));

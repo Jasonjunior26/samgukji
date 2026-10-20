@@ -12,18 +12,21 @@ const ctx = { console: { log() { }, error() { }, warn() { }, info() { } }, Math:
   document: el(), navigator: { userAgent: 'node' }, location: { reload() { } } };
 ctx.window = ctx; vm.createContext(ctx);
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { } });
-ctx.PR = { N, K, SOC }; ctx.ENEMY = +(process.env.ENEMY || 5000); ctx.PRINT = (...a) => console.log(...a);
+const OVL = require('./bm_overlay'); const OVP = OVL.fromEnv(); OVL.install(ctx, OVP);
+ctx.PR = { N, K, SOC, DEF: +(process.env.DEF || 5) }; ctx.ENEMY = +(process.env.ENEMY || 5000); ctx.PRINT = (...a) => console.log(...a);
 vm.runInContext(`(() => {
   newGame('조조');
   const home = '초'; const names = gensIn(home, '조조').filter(g => !isRuler(g)).sort((a, b) => (b.t + b.w + b.i) - (a.t + a.w + a.i)).slice(0, PR.K).map(g => g.n);
   if (PR.SOC) G(names[0]).tr = (G(names[0]).tr || []).concat(['사교가']);
   const pairs = []; for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) pairs.push([names[i], names[j]]);
   PRINT('부대원', names.join(','), '사교가', PR.SOC);
+  const dg = Object.values(S.gen).filter(g => g.fac === '동탁' && g.loc === '낙양').sort((a, b) => (b.t + b.w) - (a.t + a.w)).slice(0, PR.DEF).map(g => g.n);
   const first = {}; const rows = [];
   for (let n = 1; n <= PR.N; n++) {
     // 매번 같은 조건: 부대원 되살리고 병력 채우고, 적 도시 복구
     names.forEach(x => { const g = G(x); g.st = '현역'; g.fac = '조조'; g.loc = home; g.inj = 0; g.away = null; });
     C(home).troops = 20000; C(home).owner = '조조'; C('진류').owner = '동탁'; C('진류').troops = ENEMY; C('진류').loy = 60;
+    gensOf('동탁').concat(Object.values(S.gen).filter(g => g.fac === '동탁' || g.capFrom === '동탁')).slice(0, 0); dg.forEach(x => { const g = G(x); g.st = '현역'; g.fac = '동탁'; g.loc = '진류'; g.inj = 0; g.away = null; });
     const us = autoUnits(names.map(x => G(x)), 9000, 5);
     let res = null; try { res = v4AutoBattle('조조', home, '진류', us); } catch (e) { PRINT('err', e.message); }
     const win = !!(res && res.win);
@@ -38,3 +41,5 @@ vm.runInContext(`(() => {
   const th = { '5품(10)': 10, '3품(30)': 30, '2품(80)': 80, '1품(150)': 150 };
   Object.entries(th).forEach(([k, v]) => { const r = rows.find(x => Math.max(...x.mer) >= v); const r2 = rows.find(x => Math.min(...x.mer) >= v); PRINT(k, '최대공적자 도달', r ? r.n : '미도달', '전원 도달', r2 ? r2.n : '미도달'); });
 })();`, ctx);
+
+if (process.env.DBGOUT) console.log(JSON.stringify((ctx.DBG||[]).slice(0,4)));
