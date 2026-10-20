@@ -707,7 +707,7 @@ function cmdRecruit(cn, rn, tn, bonus, promise) {
     if (from) setHos(from, rec.fac, hos(from, rec.fac) + 10);
     if (dm === '녹봉') tgt.salMul = 1.5; else if (dm) tgt.promise = { type: dm, due: S.y * 12 + S.m + 3 };
     if (rec.fac === S.player) S.kn[tgt.n] = 100;
-    badd(rec.n, tgt.n, 30, `${rec.n}의 권유로 ${fname(rec.fac)}에 들어왔다`, '은인'); if (from) bondFollow(tgt, from, rec.fac);
+    badd(rec.n, tgt.n, 8.8, `${rec.n}의 권유로 ${fname(rec.fac)}에 들어왔다`, '은인'); if (from) bondFollow(tgt, from, rec.fac);
     if (rec.fac !== S.player && (notable(tgt) || from === S.player)) world(`${fname(rec.fac)}이(가) ${tgt.n}을(를) 등용했다${from ? ` (${fname(from)}에서 넘어감)` : ''}.`, from === S.player ? 4 : 1, [cn]);
     return { ok: true, msg: `${tgt.n}이(가) 등용에 응했다!${bonus ? ` 금 ${bonus}을 건넸다.` : ''}` };
   }
@@ -974,12 +974,12 @@ function decideCaptive(n, how) {
   if (how === '등용') {
     const ruler = G(S.fac[S.player].ruler);
     const p = wasRuler ? 0 : clamp(Math.round(45 - ssDist(ruler.ss, g.ss) / 3 - g.ui * 2 + stat(ruler, 'c') / 5), 0, 90);
-    if (P(p)) { joinFac(g, S.player, g.loc, 50 + R(0, 20)); badd(pr, n, 15, '포로가 되었다가 귀순했다'); const fl = bondFollow(g, g.capFrom, S.player); return { ok: true, msg: `${n}이(가) 항복했다.${fl.length ? ` ${fl.join('·')}도 뒤따라 넘어왔다.` : ''}` }; }
+    if (P(p)) { joinFac(g, S.player, g.loc, 50 + R(0, 20)); badd(pr, n, 5.5, '포로가 되었다가 귀순했다'); const fl = bondFollow(g, g.capFrom, S.player); return { ok: true, msg: `${n}이(가) 항복했다.${fl.length ? ` ${fl.join('·')}도 뒤따라 넘어왔다.` : ''}` }; }
     g.st = '재야'; g.found = true; return { ok: false, msg: `${n}이(가) 거부하여 풀어주었다.` };
   }
   if (how === '처형') { S.killedBy[n] = S.player; genDies(g, '처형되었다'); Object.values(S.fac).forEach(f => { if (f.alive && f.id !== S.player) setHos(f.id, S.player, hos(f.id, S.player) + 3); }); return { ok: true, msg: `${n}을(를) 처형했다.` }; }
   // 석방
-  badd(pr, n, 25, `포로가 되었으나 ${pr}이(가) 풀어주었다`, '은인');
+  badd(pr, n, 8.8, `포로가 되었으나 ${pr}이(가) 풀어주었다`, '은인');
   const home = wasRuler ? wasRuler.id : null;
   if (home && citiesOf(home).length) { g.st = '현역'; g.fac = home; g.loc = capitalOf(home); }
   else { g.st = '재야'; g.found = true; }
@@ -1493,13 +1493,18 @@ function checkQuest() {
 // S.bond[key] = { v: -100~100, c: 함께 싸운 횟수, t: [호칭 태그], l: [기록] }
 const BOND_TAG = { 결의: '결의 형제', 은인: '은인', 사제: '사제', 앙숙: '앙숙', 생사: '생사지교' };
 function bkey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
+const BOND_MINC = 20; // v107: 결의·생사 조건(함께 싸운 횟수)
+function meritAdd(g, v) { if (!g || !v) return; g.mf = (g.mf || 0) + v; const w = Math.trunc(g.mf); g.mf = Math.round((g.mf - w) * 1000) / 1000; if (w) g.merit = (g.merit || 0) + w; } // v107: 공적 소수 누적
 function bget(a, b) { if (!S.bond || !a || !b || a === b) return 0; const e = S.bond[bkey(a, b)]; return e ? e.v : 0; }
 function bent(a, b) { S.bond = S.bond || {}; const k = bkey(a, b); return S.bond[k] || (S.bond[k] = { v: 0, c: 0, t: [], l: [] }); }
 function bnote(e, s) { if (e.l.some(x => x.endsWith(s))) { e.l = e.l.filter(x => !x.endsWith(s)); } e.l.unshift(`${S.y}년 ${s}`); if (e.l.length > 3) e.l.pop(); }
 function btag(e, t) { if (!e.t.includes(t)) e.t.push(t); }
 function badd(a, b, v, note, tag, cap) {
   if (!a || !b || a === b || !G(a) || !G(b)) return 0;
-  const e = bent(a, b); const before = e.v; if (cap != null && v > 0 && e.v >= cap) v = 0; e.v = clamp(e.v + v, -100, cap != null && v > 0 ? Math.max(cap, before) : 100);
+  const e = bent(a, b); const before = e.v;
+  if (v % 1) { e.f = (e.f || 0) + v; v = Math.trunc(e.f); e.f = Math.round((e.f - v) * 1000) / 1000; if (!v) return e.v; } // v107: 소수는 누적해 정수가 될 때만 반영
+  if (v > 0 && !tag && cap == null && e.c < BOND_MINC && !e.t.includes('결의') && !e.t.includes('생사')) cap = 99; // v107: 결의·생사는 함께 싸운 횟수 20 이상
+  if (cap != null && v > 0 && e.v >= cap) v = 0; e.v = clamp(e.v + v, -100, cap != null && v > 0 ? Math.max(Math.floor(cap), before) : 100);
   if (tag) btag(e, tag); if (note) bnote(e, note);
   if (e.v <= -20 && before > -20) { btag(e, '앙숙'); if (!note) bnote(e, '사이가 틀어졌다'); }
   if (e.v > -10 && e.t.includes('앙숙')) e.t = e.t.filter(x => x !== '앙숙');
@@ -1544,7 +1549,7 @@ function monthlyBonds() {
   if (S.m % 3 === 0) Object.values(S.city).forEach(c => {
     if (!c.owner) return; const gs = gensIn(c.n, c.owner).filter(g => !g.away); if (gs.length < 2) return;
     const lim = gs.slice(0, 14);
-    for (let i = 0; i < lim.length; i++) for (let j = i + 1; j < lim.length; j++) { const a = lim[i], b = lim[j]; const cur = bget(a.n, b.n); if (cur >= 60 && !S.bond[bkey(a.n, b.n)].c) continue; badd(a.n, b.n, ssDist(a.ss, b.ss) > 60 ? 1 : 3, null, null, 50); }
+    for (let i = 0; i < lim.length; i++) for (let j = i + 1; j < lim.length; j++) { const a = lim[i], b = lim[j]; const cur = bget(a.n, b.n); if (cur >= 60 && !S.bond[bkey(a.n, b.n)].c) continue; if (ssDist(a.ss, b.ss) <= 60) badd(a.n, b.n, 1.1, null, null, 27.5); } // v107: 기질 가까울 때만 +1.1, 상한 27.5
   });
   
   if (S.m === 12) pruneBonds();
@@ -1566,11 +1571,11 @@ function battleBonds(units, winSide, mvp, place, rescue) {
   units.forEach(u => {
     const ns = mem(u).filter(n => G(n) && G(n).st !== '사망'); const won = u.side === winSide;
     for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) {
-      const e = bent(ns[i], ns[j]); e.c++; badd(ns[i], ns[j], 4 + (won ? 3 : 0), e.c === 1 ? `${place} 전투에 함께 나섰다` : null);
+      const e = bent(ns[i], ns[j]); e.c++; badd(ns[i], ns[j], won ? 3.3 : 2.2, e.c === 1 ? `${place} 전투에 함께 나섰다` : null); // v107
     }
-    if (mvp && ns.includes(mvp)) ns.forEach(n => { if (n !== mvp && G(n).pers && G(n).pers.공명 >= 7 && G(mvp).pers.공명 >= 6) badd(n, mvp, -6); });
+    if (won && mvp && ns.includes(mvp)) ns.forEach(n => { if (n !== mvp && G(n).pers && G(n).pers.공명 >= 7 && G(mvp).pers.공명 >= 6) badd(n, mvp, -1); }); // v107: 승리했을 때만 −1
   });
-  (rescue || []).forEach(([a, b]) => { if (G(a) && G(b) && G(a).st !== '사망' && G(b).st !== '사망') badd(a, b, 8, `${place} 전투에서 위기를 구해주었다`); });
+  (rescue || []).forEach(([a, b]) => { if (G(a) && G(b) && G(a).st !== '사망' && G(b).st !== '사망') badd(a, b, 5.5, `${place} 전투에서 위기를 구해주었다`); });
 }
 // 전사·처형 시 복수 맹세
 function bondOnDeath(g) {
@@ -2562,7 +2567,7 @@ function intentOf(u) {
   finishBattle = function () {
     const win = B.over; const mvp = side => { const b = B.units.filter(u => u.side === side && u.gen).sort((a, b) => (b.dd + b.k * 1000) - (a.dd + a.k * 1000))[0]; return b ? b.gen : null; };
     const ms = { A: mvp('A'), D: mvp('D') };
-    B.units.forEach(u => mem(u).forEach(n => { const g = G(n); if (!g || g.st === '사망') return; g.merit = (g.merit || 0) + 5 + (u.side === win ? 5 : 0) + (ms[u.side] === n ? 10 : 0) + u.k * 2; }));
+    B.units.forEach(u => mem(u).forEach(n => { const g = G(n); if (!g || g.st === '사망') return; const w = u.side === win; const part = (u.k || 0) * 3 + (w && u.k > 0 ? 2 : 0); meritAdd(g, u.gen === n ? part + (w && ms[u.side] === n ? 8 : 0) : part * 0.3); })); // v107 성과 기반
     const r = f.apply(this, arguments);
     return r;
   };
@@ -2750,7 +2755,7 @@ function cmdDevelop(cn, gn, kind) {
   const cost = devCost(c, kind); if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${cost} 필요).` };
   const r = devGainWhy(g, kind, c); const v = r.v + R(0, 1);
   c[key] = clamp(c[key] + v, 0, devMax(c, kind)); g.acted = true; addExp(g, kind === '성벽' ? 't' : 'p', 12);
-  g.merit = (g.merit || 0) + 2;
+  meritAdd(g, v * 0.3); // v107 (옛 cmdDevelop, 뒤에서 재정의됨)
   return { ok: true, msg: `${g.n}이(가) ${kind}에 힘써 ${kind} +${v} (${r.why.join(', ')}).` };
 }
 function devGainWhy(g, kind, c) {
@@ -3106,7 +3111,7 @@ function aiRanks(fid) {
   gs.forEach(g => { g.rank = 0; });
   gs.forEach(g => { for (let t = 1; t <= 4; t++) if ((g.merit || 0) >= RANKS[t].merit && rankUsedT(fid, t) < rankSlotsT(fid, t)) { g.rank = t; g.rankName = RANKS[t].names[rankUsedT(fid, t) - 1] || RANKS[t].names[0]; break; } });
 }
-function initMerit(g) { if (g.merit == null) g.merit = Math.round(curStars(g) * 30); }
+function initMerit(g) { if (g.merit == null) g.merit = 0; } // v107: 초기 공적 0 (옛 세이브 값은 유지)
 
 // ---------- 충성: 목표값으로 수렴 ----------
 function surname(n) { return ['하후', '제갈', '사마', '공손', '태사', '황보', '하후', '구양', '독고'].includes(n.slice(0, 2)) ? n.slice(0, 2) : n[0]; }
@@ -4090,7 +4095,7 @@ function corpsArrange(k, acts) {
   Object.entries(post).forEach(([n, why]) => { if (why === '태수' && target[n] === G(n).loc) C(target[n]).gov = n; });
 }
 // 관직 추천: 능력 70% · 공적 30%
-RANKS[3].merit = 20; RANKS[4].merit = 0; RANKS[5].merit = 0;
+RANKS[1].merit = 60; RANKS[2].merit = 35; RANKS[3].merit = 15; RANKS[4].merit = 5; RANKS[5].merit = 1; // v107 관직 문턱 D안
 function rankScore(g) { return 0.7 * (curStars(g) * 20 + stat(g, 't') * 0.5) + 0.3 * Math.min(200, g.merit || 0) * 0.5; }
 function aiRanks(fid) {
   if (fid === S.player || S.m !== 1) return;
@@ -4134,7 +4139,7 @@ function aiRanks(fid) {
   gs.forEach(g => { for (let t = 1; t <= 5; t++) if ((g.merit || 0) >= RANKS[t].merit && used[t] < slots[t]) { used[t]++; g.rank = t; g.rankName = RANKS[t].names[(used[t] - 1) % RANKS[t].names.length]; break; } });
 }
 
-function eligTier(g) { for (let t = 1; t <= 5; t++) if ((g.merit || 0) >= RANKS[t].merit) return t; return 5; }
+function eligTier(g) { for (let t = 1; t <= 5; t++) if ((g.merit || 0) >= RANKS[t].merit) return t; return 0; }
 
 // ===== 군단 보급·교류 · 직할 도시 지원 요청 · 목표 고정 =====
 // ---------- 목표 고정 ----------
@@ -4684,7 +4689,7 @@ CAB.국방.tr = ['대장감', '조련가', '모병가']; CAB.민생.tr = ['민�
   const f = loyFactors;
   loyFactors = function (g) {
     const out = f.apply(this, arguments); const fa = S.fac[g.fac]; if (!fa) return out;
-    if (hasTr(g, '오만') && (g.rank || 6) > eligTier(g) + 1) out.push(['오만: 대우가 낮다', -8]);
+    if (hasTr(g, '오만') && (g.rank || 6) > (eligTier(g) || 5) + 1) out.push(['오만: 대우가 낮다', -8]);
     if (hasTr(g, '반골')) { if (fa.rulerSince && S.y * 12 + S.m - fa.rulerSince < 24) out.push(['반골: 새 군주를 따르지 않음', -12]); if ((fa.peak || 0) > citiesOf(g.fac).length * 1.4) out.push(['반골: 세력이 기울었다', -10]); }
     return out;
   };
@@ -4843,7 +4848,7 @@ function cmdDevelop(cn, gn, kind) {
   if (c[key] >= devMax(c, kind)) return { ok: false, msg: `${kind}이(가) 이미 최대(${devMax(c, kind)})입니다.` };
   const cost = devCost(c, kind); if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${cost} 필요).` };
   const r = devGainWhy(g, kind, c); const v = r.v + R(0, 1);
-  c[key] = Math.min(devMax(c, kind), c[key] + v); g.acted = true; if (kind === '성벽') addExp(g, 't', 12); else { addExp(g, 'p', 16); addExp(g, 'c', 4); } g.merit = (g.merit || 0) + 2;
+  c[key] = Math.min(devMax(c, kind), c[key] + v); g.acted = true; if (kind === '성벽') addExp(g, 't', 12); else { addExp(g, 'p', 16); addExp(g, 'c', 4); } meritAdd(g, v * 0.3); // v107: 내정 증가량 ×0.3
   return { ok: true, msg: `${g.n}이(가) ${kind}에 힘써 ${kind} +${v} (${r.why.join(', ')}).` };
 }
 // 훈련: 한계 없음 (효과는 effv)
@@ -4977,7 +4982,7 @@ function cmdTactics(cn, gn) { const c = C(cn), g = G(gn); g.acted = true; addExp
 function cmdSpy(cn, gn, tcn) { const g = G(gn), t = C(tcn); g.acted = true; addExp(g, 'i', 7); addExp(g, 'a', 6); const gs = t.owner ? gensIn(tcn, t.owner) : []; gs.forEach(x => addKn(x.n, 15 + (hasTr(g, '첩보가') ? 10 : 0))); return { ok: true, msg: `${gn}이(가) ${tcn}을(를) 살폈다. 병력 약 ${fmt(Math.round(t.troops / 1000) * 1000)} · 장수 ${gs.length}명의 정보가 쌓였다.` }; }
 function banditOf(c) { return c.bandit || 0; }
 function monthlyBandit() { Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시') return; let up = (c.loy < 50 ? 2 : 0.3) + (isFront(c.n, c.owner) ? 0.5 : 0) + (['산악', '산지'].includes(CDATA[c.n].지형) ? 0.5 : 0); up = Math.floor(up) + (P((up % 1) * 100) ? 1 : 0); c.bandit = Math.min(100, banditOf(c) + up); if (c.bandit >= 60 && P(20)) { c.loy = clamp(c.loy - 2, 0, 100); c.gold = Math.max(0, c.gold - 100); } }); }
-function cmdSuppress(cn, gn) { const c = C(cn), g = G(gn); if (banditOf(c) < 10) return { ok: false, msg: '토벌할 산적이 거의 없습니다.' }; g.acted = true; addExp(g, 'w', 12); addExp(g, 't', 8); const cut = 25 + Math.round(stat(g, 'w') / 5); c.bandit = Math.max(0, c.bandit - cut); c.loy = clamp(c.loy + 2, 0, 100); c.gold += 100; g.merit = (g.merit || 0) + 2; return { ok: true, msg: `${gn}이(가) 산적을 토벌했다. 민충 +2, 금 100. (산적 ${c.bandit})` }; }
+function cmdSuppress(cn, gn) { const c = C(cn), g = G(gn); if (banditOf(c) < 10) return { ok: false, msg: '토벌할 산적이 거의 없습니다.' }; g.acted = true; addExp(g, 'w', 12); addExp(g, 't', 8); const cut = 25 + Math.round(stat(g, 'w') / 5); const bb = c.bandit; c.bandit = Math.max(0, c.bandit - cut); c.loy = clamp(c.loy + 2, 0, 100); c.gold += 100; meritAdd(g, (bb - c.bandit) * 0.1); return { ok: true, msg: `${gn}이(가) 산적을 토벌했다. 민충 +2, 금 100. (산적 ${c.bandit})` }; }
 { const f = startBattle; startBattle = function (att, fromCn, toCn) { const r = f.apply(this, arguments); const fc = C(fromCn); if (fc && fc.tactics && fc.tactics > S.y * 12 + S.m) B.units.filter(u => u.side === 'A').forEach(u => u.mor = clamp(u.mor + 5, 0, 100)); const tc = C(toCn); if (hasFac(tc, '성채')) B.units.filter(u => u.side === 'D').forEach(u => u.mor = clamp(u.mor + 5, 0, 100)); return r; }; }
 // 창고: 썩는 기준 2배·방화 피해 절반
 { const f = cmdScheme; cmdScheme = function (cn, an, type, target) { const tc = S.city[target]; const fb = tc && tc.food; const r = f.apply(this, arguments); if (type === '화계' && r && r.ok && tc && hasFac(tc, '창고')) { const lost = fb - tc.food; tc.food += Math.round(lost / 2); r.msg += ' (창고 덕에 피해가 절반)'; } return r; }; }
@@ -5187,7 +5192,7 @@ function cmdLoy(cn, gn, kind) {
   const c = C(cn), g = G(gn); const left = 100 - c.loy; if (left <= 0) return { ok: false, msg: '민충이 이미 최대(100)입니다.' };
   const full = loyGain(g); const v = Math.min(left, full); const cost = loyCost(c, kind, v, full);
   if (kind === '시주') { if (c.food < cost) return { ok: false, msg: `군량이 부족합니다 (${fmt(cost)} 필요).` }; c.food -= cost; } else if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${fmt(cost)} 필요).` };
-  c.loy += v; g.acted = true; addExp(g, 'c', 10); g.merit = (g.merit || 0) + 1;
+  c.loy += v; g.acted = true; addExp(g, 'c', 10); meritAdd(g, v * 0.15); // v107: 민충 증가량 ×0.15
   return { ok: true, msg: `${g.n}이(가) ${kind === '시주' ? '군량을 나눠' : '금으로 백성을 구휼해'} 민충 +${v} (${c.loy})${v < full ? ' — 최대에 닿아 남은 만큼만 썼다' : ''}. ${kind === '시주' ? '군량' : '금'} ${fmt(cost)}.` };
 }
 function cmdCharity(cn, gn) { return cmdLoy(cn, gn, '시주'); }
@@ -5523,7 +5528,7 @@ function cmdArm(cn, gn, f) {
   const c = C(cn), g = G(gn); if (!c || kindOf(c.n) !== '도시') return { ok: false, msg: '군비는 도시에서만 올릴 수 있습니다.' };
   installArms(); const cost = armCost(c, f); if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${fmt(cost)} 필요).` };
   const raw = armGain(g, f); const v = Math.max(1, Math.floor(raw) + (Math.random() < raw - Math.floor(raw) ? 1 : 0));
-  c.arm[f] = (c.arm[f] || 0) + v; g.acted = true; const k = ARM_KEY[f]; if (k === 'wt') { addExp(g, 'w', 6); addExp(g, 't', 6); } else addExp(g, k, 12); g.merit = (g.merit || 0) + 1;
+  c.arm[f] = (c.arm[f] || 0) + v; g.acted = true; const k = ARM_KEY[f]; if (k === 'wt') { addExp(g, 'w', 6); addExp(g, 't', 6); } else addExp(g, k, 12); meritAdd(g, v * 0.1); // v107: 군비 증가량 ×0.1
   // 특수 병과 개성 배우기
   const sp = armSpec(c)[f]; let pr = (isFocus(g.n) ? 2 : 1) + (c.arm[f] >= 100 ? 1 : 0) + (sp === 'fac' ? 1 : 0); if (sp === 'terr') pr *= 2;
   if (!hasTr(g, ARM_TR[f]) && P(pr)) grantTrait(g, ARM_TR[f], `${ARM_ICON[f]} ${f} 군비를 다듬은 끝에`);
@@ -6503,9 +6508,9 @@ function plotAfter(fid, g, line) { try { if (typeof badd === 'function' && S.fac
     return r;
   };
 }
-{ const f = cmdScheme; cmdScheme = function (cn, an) { const r = f.apply(this, arguments); if (r && r.ok && G(an)) G(an).merit = (G(an).merit || 0) + 3; return r; }; }
-{ const f = cmdDiplo; cmdDiplo = function (cn, en) { const r = f.apply(this, arguments); if (r && r.ok && G(en)) G(en).merit = (G(en).merit || 0) + 4; return r; }; }
-{ const f = cmdRecruit; cmdRecruit = function (cn, rn, tn) { const r = f.apply(this, arguments); if (r && r.ok && G(rn)) { G(rn).merit = (G(rn).merit || 0) + 3; const t = G(tn); if (t) { initMerit(t); if (!t.tr) t.tr = randTraits(); } } return r; }; }
+{ const f = cmdScheme; cmdScheme = function (cn, an) { const r = f.apply(this, arguments); if (r && r.ok && G(an)) G(an).merit = (G(an).merit || 0) + 2; return r; }; } // v107: 계략 성공 +2
+{ const f = cmdDiplo; cmdDiplo = function (cn, en) { const r = f.apply(this, arguments); if (r && r.ok && G(en)) G(en).merit = (G(en).merit || 0) + 2; return r; }; } // v107: 외교 성공 +2
+{ const f = cmdRecruit; cmdRecruit = function (cn, rn, tn) { const r = f.apply(this, arguments); if (r && r.ok && G(rn)) { G(rn).merit = (G(rn).merit || 0) + 2; const t = G(tn); if (t) { initMerit(t); if (!t.tr) t.tr = randTraits(); } } return r; }; }
 { const f = recruitChance; recruitChance = function (rec, tgt) { const p = f.apply(this, arguments); return p <= 0 ? p : clamp(p + (hasTr(rec, '인재수집가') ? 15 : 0), 0, 95); }; }
 { const f = cmdTrain; cmdTrain = function (cn, gn) { const c = C(cn); const b = c.train; const r = f.apply(this, arguments); if (r.ok && hasTr(G(gn), '조련가')) { const add = Math.round((c.train - b) * 0.5); c.train = clamp(c.train + add, 0, 100); r.msg += ` 개성 조련가 +${add}.`; } return r; }; }
 
@@ -8095,7 +8100,7 @@ function openAppoint() {
     const g = UI.f.rg ? G(UI.f.rg) : null;
     const ctl = g ? `<div class="kv">${g.n} · 공적 ${g.merit || 0} · 현재 ${g.rank ? rankName(g) : '관직 없음'}</div><div class="grid5">${[1, 2, 3, 4, 5].map(t => btn(RANKS[t].n, 'apR', t, { p: g.rank === t, s: 1, dis: (g.merit || 0) < RANKS[t].merit || (g.rank !== t && rankUsedT(S.player, t) >= rankSlotsT(S.player, t)) })).join('')}</div>${g.rank ? btn('관직을 거둔다', 'apR', 0, { s: 1 }) : ''}` : '';
     return tabs + `<div class="rks">${rows}</div><div class="dim sm">공적은 전투·점령·계략·외교·등용·내정으로 쌓입니다. 승진하면 충성이 오르고, 강등하면 1년간 충성이 떨어집니다. 세력이 커지거나 왕·황제를 칭하면 자리가 늘어납니다.</div>${ctl}
-    <div class="kv">장수 (받을 수 있는 가장 높은 관직 → 추천 점수 순) · 눌러서 관직을 정합니다</div>${gensOf(S.player).filter(x => !isRuler(x)).map(x => ({ x, t: eligTier(x), s: rankScore(x) })).sort((a, b) => (isFocus(b.x.n) - isFocus(a.x.n)) || a.t - b.t || b.s - a.s).slice(0, UI.apMore || 40).map(({ x, t }) => { const up = !x.rank || t < x.rank; return genRow(x, `${x.rank ? rankName(x) : '관직 없음'}${up ? `<i class="rec">${x.rank ? '승진 ' : ''}${RANKS[t].n} 추천</i>` : ''}`, 'apSel', x.n, UI.f.rg === x.n, `${up ? '' : '<span class="dim">'}추천 점수 ${Math.round(rankScore(x))} · 공적 ${x.merit || 0} · 충성 ${x.loy} · ${x.loc}${up ? '' : '</span>'}`); }).join('')}${gensOf(S.player).filter(x => !isRuler(x)).length > (UI.apMore || 40) ? btn('더 보기 (+40명)', 'apMore', '', { s: 1 }) : ''}`;
+    <div class="kv">장수 (받을 수 있는 가장 높은 관직 → 추천 점수 순) · 눌러서 관직을 정합니다</div>${gensOf(S.player).filter(x => !isRuler(x)).map(x => ({ x, t: eligTier(x), s: rankScore(x) })).sort((a, b) => (isFocus(b.x.n) - isFocus(a.x.n)) || (a.t || 9) - (b.t || 9) || b.s - a.s).slice(0, UI.apMore || 40).map(({ x, t }) => { const up = t && (!x.rank || t < x.rank); return genRow(x, `${x.rank ? rankName(x) : '관직 없음'}${up ? `<i class="rec">${x.rank ? '승진 ' : ''}${RANKS[t].n} 추천</i>` : ''}`, 'apSel', x.n, UI.f.rg === x.n, `${up ? '' : '<span class="dim">'}추천 점수 ${Math.round(rankScore(x))} · 공적 ${x.merit || 0} · 충성 ${x.loy} · ${x.loc}${up ? '' : '</span>'}`); }).join('')}${gensOf(S.player).filter(x => !isRuler(x)).length > (UI.apMore || 40) ? btn('더 보기 (+40명)', 'apMore', '', { s: 1 }) : ''}`;
   });
 }
 ACT.apMore = () => { UI.apMore = (UI.apMore || 40) + 40; renderSheet(); }; ACT.apTab = v => { UI.f.apT = v; renderSheet(); };
@@ -8784,12 +8789,37 @@ ACT.trGo = () => { const r = cmdFoodTrade(UI.city, UI.f.mode, UI.f.amt); toast(r
   openAppoint = function () {
     base(); const top = UI.sheets[UI.sheets.length - 1]; const b = top.body;
     top.body = () => { const h = b(); if (UI.f.apT !== '관직') return h; const plan = rankPlan(); const tops = rankSuggestTop();
-      const box = `<div class="pn"><b>일괄 임명 (3~5품)</b><small>${plan.length ? `빈자리 ${plan.length}곳: ` + plan.slice(0, 8).map(([n, t]) => `${n}→${RANKS[t].n}`).join(', ') + (plan.length > 8 ? ' …' : '') : '채울 빈자리가 없습니다.'}</small><small>1·2품 추천(직접 임명): ${tops.length ? tops.map(g => `${g.n}(${g.rank ? RANKS[g.rank].n : '없음'})`).join(', ') : '빈자리 없음'}</small></div>${plan.length ? btn(`추천대로 ${plan.length}명 임명`, 'apBulk', '', { p: 1 }) : ''}`;
+      const box = `<div class="pn"><b>일괄 임명 (3~5품)</b><small>${plan.length ? `빈자리 ${plan.length}곳: ` + plan.slice(0, 8).map(([n, t]) => `${n}→${RANKS[t].n}`).join(', ') + (plan.length > 8 ? ' …' : '') : '채울 빈자리가 없습니다.'}</small><small>1·2품 추천(직접 임명): ${tops.length ? tops.map(g => `${g.n}(${g.rank ? RANKS[g.rank].n : '없음'})`).join(', ') : '빈자리 없음'}</small></div>${plan.length ? btn(`추천대로 ${plan.length}명 임명`, 'apBulk', '', { p: 1 }) : ''}${(() => { const P = rankRealignPlan(S.player); const n = P.up.length + P.down.length + P.off.length; return `<div class="pn"><b>공적순 일괄 재배치</b><small>공적 순서대로 1품부터 다시 배정합니다 (승진 ${P.up.length} · 강등 ${P.down.length} · 해제 ${P.off.length}). 미리보기 뒤 확인합니다.</small></div>${btn(n ? `미리보기 (${n}명 변동)` : '미리보기 (변동 없음)', 'apRealign', '', { s: 1 })}`; })()}`;
       return h.replace('<div class="rks">', box + '<div class="rks">'); };
     renderSheet();
   };
 }
 ACT.apBulk = () => { const plan = rankPlan(); plan.forEach(([n, t]) => setRank(G(n), t)); toast(`${plan.length}명에게 관직을 주었습니다.`); renderSheet(); render(); };
+// ===== v107 관직 공적순 일괄 재배치 =====
+// 군주 제외, 공적 내림차순(동률 별 수·능력합)으로 1품부터 슬롯(rankSlotsT)·문턱(RANKS[t].merit)을 만족하는 가장 높은 품에 배정, 못 맞추면 관직 없음.
+function rankRealignPlan(fid) {
+  fid = fid || S.player;
+  const gs = gensOf(fid).filter(g => !isRuler(g)).sort((a, b) => ((b.merit || 0) - (a.merit || 0)) || (curStars(b) - curStars(a)) || (sum6(b) - sum6(a)));
+  const used = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }; const slots = {}; for (let t = 1; t <= 5; t++) slots[t] = rankSlotsT(fid, t);
+  const plan = gs.map(g => { let nt = 0; for (let t = 1; t <= 5; t++) if ((g.merit || 0) >= RANKS[t].merit && used[t] < slots[t]) { used[t]++; nt = t; break; } return { g, from: g.rank || 0, to: nt }; });
+  return { plan, up: plan.filter(p => p.to && (!p.from || p.to < p.from)), down: plan.filter(p => p.from && p.to && p.to > p.from), off: plan.filter(p => p.from && !p.to), same: plan.filter(p => p.from === p.to) };
+}
+// setRank와 같은 충성·불만 효과를 내되, 자리 검사는 계획이 이미 만족하므로 직접 배정(순서 때문에 setRank가 "자리 없음"을 내는 것을 피함)
+function rankRealignApply(fid) {
+  fid = fid || S.player; const P = rankRealignPlan(fid); const ch = P.up.concat(P.down, P.off);
+  ch.forEach(p => { p.g.rank = 0; p.g.rankName = null; });
+  ch.sort((a, b) => (a.to || 9) - (b.to || 9)).forEach(p => { const g = p.g, t = p.to, old = p.from; g.rank = t;
+    if (t) { const usedN = gensOf(fid).filter(x => x !== g && x.rank === t).map(x => rankName(x)); g.rankName = RANKS[t].names.find(n => !usedN.includes(n)) || RANKS[t].names[(usedN.length) % RANKS[t].names.length]; } else g.rankName = null;
+    if (t && (!old || t < old)) { g.loy = clamp(g.loy + 5 + (old ? 0 : 3), 0, 100); g.disc = clamp((g.disc || 0) - 20, 0, 100); }
+    else if (old && (!t || t > old)) { g.demoted = S.y * 12 + S.m + 12; addDisc(g, t ? 15 : 25, '관직이 낮아졌다'); } });
+  return { ok: true, up: P.up.length, down: P.down.length, off: P.off.length };
+}
+ACT.apRealign = () => { const P = rankRealignPlan(S.player); const rk = t => t ? RANKS[t].n : '없음';
+  const list = (arr, cls) => arr.length ? '<div class="dim sm">' + arr.slice(0, 30).map(p => `${p.g.n} ${rk(p.from)}→${rk(p.to)}`).join(', ') + (arr.length > 30 ? ' …' : '') + '</div>' : '';
+  openSheet('공적순 일괄 재배치 (미리보기)', () => `<div class="pn"><b>승진 ${P.up.length}명 · <span style="font-size:1.3em;color:#e05050">강등 ${P.down.length}명</span> · 관직 해제 ${P.off.length}명 · 변동 없음 ${P.same.length}명</b><small>강등·해제는 1년간 충성이 떨어집니다(기존 규칙). 되돌릴 수 없습니다.</small></div><div class="kv">승진</div>${list(P.up) || '<div class="dim sm">없음</div>'}<div class="kv">강등</div>${list(P.down) || '<div class="dim sm">없음</div>'}<div class="kv">관직 해제</div>${list(P.off) || '<div class="dim sm">없음</div>'}`,
+    () => (P.up.length + P.down.length + P.off.length) ? btn(`확인하고 ${P.up.length + P.down.length + P.off.length}명 재배치`, 'apRealignGo', '', { p: 1 }) : '<span class="dim">바꿀 것이 없습니다.</span>'); };
+ACT.apRealignGo = () => { const r = rankRealignApply(S.player); closeSheet(); toast(`재배치: 승진 ${r.up} · 강등 ${r.down} · 해제 ${r.off}`); renderSheet(); render(); };
+
 // 이동: 밀어서 고르는 막대 + % 버튼 + 미리 보기
 function mvRow(key, label, max, val, step) {
   return `<div class="mvr"><div class="kv">${label} <b id="mv_${key}_v">${fmt(val)}</b> / ${fmt(max)}</div><input type="range" class="mvs" id="mv_${key}" min="0" max="${max}" step="${step}" value="${val}"><div class="grid5">${[0, 25, 50, 75, 100].map(p => btn(p + '%', 'mvP', `${key}|${p}`, { s: 1 })).join('')}</div></div>`;
