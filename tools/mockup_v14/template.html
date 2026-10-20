@@ -74,7 +74,7 @@ const DATA=/*__DATA__*/null;
 const {cities,roads,facs,rivers,coast,islands,inner,ranges,seasons,fix}=DATA;
 const NS='http://www.w3.org/2000/svg';
 const byName={};cities.forEach((c,i)=>{c.i=i;byName[c.n]=c;});
-const facCol={};facs.forEach(f=>facCol[f.r]=f.col);
+const facCol={},facT={};facs.forEach(f=>{facCol[f.r]=f.col;facT[f.r]=f.tcol;});
 const capitals=new Set(facs.map(f=>f.home));
 const PLAYER='조조';
 let sel=byName['초'],tab='군사';
@@ -101,12 +101,27 @@ function voronoi(){
     for(const[j]of others){const o=cities[j];[P,L]=clip(P,L,o.x-s.x,o.y-s.y,(o.x*o.x+o.y*o.y-s.x*s.x-s.y*s.y)/2,j);}
     return{P,L};
   });
-  // v2: 영토용 셀은 도시 중심 반경 상한(가까운 이웃 3곳 평균 거리×1.2, 78~96) 원과 교차 → 변방 셀이 모서리까지 퍼지지 않게. 원 변의 표지는 -2
-  cellsT=cells.map((cl,i)=>{const s=cities[i];
-    const nd=cities.filter((_,j)=>j!==i).map(o=>Math.hypot(o.x-s.x,o.y-s.y)).sort((a,b)=>a-b).slice(0,3);
-    const R=Math.max(78,Math.min(96,1.2*(nd[0]+nd[1]+nd[2])/3));let P=cl.P,L=cl.L;
-    for(let k=0;k<28;k++){const a=k/28*6.2832,nx=Math.cos(a),ny=Math.sin(a);[P,L]=clip(P,L,nx,ny,nx*s.x+ny*s.y+R,-2);}
-    return{P,L};});
+  // v3: 영토용 셀 = 보로노이 다각형을 도시 중심 기준 방사 방향으로 최대 반경 R(가까운 이웃 3곳 평균 거리×1.2, 78~96)까지 끌어당긴다.
+  //     같은 세력 이웃과의 공유 변은 끌어당기지 않고, 두 도시에서 같은 거리인 이등분선 위에서 max(Ri,Rj) 원으로만 자른다 → 양쪽이 같은 점을 내서 틈이 없다.
+  //     변 표지: 이웃 번호(공유 변·반경 안 변) 또는 -2(끌어당긴 바깥 변).
+  const Rr=cities.map((s,i)=>{const nd=cities.filter((_,j)=>j!==i).map(o=>Math.hypot(o.x-s.x,o.y-s.y)).sort((a,b)=>a-b).slice(0,3);return Math.max(78,Math.min(96,1.2*(nd[0]+nd[1]+nd[2])/3));});
+  cellsT=cells.map((cl,i)=>{const s=cities[i],R=Rr[i],own=s.own,P=cl.P,L=cl.L,n=P.length,oP=[],oL=[];
+    const dist=p=>Math.hypot(p[0]-s.x,p[1]-s.y);
+    const pull=p=>{const d=dist(p);return d>R?[s.x+(p[0]-s.x)*R/d,s.y+(p[1]-s.y)*R/d]:p;};
+    const disk=(p,q,r)=>{const dx=q[0]-p[0],dy=q[1]-p[1],fx=p[0]-s.x,fy=p[1]-s.y,A=dx*dx+dy*dy,B=2*(fx*dx+fy*dy),C=fx*fx+fy*fy-r*r,D=B*B-4*A*C;
+      if(D<=0||!A)return null;const sq=Math.sqrt(D),t0=Math.max(0,(-B-sq)/(2*A)),t1=Math.min(1,(-B+sq)/(2*A));if(t1<=t0)return null;
+      return[[p[0]+dx*t0,p[1]+dy*t0],[p[0]+dx*t1,p[1]+dy*t1]];};
+    const push=(p,l)=>{const z=oP[oP.length-1];if(z&&Math.abs(z[0]-p[0])<0.05&&Math.abs(z[1]-p[1])<0.05){oL[oL.length-1]=l;return;}oP.push(p);oL.push(l);};
+    for(let k=0;k<n;k++){const p=P[k],q=P[(k+1)%n],j=L[k];
+      if(own&&j>=0&&cities[j].own===own){const sg=disk(p,q,Math.max(R,Rr[j]));if(sg){push(sg[0],j);push(sg[1],-2);}}
+      else{const inside=dist(p)<=R&&dist(q)<=R;push(pull(p),inside?j:-2);}}
+    // 끌어당긴 바깥 변이 너무 넓은 각(>50°)을 건너면 원 위 점을 45° 이하 간격으로 넣어 깊이 패이지 않게(각진 다각형은 유지)
+    const fP=[],fL=[],m=oP.length;
+    for(let k=0;k<m;k++){const a=oP[k],b=oP[(k+1)%m];fP.push(a);fL.push(oL[k]);
+      if(oL[k]===-2&&dist(a)>R*0.98&&dist(b)>R*0.98){let a0=Math.atan2(a[1]-s.y,a[0]-s.x),a1=Math.atan2(b[1]-s.y,b[0]-s.x),da=a1-a0;
+        while(da<=-Math.PI)da+=2*Math.PI;while(da>Math.PI)da-=2*Math.PI;const st=Math.ceil(Math.abs(da)/0.785);
+        if(Math.abs(da)>0.87)for(let u=1;u<st;u++){const t=a0+da*u/st;fP.push([s.x+R*Math.cos(t),s.y+R*Math.sin(t)]);fL.push(-2);}}}
+    return{P:fP,L:fL};});
   console.log('voronoi ms',(performance.now()-t0).toFixed(1));
 }
 voronoi();
@@ -140,10 +155,12 @@ function buildStatic(){
       ridge+=`M${(x-w).toFixed(1)},${(y+w*0.5).toFixed(1)}L${x.toFixed(1)},${(y-w*0.45).toFixed(1)}L${(x+w).toFixed(1)},${(y+w*0.5).toFixed(1)}`;}}});
   // 영토: 세력마다 한 path, 그룹 투명도로 칠해 같은 세력 안 이음매가 안 보이게
   const by={};cities.forEach((c,i)=>{if(c.own&&cellsT[i].P.length)(by[c.own]=by[c.own]||[]).push(polyD(cellsT[i].P));});
-  let territ='';for(const f in by)territ+=`<g opacity="${fix.terr_alpha}"><path d="${by[f].join('')}" fill="${facCol[f]}" stroke="${facCol[f]}" stroke-width="1"/></g>`;
+  // v3: 영토 아래는 계절 틴트를 줄인 중립 땅(terr_base)을 깔고, 그 위에 지도용 진한 세력색(tcol)을 칠한다
+  let territ='',allT='';for(const f in by){territ+=`<g opacity="${fix.terr_alpha}"><path d="${by[f].join('')}" fill="${facT[f]}" stroke="${facT[f]}" stroke-width="1"/></g>`;allT+=by[f].join('');}
+  const tbase=`<g opacity="${fix.base_alpha}"><path d="${allT}" fill="${S.terr_base}" stroke="${S.terr_base}" stroke-width="1"/></g>`;
   // 경계: 주인 있는 셀에서, 다른 주인 이웃과 맞닿은 변 + 반경 상한 원 변
   let bord='';
-  cellsT.forEach((cl,i)=>{const a=cities[i].own;if(!a)return;const n=cl.P.length;cl.L.forEach((j,k)=>{if(j===-1)return;if(j>=0&&cities[j].own===a)return;
+  cellsT.forEach((cl,i)=>{const a=cities[i].own;if(!a)return;const n=cl.P.length;cl.L.forEach((j,k)=>{if(j>=0&&cities[j].own===a)return;
     const p=cl.P[k],q=cl.P[(k+1)%n];bord+=`M${p[0].toFixed(1)},${p[1].toFixed(1)}L${q[0].toFixed(1)},${q[1].toFixed(1)}`;});});
   // 산맥: 부드러운 면 + 능선 + 짧은 결선
   let rng='',rdg='',tck='';
@@ -162,13 +179,14 @@ function buildStatic(){
     <path d="${landD}" fill="none" stroke="${S.band}" stroke-opacity=".5" stroke-width="12" stroke-linejoin="round"/>
     <path d="${landD}" fill="${S.plain}"/>
     <g clip-path="url(#land)"><g filter="url(#soft)">${terr}</g>
-      <path d="${ridge}" fill="none" stroke="${S.ridge}" stroke-opacity=".45" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <g clip-path="url(#inner)">${tbase}</g>
       <path d="${rng}" fill="${S.range}" stroke="${S.range}" stroke-width="9" stroke-linejoin="round" opacity=".9" filter="url(#soft2)"/>
-      <path d="${tck}" fill="none" stroke="${S.ridge}" stroke-opacity=".6" stroke-width="1.1" stroke-linecap="round"/>
-      <path d="${rdg}" fill="none" stroke="${S.ridge}" stroke-opacity=".85" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="${outerRect}${polyD(inner)}" fill-rule="evenodd" fill="${S.offmap}" filter="url(#edge)"/>
-      <g clip-path="url(#inner)">${territ}
-      <path d="${bord}" fill="none" stroke="${fix.border}" stroke-opacity=".8" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></g>
+      <g clip-path="url(#inner)">${territ}</g>
+      <path d="${ridge}" fill="none" stroke="${S.ridge}" stroke-opacity=".5" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${tck}" fill="none" stroke="${S.ridge}" stroke-opacity=".7" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="${rdg}" fill="none" stroke="${S.ridge}" stroke-opacity=".9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <g clip-path="url(#inner)"><path d="${bord}" fill="none" stroke="${fix.border}" stroke-opacity=".95" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></g>
       <g fill="none" stroke="${fix.river}" stroke-linecap="round" stroke-opacity=".95">${riverSVG()}</g>
     </g>
     <path d="${landD}" fill="none" stroke="#2d3a48" stroke-opacity=".7" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
@@ -229,10 +247,11 @@ function drawScreen(){
   document.getElementById('scr').innerHTML=ic+lb;
 }
 function clampCam(){
-  const kmin=Math.min(W/1020,H/1030)*0.98;cam.k=Math.max(kmin,Math.min(3,cam.k));
-  const hw=W/2/cam.k,hh=H/2/cam.k;
+  // v3: 아래 PADB px 은 계절 단추 막대 자리 — 지도 아래 끝이 막대 위에서 멈추게
+  const PADB=40,kmin=Math.min(W/1020,(H-PADB)/1030)*0.98;cam.k=Math.max(kmin,Math.min(3,cam.k));
+  const hw=W/2/cam.k,hh=H/2/cam.k,ylo=-10+hh,yhi=1020-(H/2-PADB)/cam.k;
   cam.x=hw*2>=1020?500:Math.max(-10+hw,Math.min(1010-hw,cam.x));
-  cam.y=hh*2>=1030?505:Math.max(-10+hh,Math.min(1020-hh,cam.y));
+  cam.y=yhi<=ylo?(ylo+yhi)/2:Math.max(ylo,Math.min(yhi,cam.y));
 }
 let raf=0;
 function camApply(){clampCam();const g=document.getElementById('world');if(g)g.setAttribute('transform',`translate(${(W/2-cam.x*cam.k).toFixed(2)},${(H/2-cam.y*cam.k).toFixed(2)}) scale(${cam.k.toFixed(4)})`);drawScreen();}

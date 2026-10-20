@@ -118,6 +118,51 @@ const FIX = {
   icon_outer: '#0b0f1e', icon_inner: '#ffffff', terr_alpha: 0.35,
   free_fill: '#a7acb6', free_outer: '#1f232b', free_alpha: 0.92,
 };
+// v3: 영토 칠을 진하게. 세력색을 지도용으로 깊게(명도 상한·채도 증폭) 바꾼 tcol 을, 계절 틴트를 크게 줄인 중립 땅(terr_base) 위에 TERR_A 로 칠한다.
+const EV = (k, d) => process.env[k] !== undefined ? +process.env[k] : d;
+const TERR_A = EV('TA', 0.64);         // 세력색 불투명도
+const BASE_A = EV('BA', 0.95);        // 영토 아래 중립 땅의 불투명도(지형 셀 색이 조금 비치게)
+const NEUTRAL = '#e9e5dc';            // 중립 밝은 땅
+const BASE_SEASON = EV('BS', 0.22);   // 중립 땅에 남기는 계절 땅색 비율
+const T_LMAX = EV('TL', 45), T_CK = EV('TC', 1.7);   // 지도용 세력색 명도 상한·채도 배율
+const FREE_LMIN = EV('FL', 89), FREE_CMAX = EV('FC', 16); // 무주지 땅: 명도 하한·채도 상한 (계절 색상은 유지)
+FIX.terr_alpha = TERR_A; FIX.base_alpha = BASE_A;
+
+// ---------- 색 공간: sRGB → Lab, CIEDE2000 ----------
+const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+const unlin = v => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+function rgb2lab(c) {
+  const [r, g, b] = c.map(lin);
+  const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, Y = 0.2126 * r + 0.7152 * g + 0.0722 * b, Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+function lab2rgb([L, a, b]) {
+  const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200;
+  const g = t => t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787;
+  const X = g(fx) * 0.95047, Y = g(fy), Z = g(fz) * 1.08883;
+  const r = 3.2406 * X - 1.5372 * Y - 0.4986 * Z, gg = -0.9689 * X + 1.8758 * Y + 0.0415 * Z, bb = 0.0557 * X - 0.2040 * Y + 1.0570 * Z;
+  return [r, gg, bb].map(v => Math.max(0, Math.min(255, unlin(Math.max(0, v)))));
+}
+function de2000(c1, c2) {
+  const [L1, a1, b1] = rgb2lab(c1), [L2, a2, b2] = rgb2lab(c2);
+  const rad = Math.PI / 180, C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb = (C1 + C2) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+  const ap1 = (1 + G) * a1, ap2 = (1 + G) * a2, Cp1 = Math.hypot(ap1, b1), Cp2 = Math.hypot(ap2, b2);
+  const hp = (b, a) => { if (!a && !b) return 0; const h = Math.atan2(b, a) / rad; return h < 0 ? h + 360 : h; };
+  const h1 = hp(b1, ap1), h2 = hp(b2, ap2), dL = L2 - L1, dC = Cp2 - Cp1;
+  let dh = 0; if (Cp1 * Cp2) { dh = h2 - h1; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360; }
+  const dH = 2 * Math.sqrt(Cp1 * Cp2) * Math.sin(dh / 2 * rad), Lb = (L1 + L2) / 2, Cpb = (Cp1 + Cp2) / 2;
+  let hb = h1 + h2; if (Cp1 * Cp2) { if (Math.abs(h1 - h2) > 180) hb += h1 + h2 < 360 ? 360 : -360; hb /= 2; }
+  const T = 1 - 0.17 * Math.cos((hb - 30) * rad) + 0.24 * Math.cos(2 * hb * rad) + 0.32 * Math.cos((3 * hb + 6) * rad) - 0.2 * Math.cos((4 * hb - 63) * rad);
+  const dTh = 30 * Math.exp(-(((hb - 275) / 25) ** 2)), RC = 2 * Math.sqrt(Cpb ** 7 / (Cpb ** 7 + 25 ** 7));
+  const SL = 1 + 0.015 * (Lb - 50) ** 2 / Math.sqrt(20 + (Lb - 50) ** 2), SC = 1 + 0.045 * Cpb, SH = 1 + 0.015 * Cpb * T, RT = -Math.sin(2 * dTh * rad) * RC;
+  return Math.sqrt((dL / SL) ** 2 + (dC / SC) ** 2 + (dH / SH) ** 2 + RT * (dC / SC) * (dH / SH));
+}
+// 지도 영토용 세력색: 명도 상한 T_LMAX, 채도 ×T_CK (최소 채도 보장은 하지 않는다 — 흰 세력은 회색이 된다)
+function deepen(h) { const [L, a, b] = rgb2lab(hex(h)); return toHex(lab2rgb([Math.min(L, T_LMAX), a * T_CK, b * T_CK])); }
+// 무주지 땅: 색상(hue)은 계절 그대로, 명도는 하한까지 올리고 채도는 상한으로 자른다 → 진한 영토와 명도·채도로 갈린다
+function lift(h) { const [L, a, b] = rgb2lab(hex(h)), C = Math.hypot(a, b), k = C > FREE_CMAX ? FREE_CMAX / C : 1; return toHex(lab2rgb([Math.max(L, FREE_LMIN), a * k, b * k])); }
 
 // ---------- WCAG 대비 ----------
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -125,15 +170,34 @@ const toHex = a => '#' + a.map(v => Math.round(v).toString(16).padStart(2, '0'))
 const mix = (fg, bg, a) => fg.map((v, i) => v * a + bg[i] * (1 - a));
 const lum = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 const cr = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
-function landSet(S) { // 땅 4종 × (무주지 + 세력색 0.35)
+const LAND_T = ['plain', 'river_land', 'mount', 'south'];
+D.facs.forEach(f => { f.tcol = deepen(f.col); });
+// 영토 칠 결과색: 지형 땅 L 위에 중립 땅(BASE_A) → 세력 tcol(TERR_A). 산맥 면은 중립 땅 위, 세력색 아래.
+const terrOver = (f, L, S) => mix(hex(f.tcol), mix(hex(S.terr_base), L, BASE_A), TERR_A);
+function landSet(S) { // 무주지 땅 4종 + 산맥 면 + 모든 세력 영토 결과색
   const out = [];
-  for (const t of ['plain', 'river_land', 'mount', 'south', 'range']) { const L = hex(S[t]); out.push(L); for (const f of D.facs) out.push(mix(hex(f.col), L, FIX.terr_alpha)); }
+  for (const t of [...LAND_T, 'range']) { const L = hex(S[t]); out.push(L); for (const f of D.facs) out.push(terrOver(f, t === 'range' ? hex(S.range) : L, S)); }
   return out;
 }
 for (const S of Object.values(SEASONS)) {
-  S.range = toHex(mix(hex(S.ridge), hex(S.mount), 0.5));
+  S.raw = { plain: S.plain, mount: S.mount };
+  for (const t of LAND_T) S[t] = lift(S[t]);
+  S.range = toHex(mix(hex(S.ridge), hex(S.raw.mount), 0.5));
   S.offmap = toHex(mix(hex('#b8b6b2'), hex(S.plain), 0.7));
   S.fog = toHex(mix(hex(S.offmap), hex(S.sea), 0.45));
+  S.terr_base = toHex(mix(hex(S.plain), hex(NEUTRAL), BASE_SEASON));
+}
+// v3: 세력 영토 vs 무주지 땅 색차 (CIEDE2000). 영토 아래 지형 4종 × 무주지 지형 4종 중 최소
+const deRows = [];
+for (const [k, S] of Object.entries(SEASONS)) {
+  let worst = { de: 1e9 }; const perFac = [];
+  for (const f of D.facs) {
+    let m = { de: 1e9 };
+    for (const tu of LAND_T) for (const tf of LAND_T) { const d = de2000(terrOver(f, hex(S[tu]), S), hex(S[tf])); if (d < m.de) m = { de: d, tu, tf }; }
+    perFac.push([f.r, m.de]); if (m.de < worst.de) worst = { ...m, f: f.r };
+  }
+  perFac.sort((a, b) => a[1] - b[1]);
+  deRows.push({ ko: S.ko, worst, low: perFac.slice(0, 4) });
 }
 const minOver = (set, fn) => set.reduce((m, x) => Math.min(m, fn(x)), 1e9);
 const rows = [];
@@ -170,12 +234,17 @@ const fails = [];
 for (const r of rows) for (const c of cols) if (typeof r[c] === 'number' && r[c] < (TEXT_KEYS.includes(c) ? 4.5 : 3)) fails.push(r.계절 + ':' + c + '=' + r[c].toFixed(2));
 console.log('\nWCAG 대비 (글자 4.5↑, 선·아이콘 3↑)\n' + tbl);
 console.log('미달:', fails.length ? fails.join(', ') : '없음');
-fs.writeFileSync(path.join(__dirname, 'contrast.md'), '# v1.4 목업 대비 검사 (build.js 자동 생성)\n\n' + tbl + '\n미달: ' + (fails.join(', ') || '없음') + '\n');
+let deTbl = `\n## 세력 영토 vs 무주지 땅 색차 (CIEDE2000, 목표 ≥ 20)\n\n영토 = 지형 땅 → 중립 땅 ${NEUTRAL}(계절 ${BASE_SEASON}, 불투명 ${BASE_A}) → 지도용 세력색(명도≤${T_LMAX}, 채도×${T_CK}, 불투명 ${TERR_A}); 무주지 땅은 명도≥${FREE_LMIN}·채도≤${FREE_CMAX}. 영토 아래 지형 4종 × 무주지 지형 4종 중 최소.\n\n| 계절 | 최소 ΔE00 | 최소 세력(영토 아래→무주지 지형) | 낮은 4세력 |\n|---|---|---|---|\n`;
+for (const r of deRows) deTbl += `| ${r.ko} | ${r.worst.de.toFixed(1)}${r.worst.de < 20 ? '✗' : ''} | ${r.worst.f} (${r.worst.tu}→${r.worst.tf}) | ${r.low.map(([n, d]) => n + ' ' + d.toFixed(1)).join(', ')} |\n`;
+const des = deRows.map(r => r.worst.de);
+deTbl += `\n계절 간 최소 ΔE 범위: ${Math.min(...des).toFixed(1)} ~ ${Math.max(...des).toFixed(1)} (차 ${(Math.max(...des) - Math.min(...des)).toFixed(1)})\n`;
+console.log(deTbl);
+fs.writeFileSync(path.join(__dirname, 'contrast.md'), '# v1.4 목업 대비 검사 (build.js 자동 생성)\n\n' + tbl + '\n미달: ' + (fails.join(', ') || '없음') + '\n' + deTbl);
 
 // ---------- 내보내기 ----------
 const DATA = {
   cities: D.cities.map(({ n, ju, g, x, y, own, t, k }) => ({ n, ju, g, x, y, own, t, k })),
-  roads: D.roads, facs: D.facs.map(({ r, home, col }) => ({ r, home, col })), rivers: D.rivers,
+  roads: D.roads, facs: D.facs.map(({ r, home, col, tcol }) => ({ r, home, col, tcol })), rivers: D.rivers,
   coast, islands, inner, ranges, seasons: SEASONS, fix: { ...FIX, label_bg: `rgba(${FIX.label_bg.join(',')})` },
 };
 const tpl = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
