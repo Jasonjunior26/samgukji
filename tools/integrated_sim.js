@@ -11,7 +11,7 @@ const cmd = process.argv[2];
 if (cmd === 'pair') { pair(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'cause') { cause(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'report') { report(process.argv.slice(3)); process.exit(0); }
-const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1, rec: false, foodFloor: 15, holdN: 12, holdRate: 0.03, r3: false, lux: [40, 70, 100], luxM: [0.10, 0.20, 0.32], luxMer: 1.5, luxCap: 0.6, sinkFrac: 0.7, assign: false, deukBonus: 0.4, popT: [120000, 170000, 230000], popInc: 0.04, popLoy: 0.15, popFind: 0.006, foodBuyN: 0, sinkArm: 0.55 }, JSON.parse(process.argv[3] || '{}'));
+const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1, rec: false, foodFloor: 15, holdN: 12, holdRate: 0.03, r3: false, lux: [40, 70, 100], luxM: [0.10, 0.20, 0.32], luxMer: 1.5, luxCap: 0.6, sinkFrac: 0.7, assign: false, deukBonus: 0.4, popT: [120000, 170000, 230000], popInc: 0.04, popLoy: 0.15, popFind: 0.006, foodBuyN: 0, sinkArm: 0.55, volun: false, volK: 0.03, volCap: 0.04, volTrain: 40, popGrow: 0 }, JSON.parse(process.argv[3] || '{}'));
 const OUT = process.argv[4] || '';
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v105.html'), 'utf8');
@@ -170,7 +170,7 @@ vm.runInContext(`(() => {
     pend.forEach(d => {
       const fc = C(d.from), g0 = fc.gold; let r = null; try { r = autoBattle(d.att, d.from, d.to, d.units); } catch (e) { }
       const df = C(d.to).owner; // 점령 전 소유자는 autoBattle 안에서 바뀌므로 승패만 기록
-      const win = !!(r && r.win); const sa = IT.st[d.att]; if (sa) { win ? sa.bw++ : sa.bl++; }
+      const win = !!(r && r.win);  const sa = IT.st[d.att]; if (sa) { win ? sa.bw++ : sa.bl++; }
       const sd = df && IT.st[df]; if (sd) { win ? sd.dl++ : sd.dw++; }
       if (win) fc.food += d.food; else fc.food += d.food;
       if (D && !PR.noPrice) { const sp = Math.max(0, g0 - fc.gold); const ex = Math.min(fc.gold, Math.round(sp * ((price(d.att) || 1) - 1))); if (ex > 0) { fc.gold -= ex; if (sa) sa.extra.sortie += ex; } }
@@ -194,6 +194,7 @@ vm.runInContext(`(() => {
         if (st) st.extra.upkeep += ex;
         if (PR.r3 && st && st.root === '덕화' && c.pop) { const tt = PR.popT.filter(x => c.pop >= x).length; if (tt > 0) { c.gold += Math.round(inc * PR.popInc * tt); c.loy = Math.min(100, c.loy + PR.popLoy * tt); st.popTier = (st.popTier || 0) + tt; st.popN = (st.popN || 0) + 1;
           if (RND() < PR.popFind * tt) { const g = spawnRandom(c.n); g.st = '현역'; g.fac = c.owner; g.loc = c.n; g.loy = 70; st.dFound = (st.dFound || 0) + 1; } } }
+        if (PR.popGrow > 0 && st && st.root === '덕화' && c.pop != null) { const mx = popMax(c); if (c.pop < mx) { const dp = Math.round((mx - c.pop) * PR.popGrow * (0.5 + c.loy / 100)); c.pop += dp; st.popGrowSum = (st.popGrowSum || 0) + dp; } } // E안: 덕화 소속 도시 인구 증가율 가산
         if (PR.r3 && PR.foodBuyN > 0 && st && st.root === '덕화') { const need = Math.ceil(c.troops / ECO.troopFood); // 덕화 군량 하한: 하한 밑이면 금으로 사들임
           if (c.food < need * PR.foodBuyN && c.gold > reserveOf(c, c.owner) + 1000) { const amt = Math.min(need * 3, Math.floor((c.gold - reserveOf(c, c.owner)) / foodBuyPrice(c) * 100 / 1000) * 1000); if (amt >= 1000) { try { cmdFoodTrade(c.n, 'buy', amt); st.fbuy = (st.fbuy || 0) + amt; } catch (e) { } } } }
         if (PR.rec) { const exc = c.gold - PR.holdN * inc * p; if (exc > 0) { const h = Math.round(exc * PR.holdRate); c.gold -= h; if (st) st.extra.hold = (st.extra.hold || 0) + h; } } // 보유량 항
@@ -221,6 +222,14 @@ vm.runInContext(`(() => {
   function wrapTag(name, tagOf) { const f = globalThis[name]; if (typeof f !== 'function') { PRINT('wrap 실패', name); return; }
     globalThis[name] = function () { const tg = tagOf ? tagOf.apply(this, arguments) : null; const r = f.apply(this, arguments); syncOwn(tg || name); return r; }; }
   wrapTag('captureCity', () => '전투');
+  // E안: 덕화 도시가 침략당하면 의용병이 항상 등장. 규모 V = min(인구×(민충/100)×volK, 인구×volCap), 인구에서 빠지고 훈련도는 volTrain으로 섞임. AI 공격·위임 전투 모두 autoBattle을 지난다
+  if (PR.volun) { const ab = autoBattle; autoBattle = function (att, fromCn, toCn, units) {
+    let vrec = null; try { const tc0 = C(toCn), dfo = tc0 && tc0.owner; if (IT && D && dfo && dfo !== att && IT.st[dfo] && IT.st[dfo].root === '덕화' && tc0.pop > 0) { const V = Math.floor(Math.min(tc0.pop * (tc0.loy / 100) * PR.volK, tc0.pop * PR.volCap) / 100) * 100;
+      if (V > 0) { const t0 = tc0.troops; const aT = (units || []).reduce((s, u) => s + u.troops, 0); vrec = { f: dfo, c: toCn, V, t0, aT, pop: tc0.pop, loy: tc0.loy, m: IT.month }; if (!PR.volDry) { tc0.pop -= V; tc0.train = Math.round((tc0.train * t0 + PR.volTrain * V) / (t0 + V)); tc0.troops += V; } } } } catch (e) { vrec = null; }
+    const r = ab.apply(this, arguments);
+    if (vrec) { vrec.win = !!(r && r.win); (IT.volLog = IT.volLog || []).push(vrec); const sd = IT.st[vrec.f]; if (sd) { sd.vN = (sd.vN || 0) + 1; vrec.win ? sd.vL = (sd.vL || 0) + 1 : sd.vW = (sd.vW || 0) + 1; } }
+    return r; }; }
+
   wrapTag('absorbFaction', () => '항복');
   wrapTag('aiAbsorb', () => '항복');
   wrapTag('rebel', () => '독립');
@@ -538,9 +547,9 @@ vm.runInContext(`(() => {
     }
     hubs.push(hubMap());
     const end = {}; fids.forEach(f => end[f] = snap(f));
-    const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, act: s.act || {}, sink: s.sink || {}, dFound: s.dFound || 0, fbuy: s.fbuy || 0, popTier: s.popTier || 0, popN: s.popN || 0, tier: s.tier || 0, merc: s.merc || 0, Pf: IT.Pf[f], acq: IT.acq[f] || {}, lost: IT.lost[f] || {}, own50: IT.own50[f] === undefined ? -1 : IT.own50[f], dead: IT.dead[f] === undefined ? -1 : IT.dead[f] }; });
+    const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, act: s.act || {}, sink: s.sink || {}, dFound: s.dFound || 0, fbuy: s.fbuy || 0, vN: s.vN || 0, vW: s.vW || 0, vL: s.vL || 0, popGrowSum: s.popGrowSum || 0, popTier: s.popTier || 0, popN: s.popN || 0, tier: s.tier || 0, merc: s.merc || 0, Pf: IT.Pf[f], acq: IT.acq[f] || {}, lost: IT.lost[f] || {}, own50: IT.own50[f] === undefined ? -1 : IT.own50[f], dead: IT.dead[f] === undefined ? -1 : IT.dead[f] }; });
     aiPickPolicy = aiP;
-    return { params: PR, fids, start, end, hist, hubs, st: stOut, evt: IT.evt, nCity, own50: IT.own50, uni: IT.uni, over: S.over, foundTot: IT.foundTot, dv: IT.dv, dvlog: IT.dvlog || [], err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn };
+    return { params: PR, fids, start, end, hist, hubs, st: stOut, evt: IT.evt, nCity, own50: IT.own50, uni: IT.uni, over: S.over, foundTot: IT.foundTot, dv: IT.dv, dvlog: IT.dvlog || [], err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn, volLog: IT.volLog || [] };
   }
   const res = [];
   for (let g = 0; g < PR.games; g++) { res.push(game()); PRINT('판', g + 1, '/', PR.games); }
