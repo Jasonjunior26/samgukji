@@ -14,7 +14,7 @@ const ctx = { console: quiet, Math: M, Date, JSON, setTimeout: () => 0, clearTim
 ctx.window = ctx; vm.createContext(ctx);
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { } });
 const OVL = require('./bm_overlay'); const OVP = OVL.fromEnv(); OVL.install(ctx, OVP);
-ctx.PR = { OVP, GAMES, MONTHS, SCEN }; ctx.PRINT = (...a) => process.stderr.write(a.join(' ') + '\n');
+ctx.PR = { DUMP: !!process.env.DUMP, OVP, GAMES, MONTHS, SCEN }; ctx.PRINT = (...a) => process.stderr.write(a.join(' ') + '\n');
 
 vm.runInContext(`(() => {
   const pct = (a, p) => { if (!a.length) return 0; const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(b.length * p))]; };
@@ -54,6 +54,8 @@ vm.runInContext(`(() => {
       if (S.over === 'lose' || S.over === 'win') S.over = null;
       if (S.fac[S.player].alive && (!S.fac[S.player].pol || S.m === 1)) { try { aiPickPolicy(S.player); } catch (e) { } }
       for (const g of Object.values(S.gen)) if (g._m0 === undefined && g.st === '현역') { g._m0 = g.merit || 0; g._t0 = i; }
+      if (PR.DUMP && [35, 71, 119, 143].includes(i)) { const cn = {}; Object.values(S.city).forEach(c => { if (c.owner && kindOf(c.n) === '도시') cn[c.owner] = (cn[c.owner] || 0) + 1; });
+        (S.dump = S.dump || {})[i + 1] = { fac: Object.fromEntries(Object.keys(cn).map(f => [f, { n: cn[f], title: !!S.fac[f].title, gens: gensOf(f).length }])), gens: Object.values(S.gen).filter(g => g.st === '현역' && g.fac && !isRuler(g)).map(g => ({ f: g.fac, m: Math.round((g.merit || 0) * 10) / 10, s: curStars(g), r: g.rank || 0, a: ageOf(g) || 0 })) }; }
       if (i % 12 === 11) hist.push(snap(i + 1));
     }
     // 상위 장수 기록: 공적 상위 10, 전투 횟수 대비
@@ -65,7 +67,7 @@ vm.runInContext(`(() => {
     const top = Object.values(S.gen).filter(g => g.merit).sort((a, b) => b.merit - a.merit).slice(0, 10).map(g => ({ n: g.n, merit: g.merit, b: (g.rec && g.rec.b) || 0, rank: g.rank || 0, st: g.st }));
     const topB = Object.entries(S.bond || {}).sort((a, b) => b[1].v - a[1].v).slice(0, 10).map(([k, e]) => ({ k, v: e.v, c: e.c, t: e.t.join(',') }));
     const bc = Object.values(S.gen).map(g => (g.rec && g.rec.b) || 0).filter(x => x);
-    return { earned, BYCMD, MS, BS, hist, top, topB, battleGens: bc.length, battleP50: pct(bc, 0.5), battleP90: pct(bc, 0.9), battleMax: Math.max(0, ...bc), battles: S._bm.n, bwin: S._bm.w };
+    return { dump: S.dump, earned, BYCMD, MS, BS, hist, top, topB, battleGens: bc.length, battleP50: pct(bc, 0.5), battleP90: pct(bc, 0.9), battleMax: Math.max(0, ...bc), battles: S._bm.n, bwin: S._bm.w };
   }
   const res = []; for (let g = 0; g < PR.GAMES; g++) { res.push(game()); PRINT('판', g + 1, '/', PR.GAMES); }
   globalThis.RESULT = res;
