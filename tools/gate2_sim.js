@@ -32,7 +32,7 @@ ctx.window = ctx; vm.createContext(ctx);
 // 복귀: turns=문 연 뒤 retN턴이 지나면 출격 해제(근접은 농성 AI로 되돌려 성 안으로) / threat=수비합<retTh*공격합 이면 해제(한 번 해제하면 재출격 안 함)
 const GM = ctx.GM = { on: false, R: null, sortie: false, charge: false, S: null, auto: null,
   setup(on, R) { this.on = on; this.R = R; this.charge = !!(R && R.open !== 'never'); this.sortie = false; this.ended = false;
-    this.S = { openTurn: null, dOpen: 0, dOpenTurn: null, deny: 0, outSum: 0, outN: 0, outAfter: 0, outAfterN: 0, gateOcc: 0, gateT: 0, exitBlk: 0, exitN: 0, gates: [], aRanged0: null, tD0: null, autoMade: 0, autoGap: 0, autoReach: 0 }; },
+    this.S = { openTurn: null, dOpen: 0, dOpenTurn: null, deny: 0, outSum: 0, outN: 0, outAfter: 0, outAfterN: 0, gateOcc: 0, gateT: 0, exitBlk: 0, exitN: 0, gates: [], aRanged0: null, tD0: null, autoMade: 0, filled: 0, autoGap: 0, autoReach: 0 }; },
   phase(side, W, h) {
     const S = this.S, R = this.R; const alive = s => W.units.filter(u => u.alive && (s === 'D' ? u.side === 'D' : u.side !== 'D'));
     if (side !== 'D') return;
@@ -64,7 +64,8 @@ const GM = ctx.GM = { on: false, R: null, sortie: false, charge: false, S: null,
     }
   },
   // 문 없는 지도 자동 문 지정: 성곽 상자 둘레의 성벽(L) 칸 중 mode 'near'=공격 중심에 가장 가까운 칸, 'mid'=적이 오는 쪽 변의 한가운데 칸
-  autoGate(W, mode) {
+  autoGate(W, mode0) {
+    const fill = /fill/.test(mode0), mode = mode0.replace('+fill', '');
     if (!W.castle) return false; let hasT = false; W.map.forEach(r => r.forEach(c => { if (c.t === 'T' || c.t === 'O') hasT = true; })); if (hasT) return false;
     const C = W.castle, A = W.units.filter(u => u.alive && u.side !== 'D'); if (!A.length) return false;
     const ax = A.reduce((s, u) => s + u.x, 0) / A.length, ay = A.reduce((s, u) => s + u.y, 0) / A.length;
@@ -81,6 +82,8 @@ const GM = ctx.GM = { on: false, R: null, sortie: false, charge: false, S: null,
       const mx = side === 'E' ? C.x1 : side === 'W' ? C.x0 : cx, my = side === 'S' ? C.y1 : side === 'N' ? C.y0 : cy; pick = pool.reduce((b, p) => (!b || Math.abs(p.x - mx) + Math.abs(p.y - my) < Math.abs(b.x - mx) + Math.abs(b.y - my)) ? p : b, null); }
     const c = W.map[pick.y][pick.x]; c.t = 'T'; c.hp = c.max = 900;
     let gap = 0; for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0; x <= C.x1; x++) if ((x === C.x0 || x === C.x1 || y === C.y0 || y === C.y1) && !['L', 'T', 'O'].includes(W.map[y][x].t) && pass(x, y)) gap++;
+    if (fill) { let tmpl = null; for (let y = C.y0; y <= C.y1 && !tmpl; y++) for (let x = C.x0; x <= C.x1; x++) if (W.map[y][x].t === 'L') { tmpl = W.map[y][x]; break; }
+      if (tmpl) for (let y = C.y0; y <= C.y1; y++) for (let x = C.x0; x <= C.x1; x++) if ((x === C.x0 || x === C.x1 || y === C.y0 || y === C.y1) && !['L', 'T', 'O'].includes(W.map[y][x].t) && pass(x, y)) { W.map[y][x] = Object.assign({}, tmpl, { x: W.map[y][x].x, y: W.map[y][x].y }); this.S.filled = (this.S.filled || 0) + 1; } }
     this.S.autoMade = 1; this.S.autoGap = gap; this.S.autoReach = reachable ? 1 : 0; return true;
   } };
 
@@ -105,7 +108,7 @@ function cond(label, maps, aMul, on, R, autoMode) {
   const d = r.filter(x => x.S.dOpen), af = r.filter(x => x.S.outAfterN);
   let line = `${label} | 공격승 ${k}/${N} (${(100 * k / N).toFixed(0)}%, ${(100 * lo).toFixed(0)}~${(100 * hi).toFixed(0)}) | 턴 ${avgT.toFixed(1)}±${(1.96 * se).toFixed(1)} | 문 열린 판 ${d.length}/${N} (${(100 * d.length / N).toFixed(0)}%, 첫 열림 턴 ${avg(d, x => x.S.dOpenTurn).toFixed(1)})`;
   if (d.length) line += ` | 성밖비율(출격중 평균) ${(100 * avg(d.filter(x => x.S.outN), x => x.S.outSum / x.S.outN)).toFixed(0)}%` + (af.length ? `, 복귀뒤 ${(100 * avg(af, x => x.S.outAfter / x.S.outAfterN)).toFixed(0)}%(${af.length}판)` : '') + ` | 문칸 점유 ${(100 * avg(d.filter(x => x.S.gateT), x => x.S.gateOcc / x.S.gateT)).toFixed(0)}%턴, 출구막힘 ${(100 * avg(d.filter(x => x.S.exitN), x => x.S.exitBlk / x.S.exitN)).toFixed(0)}%턴`;
-  if (autoMode) { const m = r.filter(x => x.S.autoMade); line += ` | 자동문 ${m.length}/${N}판(원래 문 없음 ${r.filter(x => x.T0 === 0).length}), 통행가능 ${m.filter(x => x.S.autoReach).length}, 벽 틈 평균 ${avg(m, x => x.S.autoGap).toFixed(1)}칸`; }
+  if (autoMode) { const m = r.filter(x => x.S.autoMade); line += ` | 자동문 ${m.length}/${N}판(원래 문 없음 ${r.filter(x => x.T0 === 0).length}), 통행가능 ${m.filter(x => x.S.autoReach).length}, 벽 틈 평균 ${avg(m, x => x.S.autoGap).toFixed(1)}칸, 막은 칸 ${avg(m, x => x.S.filled).toFixed(1)}`; }
   console.log(line); return { k, N, d: d.length };
 }
 const MULS = [1.0, 1.3, 1.6, 2.0]; // 공격/수비 병력 배수
@@ -125,4 +128,16 @@ if (section('3')) { // ③ 문 없는 지도 자동 문 지정: 무작위 공성
   for (const m of [1.0, 1.6]) { console.log(`--- ③ 무작위 공성 지도, 공격 x${m}, 규칙 ${JSON.stringify(REC)} ---`); cond('OFF(현행)', null, m, false, null);
     cond('ON 규칙만, 자동문 없음', null, m, true, { open: 'never' }); cond('ON 규칙만, 자동문 near(가까운 칸)', null, m, true, { open: 'never' }, 'near'); cond('ON 규칙만, 자동문 mid(적 쪽 변 한가운데)', null, m, true, { open: 'never' }, 'mid');
     cond('ON REC, 자동문 mid', null, m, true, REC, 'mid'); }
+}
+
+const REC3 = JSON.parse(process.env.REC || '{"open":"ratio","th":1.3,"ret":"none"}');
+const OPEN = { open: 'ratio', th: 0, ret: 'none' }; // 첫 수비 단계에 강제로 엶
+if (section('4')) { // ③-1 틈 막기 on/off x 문 닫힘/열림 (무작위 공성 지도). 자동문 mid
+  for (const m of [1.0, 1.6]) { console.log(`--- 4 무작위 공성 지도, 공격 x${m} ---`); cond('OFF(현행)', null, m, false, null);
+    for (const [fl, mo] of [['틈 그대로', 'mid'], ['틈 막기', 'mid+fill']]) for (const [gl, R] of [['문 닫힘', { open: 'never' }], ['문 강제열림', OPEN], ['문 REC(1.3)', REC3]]) cond(`ON ${fl} / ${gl}`, null, m, true, R, mo); }
+}
+if (section('5')) { // 성 있는 야전 지도 11·16·17·20: 규칙 on/off
+  const FM = [11, 16, 17, 20];
+  for (const m of [1.0, 1.6]) { console.log(`--- 5 성 있는 야전 지도 11,16,17,20, 공격 x${m} ---`); cond('OFF(현행)', FM, m, false, null);
+    cond('ON 규칙만(문 없음)', FM, m, true, { open: 'never' }); cond('ON 자동문 mid, 틈 그대로, REC', FM, m, true, REC3, 'mid'); cond('ON 자동문 mid+틈 막기, REC', FM, m, true, REC3, 'mid+fill'); cond('ON 자동문 mid+틈 막기, 문 강제열림', FM, m, true, OPEN, 'mid+fill'); }
 }
