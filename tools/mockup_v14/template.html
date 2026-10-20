@@ -71,7 +71,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Malgun
 </div>
 <script>
 const DATA=/*__DATA__*/null;
-const {cities,roads,facs,rivers,coast,islands,seasons,fix}=DATA;
+const {cities,roads,facs,rivers,coast,islands,inner,ranges,seasons,fix}=DATA;
 const NS='http://www.w3.org/2000/svg';
 const byName={};cities.forEach((c,i)=>{c.i=i;byName[c.n]=c;});
 const facCol={};facs.forEach(f=>facCol[f.r]=f.col);
@@ -92,7 +92,7 @@ function clip(P,L,a,b,c,lab){
   }
   return[oP,oL];
 }
-let cells;
+let cells,cellsT;
 function voronoi(){
   const t0=performance.now();
   cells=cities.map((s,i)=>{
@@ -101,6 +101,12 @@ function voronoi(){
     for(const[j]of others){const o=cities[j];[P,L]=clip(P,L,o.x-s.x,o.y-s.y,(o.x*o.x+o.y*o.y-s.x*s.x-s.y*s.y)/2,j);}
     return{P,L};
   });
+  // v2: 영토용 셀은 도시 중심 반경 상한(가까운 이웃 3곳 평균 거리×1.2, 78~96) 원과 교차 → 변방 셀이 모서리까지 퍼지지 않게. 원 변의 표지는 -2
+  cellsT=cells.map((cl,i)=>{const s=cities[i];
+    const nd=cities.filter((_,j)=>j!==i).map(o=>Math.hypot(o.x-s.x,o.y-s.y)).sort((a,b)=>a-b).slice(0,3);
+    const R=Math.max(78,Math.min(96,1.2*(nd[0]+nd[1]+nd[2])/3));let P=cl.P,L=cl.L;
+    for(let k=0;k<28;k++){const a=k/28*6.2832,nx=Math.cos(a),ny=Math.sin(a);[P,L]=clip(P,L,nx,ny,nx*s.x+ny*s.y+R,-2);}
+    return{P,L};});
   console.log('voronoi ms',(performance.now()-t0).toFixed(1));
 }
 voronoi();
@@ -130,32 +136,46 @@ function buildStatic(){
   document.documentElement.style.setProperty('--tint',S.tint);
   let terr='',ridge='';
   cities.forEach((c,i)=>{terr+=`<path d="${polyD(cells[i].P)}" fill="${terrColor(c,S)}" stroke="${terrColor(c,S)}" stroke-width="2"/>`;
-    if(c.t==='산악'||c.t==='관문'){for(let k=0;k<4;k++){const a=hash(c.n,k)*6.283,r=10+hash(c.n,k+9)*26,x=c.x+Math.cos(a)*r,y=c.y+Math.sin(a)*r,w=5+hash(c.n,k+5)*4;
+    if(c.t==='산악'||c.t==='관문'){for(let k=0;k<2;k++){const a=hash(c.n,k)*6.283,r=10+hash(c.n,k+9)*26,x=c.x+Math.cos(a)*r,y=c.y+Math.sin(a)*r,w=5+hash(c.n,k+5)*4;
       ridge+=`M${(x-w).toFixed(1)},${(y+w*0.5).toFixed(1)}L${x.toFixed(1)},${(y-w*0.45).toFixed(1)}L${(x+w).toFixed(1)},${(y+w*0.5).toFixed(1)}`;}}});
   // 영토: 세력마다 한 path, 그룹 투명도로 칠해 같은 세력 안 이음매가 안 보이게
-  const by={};cities.forEach((c,i)=>{if(c.own)(by[c.own]=by[c.own]||[]).push(polyD(cells[i].P));});
+  const by={};cities.forEach((c,i)=>{if(c.own&&cellsT[i].P.length)(by[c.own]=by[c.own]||[]).push(polyD(cellsT[i].P));});
   let territ='';for(const f in by)territ+=`<g opacity="${fix.terr_alpha}"><path d="${by[f].join('')}" fill="${facCol[f]}" stroke="${facCol[f]}" stroke-width="1"/></g>`;
+  // 경계: 주인 있는 셀에서, 다른 주인 이웃과 맞닿은 변 + 반경 상한 원 변
   let bord='';
-  cells.forEach((cl,i)=>{const n=cl.P.length;cl.L.forEach((j,k)=>{if(j<=i)return;const a=cities[i].own,b=cities[j].own;if(a===b)return;
+  cellsT.forEach((cl,i)=>{const a=cities[i].own;if(!a)return;const n=cl.P.length;cl.L.forEach((j,k)=>{if(j===-1)return;if(j>=0&&cities[j].own===a)return;
     const p=cl.P[k],q=cl.P[(k+1)%n];bord+=`M${p[0].toFixed(1)},${p[1].toFixed(1)}L${q[0].toFixed(1)},${q[1].toFixed(1)}`;});});
+  // 산맥: 부드러운 면 + 능선 + 짧은 결선
+  let rng='',rdg='',tck='';
+  for(const r of ranges){rng+=polyD(r.poly);rdg+='M'+r.ridge.map(p=>p.join(',')).join('L');for(const t of r.ticks)tck+=`M${t[0]},${t[1]}L${t[2]},${t[3]}`;}
+  const outerRect='M-1500,-1500H2000V1500H-1500Z';
   let rd='',wd='';
   for(const r of roads){const a=byName[r.a],b=byName[r.b];if(!a||!b)continue;const s=`M${a.x},${a.y}L${b.x},${b.y}`;if(r.w)wd+=s;else rd+=s;}
-  svg.innerHTML=`<defs><clipPath id="land"><path d="${landD}"/></clipPath><filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="9"/></filter></defs>
-  <rect id="sea" x="0" y="0" width="100%" height="100%" fill="${S.sea}"/>
+  svg.innerHTML=`<defs><clipPath id="land"><path d="${landD}"/></clipPath><clipPath id="inner"><path d="${polyD(inner)}"/></clipPath><filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="soft2" x="-2%" y="-2%" width="104%" height="104%"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="edge" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="14"/></filter>
+    <radialGradient id="fog" gradientUnits="userSpaceOnUse" cx="500" cy="505" r="1250"><stop offset=".56" stop-color="${S.fog}" stop-opacity="0"/><stop offset=".72" stop-color="${S.fog}" stop-opacity=".55"/><stop offset="1" stop-color="${S.fog}" stop-opacity="1"/></radialGradient></defs>
+  <rect id="sea" x="0" y="0" width="100%" height="100%" fill="${S.fog}"/>
   <g id="world">
+    <path d="${outerRect}" fill="${S.sea}"/>
     <path d="${landD}" fill="none" stroke="${S.band}" stroke-opacity=".28" stroke-width="30" stroke-linejoin="round"/>
     <path d="${landD}" fill="none" stroke="${S.band}" stroke-opacity=".5" stroke-width="12" stroke-linejoin="round"/>
     <path d="${landD}" fill="${S.plain}"/>
     <g clip-path="url(#land)"><g filter="url(#soft)">${terr}</g>
-      <path d="${ridge}" fill="none" stroke="${S.ridge}" stroke-opacity=".55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      ${territ}
-      <path d="${bord}" fill="none" stroke="${fix.border}" stroke-opacity=".8" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <path d="${ridge}" fill="none" stroke="${S.ridge}" stroke-opacity=".45" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${rng}" fill="${S.range}" stroke="${S.range}" stroke-width="9" stroke-linejoin="round" opacity=".9" filter="url(#soft2)"/>
+      <path d="${tck}" fill="none" stroke="${S.ridge}" stroke-opacity=".6" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="${rdg}" fill="none" stroke="${S.ridge}" stroke-opacity=".85" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${outerRect}${polyD(inner)}" fill-rule="evenodd" fill="${S.offmap}" filter="url(#edge)"/>
+      <g clip-path="url(#inner)">${territ}
+      <path d="${bord}" fill="none" stroke="${fix.border}" stroke-opacity=".8" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></g>
       <g fill="none" stroke="${fix.river}" stroke-linecap="round" stroke-opacity=".95">${riverSVG()}</g>
     </g>
     <path d="${landD}" fill="none" stroke="#2d3a48" stroke-opacity=".7" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
     <path d="${rd}" fill="none" stroke="${fix.road}" stroke-width="1.3" stroke-dasharray="4 3" stroke-opacity=".9" vector-effect="non-scaling-stroke"/>
     <path d="${wd}" fill="none" stroke="${fix.water_case}" stroke-opacity=".9" stroke-width="3.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${wd}" fill="none" stroke="${fix.water}" stroke-width="1.6" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>
     <g id="selroads"></g>
+    <rect x="-1500" y="-1500" width="3500" height="3000" fill="url(#fog)" pointer-events="none"/>
   </g>
   <g id="scr"></g>`;
   buildSelRoads();camApply();
@@ -170,10 +190,10 @@ const SHIELD='M-10,-11H-6V-8H-2V-11H2V-8H6V-11H10V2Q10,8 0,12Q-10,8 -10,2Z';
 const GATE='M-11,-10H11V-5H8V10H3V3Q3,-1 0,-1Q-3,-1 -3,3V10H-8V-5H-11Z';
 const ANCHOR='M0,-6V7M-6,2Q0,10 6,2M-4,-2H4';
 const CROWN='M-6,0L-7,-7L-3,-4L0,-9L3,-4L7,-7L6,0Z';
-function prio(c){if(c===sel)return 0;if(capitals.has(c.n))return 1;if(c.k==='도시'&&c.g===1)return 2;if(c.own===PLAYER)return 2;if(c.k==='도시'&&c.g===2)return 3;if(c.k==='도시')return 4;return 5;}
+function prio(c){if(c===sel)return 0;if(!c.own)return 6;if(capitals.has(c.n))return 1;if(c.k==='도시'&&c.g===1)return 2;if(c.own===PLAYER)return 2;if(c.k==='도시'&&c.g===2)return 3;if(c.k==='도시')return 4;return 5;}
 function toS(x,y){return[(x-cam.x)*cam.k+W/2,(y-cam.y)*cam.k+H/2];}
 function drawScreen(){
-  const k=cam.k,lim=k<0.55?2:k<0.95?3:9,f=Math.max(0.75,Math.min(1.25,0.7+0.45*k));
+  const k=cam.k,lim=k<0.55?2:k<1.15?4:9,f=Math.max(0.75,Math.min(1.25,0.7+0.45*k));
   const list=cities.map(c=>{const[sx,sy]=toS(c.x,c.y);return{c,sx,sy,p:prio(c)};}).filter(o=>o.sx>-30&&o.sx<W+30&&o.sy>-30&&o.sy<H+30);
   list.sort((a,b)=>a.p-b.p||a.c.g-b.c.g);
   let ic='',lb='';const occ=[];
@@ -182,15 +202,17 @@ function drawScreen(){
   const showMinor=k>=0.5;
   for(const o of [...list].reverse()){const c=o.c;
     if(c.k!=='도시'&&!showMinor&&o.p>0)continue;
-    const col=c.own?facCol[c.own]:'#8d93a3';
-    let s=c.k==='도시'?[0.95,0.8,0.66][c.g-1]:0.62;s*=f;
+    const col=c.own?facCol[c.own]:fix.free_fill,free=!c.own&&c!==sel;
+    let s=c.k==='도시'?[0.95,0.8,0.66][c.g-1]:0.62;s*=f;if(free)s*=0.7;
     const tr=`translate(${o.sx.toFixed(1)},${o.sy.toFixed(1)}) scale(${s.toFixed(3)})`;
     if(c===sel)ic+=`<circle cx="${o.sx}" cy="${o.sy}" r="${(16*s+5).toFixed(1)}" fill="none" stroke="${fix.sel_case}" stroke-width="4.5"/><circle cx="${o.sx}" cy="${o.sy}" r="${(16*s+5).toFixed(1)}" fill="none" stroke="${fix.gold}" stroke-width="2.2"/>`;
-    if(c.k==='나루'){ic+=`<g transform="${tr}"><circle r="10" fill="${c.own?col:'#3d4b6a'}" stroke="${fix.icon_outer}" stroke-width="4"/><circle r="10" fill="none" stroke="#fff" stroke-width="1.6"/><path d="${ANCHOR}" fill="none" stroke="${c.own?'#10142a':'#fff'}" stroke-width="2" stroke-linecap="round"/><circle cy="-7.5" r="1.6" fill="none" stroke="${c.own?'#10142a':'#fff'}" stroke-width="1.4"/></g>`;}
+    if(free){const d=c.k==='관문'?GATE:c.k==='나루'?null:SHIELD;
+      ic+=`<g transform="${tr}" opacity="${fix.free_alpha}">`+(d?`<path d="${d}" fill="${col}" stroke="${fix.free_outer}" stroke-width="3.4" stroke-linejoin="round"/>`:`<circle r="10" fill="${col}" stroke="${fix.free_outer}" stroke-width="3.4"/><path d="${ANCHOR}" fill="none" stroke="${fix.free_outer}" stroke-width="2.2" stroke-linecap="round"/>`)+'</g>';}
+    else if(c.k==='나루'){ic+=`<g transform="${tr}"><circle r="10" fill="${c.own?col:'#3d4b6a'}" stroke="${fix.icon_outer}" stroke-width="4"/><circle r="10" fill="none" stroke="#fff" stroke-width="1.6"/><path d="${ANCHOR}" fill="none" stroke="${c.own?'#10142a':'#fff'}" stroke-width="2" stroke-linecap="round"/><circle cy="-7.5" r="1.6" fill="none" stroke="${c.own?'#10142a':'#fff'}" stroke-width="1.4"/></g>`;}
     else{const d=c.k==='관문'?GATE:SHIELD;
       ic+=`<g transform="${tr}"><path d="${d}" fill="${col}" stroke="${fix.icon_outer}" stroke-width="4.2" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/>`;
       if(c.k==='도시'&&c.g===1)ic+=`<rect x="-3" y="-3" width="6" height="6" fill="#10142a" opacity=".55"/>`;
-      if(capitals.has(c.n))ic+=`<path d="${CROWN}" transform="translate(0,-15)" fill="${fix.gold}" stroke="${fix.icon_outer}" stroke-width="1.6" stroke-linejoin="round"/>`;
+      if(capitals.has(c.n))ic+=`<path d="${CROWN}" transform="${c.own===PLAYER||c===sel?'translate(0,-15)':'translate(0,-12.5) scale(.6)'}" fill="${fix.gold}" stroke="${fix.icon_outer}" stroke-width="1.6" stroke-linejoin="round"/>`;
       if(c.own===PLAYER)ic+=`<circle cx="11" cy="-10" r="3.6" fill="#3ddc6a" stroke="${fix.icon_outer}" stroke-width="1.6"/>`;
       ic+='</g>';}
     const r=(c.k==='도시'?12:10)*s;occ.push([o.sx-r,o.sy-r,o.sx+r,o.sy+r]);
