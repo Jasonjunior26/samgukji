@@ -38,7 +38,7 @@
 ---
 
 ## v1.5-뿌리 (2026-10-20, BUILD v107 항목 5) — 뿌리 선택 시트·뿌리 명령 묶음·★/가중 표시·월 보고 한 줄·저장 필드
-$NOTE
+> build/v107 병합(체리픽) 뒤에는 S5 블록이 12108~12530에 있어 이 항목의 S5 줄 번호(12016~12439)는 **+92**로 읽는다(`docs/코드지도.md` §7b가 현재 번호). 매수 가격 수정은 4784.
 ### 변경 사항 (`samguk_v107.html` 12360~12439 S5 블록 UI부, 설계 §21-9)
 - **뿌리 선택 시트** `openRootPick` 12361(`openSheet` noClose, 4뿌리 행 + 설명 `RT_DESC`, 지정표 성향은 "(역사 성향)" 표시). `ACT.rtT`/`ACT.rtGo` 12367~12368. 새 게임 직후 `openEventQueueOrReport` 래퍼가 플레이어 `root`가 없으면 이 시트를 먼저 연다(옛 세이브는 `postLoad`에서 자동 채움이라 안 뜸).
 - **뿌리 명령 묶음** `openRootMenu` 12375(`ACT.rootMenu`·`ACT.rtSub` 12392~12393): 경륜 설득 `openSway` 12394(`ACT.swT/swG/swGo`), 상략 동맹 이간 `openIdan` 12409(`ACT.idT/idG/idGo`), 덕화 민심 정보 `openTuhangInfo` 12423(`tuhangInfo` 12272). 다른 뿌리 전용 장치는 메뉴에 안 나옴. 메인 화면 `vMain` 래퍼 12430이 명령 묶음 맨 위에 "○○책 — 자기 방법 n/m" 단추(뿌리 없으면 "뿌리 선택").
