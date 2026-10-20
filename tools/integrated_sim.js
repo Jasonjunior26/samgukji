@@ -7,6 +7,7 @@
 // 주요 파라미터(기본값): roots(forced|nat|none) a(1) b(0.3) pass(0.6) cap(0.10 연 상한) hubGain(0.5) land(true) tradeFrac(0.5) openAll(false) noPrice(false)
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const cmd = process.argv[2];
+if (cmd === 'cause') { cause(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'report') { report(process.argv.slice(3)); process.exit(0); }
 const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1 }, JSON.parse(process.argv[3] || '{}'));
 const OUT = process.argv[4] || '';
@@ -48,6 +49,7 @@ vm.runInContext(`(() => {
 
   function chooseRoot(f) {
     if (PR.roots === 'none') return 'none';
+    if (PR.roots === 'rot') return ROOTS[(IT.rotN++) % 4];
     if (PR.roots === 'forced') return ROOTS[Math.floor(RND() * 4)];
     const g = G(S.fac[f].ruler); const sc = { 경륜: g.i + g.p, 강병: g.w + g.t, 상략: g.c * 1.6, 덕화: (g.p + g.t + g.c) * 0.7 };
     return ROOTS.reduce((b, r) => sc[r] > sc[b] ? r : b, '경륜');
@@ -170,6 +172,28 @@ vm.runInContext(`(() => {
   const origPrice = priceIdx;
   priceIdx = function () { if (D && !PR.noPrice && IT) { return price(CURF) || 1; } return origPrice(); };
 
+  // ---- 계측: 도시 소유자 변경 원인 태그 (c.took). 동작은 바꾸지 않고 소유자 diff 로만 기록 ----
+  const OWN = () => { const o = {}; Object.values(S.city).forEach(c => { o[c.n] = c.owner || null; }); return o; };
+  function syncOwn(tag, tagFn) {
+    if (!IT || !IT.ow) return;
+    Object.values(S.city).forEach(c => { const old = IT.ow[c.n] || null, now = c.owner || null; if (old === now) return;
+      const t = (tagFn && tagFn(c, old, now)) || tag; c.took = t; c.tookAt = IT.month; IT.ow[c.n] = now;
+      if (now) { const a = (IT.acq[now] = IT.acq[now] || {}); a[t] = (a[t] || 0) + 1; }
+      if (old) { const l = (IT.lost[old] = IT.lost[old] || {}); l[t] = (l[t] || 0) + 1; }
+      IT.evt[t] = (IT.evt[t] || 0) + 1; });
+  }
+  function wrapTag(name, tagOf) { const f = globalThis[name]; if (typeof f !== 'function') { PRINT('wrap 실패', name); return; }
+    globalThis[name] = function () { const tg = tagOf ? tagOf.apply(this, arguments) : null; const r = f.apply(this, arguments); syncOwn(tg || name); return r; }; }
+  wrapTag('captureCity', () => '전투');
+  wrapTag('absorbFaction', () => '항복');
+  wrapTag('aiAbsorb', () => '항복');
+  wrapTag('rebel', () => '독립');
+  wrapTag('cmdScheme', (cn, an, type) => type === '매수' ? '매수' : '계략기타');
+  wrapTag('cmdDiplo', (cn, en, tf, type) => type === '매입' ? '매입' : type === '할양' ? '할양' : '항복');
+  { const f = monthlyUpdate; monthlyUpdate = function () { const cq = {}; if (IT) Object.values(S.city).forEach(c => { if (c.conq) cq[c.n] = c.conq.from; });
+    const r = f.apply(this, arguments); syncOwn('기타', (c, old, now) => (cq[c.n] && cq[c.n] === now) ? '환원' : null); return r; }; }
+  { const f = aiTurn; aiTurn = function () { const r = f.apply(this, arguments); syncOwn('기타'); return r; }; }
+
   const snap = fid => { const cs = citiesOf(fid); const ct = cs.filter(isCity); const tr = cs.reduce((s, c) => s + c.troops, 0); const gens = gensOf(fid); const top = gens.map(g => Math.max(g.w, g.t, g.i, g.p)).sort((a, b) => b - a).slice(0, 10);
     const front = ct.filter(c => isFront(c.n, fid)); installArms();
     return { cities: cs.length, troops: tr, gold: cs.reduce((s, c) => s + c.gold, 0), food: cs.reduce((s, c) => s + c.food, 0), gens: gens.length, gq: mean(top), alive: S.fac[fid].alive ? 1 : 0,
@@ -180,16 +204,21 @@ vm.runInContext(`(() => {
   function game() {
     newGame('조조', { rand: true, custom: true, scen: PR.scen, diff: 1 });
     S.opt.v4Battle = false;
-    IT = { st: {}, inc0: {}, Pf: {}, Pn: 1, avg0: 0, month: 0, foundTot: 0, nomAvg: 0 };
+    IT = { st: {}, inc0: {}, Pf: {}, Pn: 1, avg0: 0, month: 0, foundTot: 0, nomAvg: 0, rotN: 0, acq: {}, lost: {}, evt: {}, ow: null, own50: {}, dead: {}, uni: -1 };
     const fids = Object.keys(S.fac); fids.forEach(f => { if (citiesOf(f).length) initFac(f); });
     updatePrice(); IT.Pn = 1; Object.keys(IT.Pf).forEach(f => IT.Pf[f] = 1);
+    IT.ow = OWN(); const nCity = Object.values(S.city).filter(isCity).length;
     const start = {}; fids.forEach(f => start[f] = snap(f));
     const aiP = aiPickPolicy; aiPickPolicy = function (fid) { return aiP.apply(this, arguments); };
     const hist = [], hubs = [];
     hubs.push(hubMap());
     for (let i = 0; i < PR.months && !S.over; i++) {
       if (S.fac[S.player].alive) { CURF = S.player; try { aiTurn(S.player); } catch (e) { } CURF = null; }
-      month(); if (S.over === 'lose' || S.over === 'win') S.over = null;
+      month(); syncOwn('기타'); Object.keys(S.fac).forEach(fid => { if (S.fac[fid].alive && !IT.st[fid]) initFac(fid); });
+      { const cnt = {}; Object.values(S.city).forEach(c => { if (c.owner && isCity(c)) cnt[c.owner] = (cnt[c.owner] || 0) + 1; });
+        Object.keys(cnt).forEach(f => { if (cnt[f] >= nCity / 2 && IT.own50[f] === undefined) IT.own50[f] = i + 1; if (cnt[f] >= nCity && IT.uni < 0) IT.uni = i + 1; });
+        Object.keys(S.fac).forEach(f => { if (IT.dead[f] === undefined && IT.st[f] && !cnt[f]) IT.dead[f] = i + 1; }); }
+      if (S.over === 'lose' || S.over === 'win') S.over = null;
       if (S.fac[S.player].alive && (!S.fac[S.player].pol || S.m === 1)) { try { aiPickPolicy(S.player); } catch (e) { } }
       if (i % 12 === 11) {
         const snaps = {}; Object.keys(S.fac).forEach(f => { if (IT.st[f]) snaps[f] = snap(f); });
@@ -199,9 +228,9 @@ vm.runInContext(`(() => {
     }
     hubs.push(hubMap());
     const end = {}; fids.forEach(f => end[f] = snap(f));
-    const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, merc: s.merc || 0, Pf: IT.Pf[f] }; });
+    const stOut = {}; Object.keys(IT.st).forEach(f => { const s = IT.st[f]; stOut[f] = { root: s.root, deg: s.deg.map(x => Math.round(x)), found: s.found, traits: s.traits, units: s.units, spend: s.spend, food: s.food, gain: s.gain, bw: s.bw, bl: s.bl, dw: s.dw, dl: s.dl, bank: s.bank, incSum: s.incSum, extra: s.extra, merc: s.merc || 0, Pf: IT.Pf[f], acq: IT.acq[f] || {}, lost: IT.lost[f] || {}, own50: IT.own50[f] === undefined ? -1 : IT.own50[f], dead: IT.dead[f] === undefined ? -1 : IT.dead[f] }; });
     aiPickPolicy = aiP;
-    return { params: PR, fids, start, end, hist, hubs, st: stOut, over: S.over, foundTot: IT.foundTot, err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn };
+    return { params: PR, fids, start, end, hist, hubs, st: stOut, evt: IT.evt, nCity, own50: IT.own50, uni: IT.uni, over: S.over, foundTot: IT.foundTot, err: IT.err || 0, lastErr: IT.lastErr || '', Pn: IT.Pn };
   }
   const res = [];
   for (let g = 0; g < PR.games; g++) { res.push(game()); PRINT('판', g + 1, '/', PR.games); }
@@ -256,4 +285,32 @@ function report(files) {
     console.log('[결과] 판별 최종 생존 세력 / 최대 도시수: ' + R.map(r => { const a = Object.values(r.end).filter(s => s.alive && s.cities > 0); return a.length + '/' + Math.max(...a.map(s => s.cities)); }).join(' '));
     const topRoot = {}; R.forEach(r => { const best = r.fids.filter(f => r.st[f]).sort((a, b) => r.end[b].cities - r.end[a].cities)[0]; const rt = r.st[best].root; topRoot[rt] = (topRoot[rt] || 0) + 1; }); console.log('[최대 세력의 뿌리 분포] ' + JSON.stringify(topRoot));
   }
+}
+
+// ---------------- 원인 태그 보고 (§21-8 기준선) ----------------
+// 사용: node tools/integrated_sim.js cause a.json [b.json ...]
+// 뿌리별 "자기 방법" = 강병:전투 / 경륜:귀순(v105 없음→0) / 상략:매수+매입+할양+항복 / 덕화:투항(v105 없음→0)
+function cause(files) {
+  const mean = a => a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
+  const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[(b.length - 1) / 2] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : NaN; };
+  const f1 = (x, n = 1) => (Number.isFinite(x) ? x.toFixed(n) : '-');
+  const OWNM = { 강병: ['전투'], 경륜: ['귀순'], 상략: ['매수', '매입', '할양', '항복'], 덕화: ['투항'] };
+  const R = []; files.forEach(f => JSON.parse(fs.readFileSync(f, 'utf8')).forEach(r => R.push(r)));
+  console.log('판 ' + R.length + ' / 개월 ' + R[0].params.months + ' / mode ' + R[0].params.mode);
+  const tot = {}; R.forEach(r => Object.entries(r.evt || {}).forEach(([k, v]) => tot[k] = (tot[k] || 0) + v));
+  const T = Object.values(tot).reduce((s, x) => s + x, 0);
+  console.log('[소유자 변경 원인 합계(전 세력)] ' + Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([k, v]) => k + ' ' + v + ' (' + f1(100 * v / T) + '%)').join(' | '));
+  const rows = []; R.forEach((r, gi) => Object.keys(r.st).forEach(f => { const s = r.st[f]; const hs = r.hist; const last = hs[hs.length - 1]; const sn = last && last.snaps[f];
+    const acq = s.acq || {}; const nacq = Object.values(acq).reduce((a, b) => a + b, 0);
+    rows.push({ g: gi, f, root: s.root, acq, nacq, c30: sn ? sn.cities : 0, alive: sn ? sn.alive : 0, own50: s.own50, dead: s.dead, start: r.start[f] ? r.start[f].cities : -1 }); }));
+  console.log('[뿌리별 라벨(무작위 순환; v105는 뿌리가 동작에 영향 없음 → 라벨 잡음)] 뿌리 | 표본 | 성 취득합 | 자기방법 비율 | 도시수(말) 중앙/평균 | 멸망% | 도시50%도달%');
+  ['강병', '경륜', '상략', '덕화'].forEach(rt => { const a = rows.filter(x => x.root === rt && x.start > 0); const own = a.reduce((s, x) => s + OWNM[rt].reduce((u, k) => u + (x.acq[k] || 0), 0), 0), all = a.reduce((s, x) => s + x.nacq, 0);
+    console.log('  ' + rt + ' | ' + a.length + ' | ' + all + ' | ' + f1(100 * own / Math.max(1, all)) + '% | ' + f1(med(a.map(x => x.c30)), 1) + '/' + f1(mean(a.map(x => x.c30)), 2) + ' | ' + f1(100 * mean(a.map(x => x.alive ? 0 : 1)), 0) + '% | ' + f1(100 * mean(a.map(x => x.own50 > 0 ? 1 : 0)), 1) + '%'); });
+  console.log('[원인별 취득 비율: 뿌리 라벨별 (시작 시 도시 있던 세력)] 열: ' + ['전투', '매수', '매입', '할양', '항복', '독립', '환원', '기타', '이적'].join(' '));
+  ['강병', '경륜', '상략', '덕화'].forEach(rt => { const a = rows.filter(x => x.root === rt && x.start > 0); const k = {}; a.forEach(x => Object.entries(x.acq).forEach(([t, v]) => k[t] = (k[t] || 0) + v)); const all = Object.values(k).reduce((s, x) => s + x, 0);
+    console.log('  ' + rt + ' ' + ['전투', '매수', '매입', '할양', '항복', '독립', '환원', '기타', '이적'].map(t => f1(100 * (k[t] || 0) / Math.max(1, all)) + '%').join(' ') + ' (합 ' + all + ', 미열거: ' + Object.keys(k).filter(t => !['전투', '매수', '매입', '할양', '항복', '독립', '환원', '기타', '이적'].includes(t)).map(t => t + k[t]).join(',') + ')'); });
+  const u = R.map(r => r.uni), o50 = R.map(r => { const v = Object.values(r.own50 || {}).filter(x => x > 0); return v.length ? Math.min(...v) : -1; });
+  console.log('[통일(전 도시 1세력) 달성 판] ' + u.filter(x => x > 0).length + '/' + R.length + ' 개월 ' + u.join(',') + ' | [도시 50% 최초 도달 개월] ' + o50.join(','));
+  console.log('[말 시점 생존 세력수] ' + R.map(r => { const l = r.hist[r.hist.length - 1]; return l ? l.alive : '-'; }).join(','));
+  console.log('[세력 단위 도시수(말) 분포: 최대 판별] ' + R.map(r => { const l = r.hist[r.hist.length - 1]; return l ? Math.max(...Object.values(l.snaps).map(s => s.cities)) : '-'; }).join(',') + ' / 전체 도시 ' + R[0].nCity);
 }
