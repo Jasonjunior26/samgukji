@@ -12266,6 +12266,8 @@ const V4 = (() => {
     if (has(a, '무쌍') && d.gen && a.gen && stat(duelGen(d), 'w') < stat(duelGen(a), 'w')) dmg = Math.floor(dmg * 13 / 10);
     if (d.cls === '방진') dmg = Math.floor(dmg * 4 / 5);
     if (counter) dmg = Math.max(Math.floor(dmg * 3 / 4), 1);
+    // v4.10 훈련도 위력 계수: 그 부대가 속한 쪽 도시 훈련(없으면 50), 0→×0.85, 100→×1.0 (책략·일기토·성문 공격에는 안 곱함)
+    { const tc = team(a) === 'A' ? C(W.from) : C(W.to); const tr = (tc && tc.train) || 50; dmg = Math.max(1, Math.round(dmg * (0.85 + 0.15 * Math.min(100, tr) / 100))); }
     return dmg;
   }
   // 이 게임 공성 규칙: 성 밖에서 쏜 화살은 성벽에 막힘, 성 안 수비는 성벽 덕을 봄
