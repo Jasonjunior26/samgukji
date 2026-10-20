@@ -1,0 +1,3 @@
+C:\Users\USER\orca\projects\samgukji\.claude\worktrees\agent-a2b99cc4aca4cc0a1\tools\jojo_assets.py:97: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+  a = atlas.getchannel('A'); qq = q.copy(); px = qq.load(); ap = a.load(); used = set(q.getdata())
+sprites 97  foreign rows 15  atlas (1536, 7168)  png 1143KB  base64 1524KB  uniq 28

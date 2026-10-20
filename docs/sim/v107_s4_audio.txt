@@ -1,0 +1,6 @@
+WAV 폴더: C:/Users/USER/orca/workspaces/samgukji/reverse-engineering-jojo\삼국지 조조전(무설치)\삼국지 조조전(무설치)\삼국지 조조전(무설치)
+ffmpeg: 없음 → IMA ADPCM
+자체 효과음 4개(gun hoof coin gate.open): 원본 144KB → 부호화 47KB
+효과음 52개: 원본 1252KB → 블록 800KB
+BGM 블록 없음 (--bgm <폴더> 로 넣음)
+samguk_v107.html 8541KB → 8589KB

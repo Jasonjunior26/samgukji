@@ -1,12 +1,14 @@
 """조조전 원본 효과음(SE*.WAV)과 BGM 파일을 전투 v4 화면에 넣는 도구 (개인 플레이 전용, 배포 금지).
 
 사용:
-  python -I tools/jojo_audio.py <reverse-engineering-jojo 경로 또는 WAV 폴더> [--bgm <폴더>] [--table] [--all] [--no-ffmpeg]
+  python -I tools/jojo_audio.py <reverse-engineering-jojo 경로 또는 WAV 폴더> [--bgm <폴더>] [--extra <폴더>] [--table] [--all] [--no-ffmpeg]
 
   samguk_v107.html 안의 <script id="jojo-sfx"> 블록(효과음)과 <script id="jojo-bgm"> 블록(BGM)을 새로 써 넣는다.
   --bgm 을 주지 않으면 jojo-bgm 블록은 지운다(합성 BGM만 남음).
   --table  : 장면 ↔ 파일 대응표를 마크다운으로 출력한다 (docs/전투_설계_v4.md 에 붙여 넣는 용도).
   --all    : 대응표에 없는 SE·SE_M 파일까지 모두 넣는다 (기본은 대응표에 쓰인 파일만).
+  --extra  : 자체 합성 효과음 폴더(assets/sfx: gun·hoof·coin·gate_open.wav)를 같은 부호화로 합류시키고 map 에 gun·hoof·coin·gate.open 을 등록한다.
+  주의: 현재 html 블록은 ADPCM 이므로 ffmpeg 가 깔려 있어도 --no-ffmpeg 로 돌려야 형식이 바뀌지 않는다.
 
 인코딩:
   ffmpeg 가 있으면 OGG Opus(모노 24kbps)로, 없으면 순수 파이썬 IMA ADPCM(4비트, 22050Hz, 초당 11KB)으로 줄여 base64 로 넣는다.
@@ -92,6 +94,14 @@ SCENES = [
     dict(key='spell.summon2',label='사신 백호',                         c='M14',  v=.9,  conf='추정',   note='MCALL07 sound 14'),
     dict(key='spell.summon3',label='사신 현무',                         c='M15',  v=.9,  conf='추정',   note='MCALL08 sound 15'),
     dict(key='fire',        label='작전 화공 불길',                     c='M01',  v=.9,  conf='추정',   note='큰 불길 MEFF_01 의 소리'),
+]
+# --extra <폴더> 로 넣는 자체 합성 효과음 (tools/synth_sfx.py 산출 WAV, 코에이 원본 아님 → 배포 제한 없음). c = 폴더 안 <c>.wav
+#   v107: 이름만 등록한다 (호출처는 항목 3 성문 animGate · 총사 공격 · 기병 이동 · 교역 거래가 각자 연결).
+EXTRA_SCENES = [
+    dict(key='gun',       label='총성 (총사 공격)',                 c='gun',       v=.9,              conf='자체', note='synth_sfx.py 합성'),
+    dict(key='hoof',      label='말발굽 (후사르·기병 이동)',        c='hoof',      v=.55, s4='skip', conf='자체', note='synth_sfx.py 합성'),
+    dict(key='coin',      label='동전 (교역 거래·매수)',            c='coin',      v=.7,              conf='자체', note='synth_sfx.py 합성'),
+    dict(key='gate.open', label='성문 열림',                        c='gate_open', v=.9,              conf='자체', note='synth_sfx.py 합성'),
 ]
 BGM_KEYS = {  # 장면 키 ← 파일 이름(확장자 제외) 별칭
     'field': ['야전', 'field'], 'siege': ['공성', 'siege'], 'enemy': ['적차례', '적_차례', 'enemy'],
@@ -224,6 +234,7 @@ def replace_block(html, bid, block):
 def table_md():
     rows = ['| 장면 | 키 | 파일 | 신뢰 | 근거 |', '|---|---|---|---|---|']
     for s in SCENES: rows.append('| %s | `%s` | %s | %s | %s |' % (s['label'], s['key'], clip_file(s['c']), s['conf'], s['note']))
+    for s in EXTRA_SCENES: rows.append('| %s | `%s` | %s.wav (--extra) | %s | %s |' % (s['label'], s['key'], s['c'], s['conf'], s['note']))
     return '\n'.join(rows)
 
 def main():
@@ -232,6 +243,7 @@ def main():
     if not args or args[0].startswith('-'): print(__doc__); return
     src = find_wav_dir(args[0]); use_ff = bool(FFMPEG) and '--no-ffmpeg' not in args
     bgm_dir = args[args.index('--bgm') + 1] if '--bgm' in args else None
+    extra_dir = args[args.index('--extra') + 1] if '--extra' in args else None
     print('WAV 폴더:', src); print('ffmpeg:', FFMPEG if use_ff else '없음 → IMA ADPCM')
     # ---- 효과음 ----
     want = []
@@ -246,8 +258,20 @@ def main():
     for c in want:
         p = os.path.join(src, clip_file(c)); raw_total += os.path.getsize(p); clips[c] = encode_sfx(p, use_ff)
     smap = {s['key']: {k: s[k] for k in ('c', 'v', 's4', 'conf') if k in s} for s in SCENES}
+    # ---- 자체 합성 효과음(--extra) ----
+    if extra_dir:
+        xraw = 0
+        for s in EXTRA_SCENES:
+            p = os.path.join(extra_dir, s['c'] + '.wav')
+            if not os.path.isfile(p): raise SystemExit('--extra 폴더에 없음: ' + p)
+            if s['c'] not in clips: xraw += os.path.getsize(p); clips[s['c']] = encode_sfx(p, use_ff)
+            smap[s['key']] = {k: s[k] for k in ('c', 'v', 's4', 'conf') if k in s}
+        print('자체 효과음 %d개(%s): 원본 %dKB → 부호화 %dKB' % (len(EXTRA_SCENES), ' '.join(s['key'] for s in EXTRA_SCENES), xraw // 1024,
+              sum(len(clips[s['c']]['d']) for s in EXTRA_SCENES) // 1024))
+    else: print('자체 효과음 없음 (--extra <폴더> 로 넣음: %s)' % ' '.join(s['key'] for s in EXTRA_SCENES))
     sfx = {'fmt': 'ogg' if use_ff else 'adpcm', 'map': smap, 'clips': clips}
-    block = ('<script id="jojo-sfx">\n// 조조전 원본 효과음 (개인 플레이 전용) — tools/jojo_audio.py가 만든 블록. 장면 대응표는 docs/전투_설계_v4.md 「효과음·BGM」\n'
+    block = ('<script id="jojo-sfx">\n// 조조전 원본 효과음 (개인 플레이 전용) — tools/jojo_audio.py가 만든 블록. 장면 대응표는 docs/전투_설계_v4.md 「효과음·BGM」'
+             + ('. gun·hoof·coin·gate_open 은 자체 합성(--extra, 배포 제한 없음)' if extra_dir else '') + '\n'
              'const JOJO_SFX = %s;\n</script>\n' % json.dumps(sfx, ensure_ascii=False, separators=(',', ':')))
     html = open(HTML, encoding='utf8', newline='').read(); before = len(html.encode('utf8'))
     html = replace_block(html, 'jojo-sfx', block)

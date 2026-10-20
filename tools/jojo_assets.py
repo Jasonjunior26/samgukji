@@ -1,6 +1,6 @@
 """조조전 원본 그림을 전투 v4에 넣는 도구 (개인 플레이 전용 — 원본 그림은 코에이 저작물이라 배포 불가).
 
-사용: python -I tools/jojo_assets.py <reverse-engineering-jojo 경로>
+사용: python -I tools/jojo_assets.py <reverse-engineering-jojo 경로> [--foreign assets/foreign]
   1) 원본 UNIT_MOV/ATK/SPC에서 필요한 병사 그림만 골라 한 장(assets/jojo_units.png)으로 묶고
   2) 장수 이름 → 그림 번호, 병과 → 그림 번호 표(assets/jojo_units.json)를 만든 뒤
   3) samguk_v107.html 안 <script id="jojo-units"> 블록을 새로 써 넣는다 (그림은 data URL로 내장).
@@ -69,12 +69,26 @@ for u in uniq.values():
 need = sorted(need)
 
 ROW = 64; W = 11 * 48 + 12 * 64 + 5 * 48
-atlas = Image.new('RGBA', (W, ROW * len(need)), (0, 0, 0, 0))
+# --foreign <폴더>: 외국 병종 5종(tools/sprite_foreign.py 산출 <이름>_{red,ora,blu}.png, 한 줄 1536×64)을 원본 행 아래에 붙인다.
+#   행 배치: 후사르 97~99 · 맥궁병 100~102 · 사무라이 103~105 · 원탁기사 106~108 · 총사 109~111 (각 red→ora→blu).
+#   rows 의 키는 'f'+행 번호(원본 그림 번호 97·98·107~111 이 이미 rows 에 있어 숫자 키를 쓸 수 없음),
+#   foreign[이름] = 첫 행 번호 → 게임 jojoIndex 가 'f' + (foreign[이름] + 진영색) 을 돌려준다.
+FOREIGN = ['후사르', '맥궁병', '사무라이', '원탁기사', '총사']; FCOL = ['red', 'ora', 'blu']
+fdir = sys.argv[sys.argv.index('--foreign') + 1] if '--foreign' in sys.argv else None
+frows = []  # (행 번호, 이미지)
+if fdir:
+    for name in FOREIGN:
+        for c in FCOL:
+            im = Image.open(os.path.join(fdir, f'{name}_{c}.png')).convert('RGBA')
+            assert im.size == (W, ROW), f'{name}_{c}.png 크기 {im.size} ≠ ({W}, {ROW})'
+            frows.append((len(need) + len(frows), im))
+atlas = Image.new('RGBA', (W, ROW * (len(need) + len(frows))), (0, 0, 0, 0))
 for r, s in enumerate(need):
     y = r * ROW; x = 0
     for i in range(11): atlas.paste(frame(MOV[s], i, 48, 48), (x, y + 16)); x += 48
     for i in range(12): atlas.paste(frame(ATK[s], i, 64, 64), (x, y)); x += 64
     for i in range(5): atlas.paste(frame(SPC[s], i, 48, 48), (x, y + 16)); x += 48
+for r, im in frows: atlas.paste(im, (0, r * ROW))
 
 os.makedirs(os.path.join(ROOT, 'assets'), exist_ok=True)
 png = os.path.join(ROOT, 'assets', 'jojo_units.png')
@@ -87,17 +101,24 @@ for yy in range(qq.height):
     for xx in range(qq.width):
         if ap[xx, yy] == 0: px[xx, yy] = tidx
 qq.save(png, optimize=True, transparency=tidx)
-meta = {'row': ROW, 'rows': {str(s): r for r, s in enumerate(need)}, 'generic': GENERIC, 'noTier': sorted(NO_TIER), 'uniq': uniq,
+rows = {str(s): r for r, s in enumerate(need)}
+for r, _ in frows: rows['f%d' % r] = r
+meta = {'row': ROW, 'rows': rows, 'generic': GENERIC, 'noTier': sorted(NO_TIER), 'uniq': uniq,
         'layout': {'mov': [0, 48, 11], 'atk': [528, 64, 12], 'spc': [1296, 48, 5]}}
+if frows: meta['foreign'] = {name: len(need) + 3 * k for k, name in enumerate(FOREIGN)}
 json.dump(meta, open(os.path.join(ROOT, 'assets', 'jojo_units.json'), 'w', encoding='utf8'), ensure_ascii=False, indent=1)
 
 b64 = base64.b64encode(open(png, 'rb').read()).decode()
-block = ('<script id="jojo-units">\n// 조조전 원본 병사 그림 (개인 플레이 전용, 배포 금지) — tools/jojo_assets.py가 만든 블록\n'
+block = ('<script id="jojo-units">\n// 조조전 원본 병사 그림 (개인 플레이 전용, 배포 금지) — tools/jojo_assets.py가 만든 블록'
+         + (' (외국 병종 5종 재채색 포함, --foreign)' if frows else '') + '\n'
          f'const JOJO_UNITS = {json.dumps({**meta, "img": "data:image/png;base64," + b64}, ensure_ascii=False)};\n</script>\n')
 html = os.path.join(ROOT, 'samguk_v107.html')
 s = open(html, encoding='utf8', newline='').read()
-s = re.sub(r'<script id="jojo-units">[\s\S]*?</script>\n', '', s)
-i = s.rindex('</body>')
+# 블록이 이미 있으면 그 자리에(줄 번호 유지), 없으면 jojo-maps 앞 또는 </body> 앞에 넣는다
+m = re.search(r'(?m)^<script id="jojo-units">[\s\S]*?</script>\r?\n', s)  # 작업 사본이 CRLF 여도 찾도록
+if m: i = m.start(); s = s[:i] + s[m.end():]
+else:
+    m2 = re.search(r'(?m)^<script id="jojo-maps">', s); i = m2.start() if m2 else s.rindex('</body>')
 s = s[:i] + block + s[i:]
 open(html, 'w', encoding='utf8', newline='').write(s)
-print(f'sprites {len(need)}  atlas {atlas.size}  png {os.path.getsize(png) // 1024}KB  base64 {len(b64) // 1024}KB  uniq {len(uniq)}')
+print(f'sprites {len(need)}  foreign rows {len(frows)}  atlas {atlas.size}  png {os.path.getsize(png) // 1024}KB  base64 {len(b64) // 1024}KB  uniq {len(uniq)}')
