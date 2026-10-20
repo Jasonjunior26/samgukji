@@ -4,14 +4,14 @@
 const vm = require('vm');
 // 새 안(초안). 인연은 전투 동행이 가장 크고, 근무·등용·석방은 낮춤. 공적은 성과(격파·MVP·실제 증가량) 기반.
 const NEW = {
-  // 인연
-  bw: 3, bl: 2, rescue: 5, minC: 20, jeal: -2,           // 같은 부대 승/패 +, 구원 +, 결의·생사는 함께 싸운 횟수 minC 이상일 때만
-  cohabNear: 1, cohabFar: 0, cohabCap: 25,     // 같은 도시 분기마다 (기질 가까움/멂), 상한
-  recruitBond: 8, captJoin: 5, captFree: 8,    // 등용(+30), 포로 귀순(+15), 포로 석방(+25)
-  // 공적
-  kill: 3, mvp: 8, win: 2,                     // 격파당, 승리팀 MVP, 승리 + 부대가 1격파 이상일 때
-  devK: 0.3, loyK: 0.15, armK: 0.1, supK: 0.1, // 내정·민심·군비·토벌은 실제 증가량 × 계수
-  scheme: 2, diplo: 2, recruit: 2              // 계략·외교·등용은 성공했을 때만
+  // 인연 (2차 안 ×1.1: 전투 동행이 가장 크고 나머지는 낮음)
+  bw: 3.3, bl: 2.2, rescue: 5.5, minC: 20, jeal: -1, // 같은 부대 승/패 +, 구원 +, 결의·생사는 함께 싸운 횟수 minC 이상, 공명 다툼은 승리했을 때만 −1
+  cohabNear: 1.1, cohabFar: 0, cohabCap: 27.5,     // 같은 도시 분기마다 (기질 가까움/멂), 상한
+  recruitBond: 8.8, captJoin: 5.5, captFree: 8.8,  // 등용(+30), 포로 귀순(+15), 포로 석방(+25)
+  // 공적: 성과 기반, 초기 공적 0, 보조 장수는 주장의 30%
+  kill: 3, mvp: 8, win: 2, sub: 0.3,               // 격파당, 승리팀 MVP(주장만), 승리 + 부대가 1격파 이상일 때, 보조 장수 비율
+  devK: 0.3, loyK: 0.15, armK: 0.1, supK: 0.1,     // 내정·민심·군비·토벌은 실제 증가량 × 계수
+  scheme: 2, diplo: 2, recruit: 2, initMerit: 0    // 계략·외교·등용은 성공했을 때만
 };
 const SRC = `(() => {
   const O = OV; if (!O) return;
@@ -43,16 +43,17 @@ const SRC = `(() => {
     const mvp = side => { const b = units.filter(u => u.side === side && u.gen).sort((a, b) => (b.dd + b.k * 1000) - (a.dd + a.k * 1000))[0]; return b ? b.gen : null; };
     const ms = { A: mvp('A'), D: mvp('D') };
     if (O.debug) (globalThis.DBG = globalThis.DBG || []).push(units.map(u => ({ s: u.side, g: u.gen, k: u.k, dd: Math.round(u.dd || 0), tr: u.troops, mx: u.max, ml: mem(u).length })));
-    units.forEach(u => mem(u).forEach(n => { const g = G(n); if (!g || before[n] === undefined) return; const w = u.side === win; g.merit = before[n] + u.k * O.kill + (w && ms[u.side] === n ? O.mvp : 0) + (w && u.k > 0 ? O.win : 0); }));
+    units.forEach(u => mem(u).forEach(n => { const g = G(n); if (!g || before[n] === undefined) return; const w = u.side === win; const main = u.gen === n; const part = u.k * O.kill + (w && u.k > 0 ? O.win : 0); g.merit = before[n] + (main ? part + (w && ms[u.side] === n ? O.mvp : 0) : part * O.sub); }));
     return r;
   }; }
+  initMerit = function (g) { if (g.merit == null) g.merit = O.initMerit; };
   // ---------- 인연 ----------
   // 전투: 같은 부대 승/패, 구원. 결의·생사 문턱(minC)은 badd 안 cap으로 막는다
   battleBonds = function (units, winSide, mvp, place, rescue) {
     units.forEach(u => {
       const ns = mem(u).filter(n => G(n) && G(n).st !== '사망'); const won = u.side === winSide;
       for (let i = 0; i < ns.length; i++) for (let j = i + 1; j < ns.length; j++) { const e = bent(ns[i], ns[j]); e.c++; badd(ns[i], ns[j], won ? O.bw : O.bl, e.c === 1 ? place + ' 전투에 함께 나섰다' : null); }
-      if (mvp && ns.includes(mvp)) ns.forEach(n => { if (n !== mvp && G(n).pers && G(n).pers.공명 >= 7 && G(mvp).pers.공명 >= 6) badd(n, mvp, O.jeal); });
+      if (won && mvp && ns.includes(mvp)) ns.forEach(n => { if (n !== mvp && G(n).pers && G(n).pers.공명 >= 7 && G(mvp).pers.공명 >= 6) badd(n, mvp, O.jeal); });
     });
     (rescue || []).forEach(([a, b]) => { if (G(a) && G(b) && G(a).st !== '사망' && G(b).st !== '사망') badd(a, b, O.rescue, place + ' 전투에서 위기를 구해주었다'); });
   };
