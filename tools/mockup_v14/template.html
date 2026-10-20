@@ -171,6 +171,7 @@ function buildStatic(){
   svg.innerHTML=`<defs><clipPath id="land"><path d="${landD}"/></clipPath><clipPath id="inner"><path d="${polyD(inner)}"/></clipPath><filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="9"/></filter>
     <filter id="soft2" x="-2%" y="-2%" width="104%" height="104%"><feGaussianBlur stdDeviation="2"/></filter>
     <filter id="edge" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="14"/></filter>
+    <radialGradient id="vig" cx="50%" cy="50%" r="75%"><stop offset=".55" stop-color="${S.tint}" stop-opacity="0"/><stop offset="1" stop-color="${S.tint}" stop-opacity=".42"/></radialGradient>
     <radialGradient id="fog" gradientUnits="userSpaceOnUse" cx="500" cy="505" r="1250"><stop offset=".56" stop-color="${S.fog}" stop-opacity="0"/><stop offset=".72" stop-color="${S.fog}" stop-opacity=".55"/><stop offset="1" stop-color="${S.fog}" stop-opacity="1"/></radialGradient></defs>
   <rect id="sea" x="0" y="0" width="100%" height="100%" fill="${S.fog}"/>
   <g id="world">
@@ -179,10 +180,11 @@ function buildStatic(){
     <path d="${landD}" fill="none" stroke="${S.band}" stroke-opacity=".5" stroke-width="12" stroke-linejoin="round"/>
     <path d="${landD}" fill="${S.plain}"/>
     <g clip-path="url(#land)"><g filter="url(#soft)">${terr}</g>
-      <g clip-path="url(#inner)">${tbase}</g>
       <path d="${rng}" fill="${S.range}" stroke="${S.range}" stroke-width="9" stroke-linejoin="round" opacity=".9" filter="url(#soft2)"/>
+      <g clip-path="url(#inner)">${tbase}</g>
       <path d="${outerRect}${polyD(inner)}" fill-rule="evenodd" fill="${S.offmap}" filter="url(#edge)"/>
       <g clip-path="url(#inner)">${territ}</g>
+      <g pointer-events="none">${decor(S)}</g>
       <path d="${ridge}" fill="none" stroke="${S.ridge}" stroke-opacity=".5" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="${tck}" fill="none" stroke="${S.ridge}" stroke-opacity=".7" stroke-width="1.1" stroke-linecap="round"/>
       <path d="${rdg}" fill="none" stroke="${S.ridge}" stroke-opacity=".9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -195,9 +197,20 @@ function buildStatic(){
     <g id="selroads"></g>
     <rect x="-1500" y="-1500" width="3500" height="3000" fill="url(#fog)" pointer-events="none"/>
   </g>
+  <rect x="0" y="0" width="100%" height="100%" fill="url(#vig)" pointer-events="none"/>
   <g id="scr"></g>`;
   buildSelRoads();camApply();
 }
+// v4: 계절 장식 (설·겨울 눈, 봄 꽃잎, 여름 반딧불, 가을 낙엽). 땅 위 결정적 위치, 아이콘·이름표는 화면 층이라 가려지지 않는다
+function inPolyJ(x,y,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const[xi,yi]=P[i],[xj,yj]=P[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c;}return c;}
+function decor(S){const kind=S.ko;let o='';
+  for(let n=0,placed=0;n<1600&&placed<260;n++){const x=hash('d'+n,1)*1000,y=hash('d'+n,2)*1010;if(!inPolyJ(x,y,coast)||!inPolyJ(x,y,inner))continue;
+    if(cities.some(c=>Math.abs(c.x-x)<16&&Math.abs(c.y-y)<16))continue;placed++;const r=hash('d'+n,3),a=(hash('d'+n,4)*360).toFixed(0);
+    if(kind==='겨울'||kind==='설'){const s=2+r*2.2;o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${s.toFixed(1)}" fill="${kind==='설'&&r>.7?'#f6c64a':'#ffffff'}" stroke="#7d8ea6" stroke-width=".5" opacity=".85"/>`;}
+    else if(kind==='봄'){if(r>.55)continue;o+=`<ellipse cx="0" cy="0" rx="5" ry="2.6" transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${a})" fill="#f48fb1" stroke="#b0587a" stroke-width=".5" opacity=".85"/>`;}
+    else if(kind==='가을'){if(r>.5)continue;o+=`<path d="M0,-5.4Q4.4,0 0,5.4Q-4.4,0 0,-5.4ZM0,4V8" transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${a})" fill="${r>.25?'#d9682a':'#c9a020'}" stroke="#7a3a12" stroke-width=".5" opacity=".9"/>`;}
+    else{if(r>.35)continue;o+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2" fill="#f2ff8a" stroke="#6a8a2a" stroke-width=".5" opacity=".95"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5.5" fill="#e8f78a" opacity=".22"/>`;}}
+  return o;}
 function buildSelRoads(){
   let d='';for(const r of roads)if(r.a===sel.n||r.b===sel.n){const a=byName[r.a],b=byName[r.b];if(a&&b)d+=`M${a.x},${a.y}L${b.x},${b.y}`;}
   document.getElementById('selroads').innerHTML=`<path d="${d}" fill="none" stroke="${fix.sel_case}" stroke-opacity=".85" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="${fix.sel_road}" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
