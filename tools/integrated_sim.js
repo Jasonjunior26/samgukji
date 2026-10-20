@@ -4,13 +4,14 @@
 //   node tools/integrated_sim.js run '{"mode":"design","games":4,"months":144,"seed":1,"scen":"190","roots":"forced"}' out.json
 //   node tools/integrated_sim.js report a.json [b.json ...]
 // 모드: base = v105 그대로(대조군) / design = 설계 레이어 켬
+// rec:true = 통합_시뮬레이션 §6 권고안 장치(수도 거점 인정·예비금 물가·보유량 항 holdN/holdRate·경륜 연수·차익 상향·군량 하한 foodFloor·뿌리 자동선택 점수를 시나리오 평균으로 정규화). cap/pass 는 따로 지정
 // 주요 파라미터(기본값): roots(forced|nat|none) a(1) b(0.3) pass(0.6) cap(0.10 연 상한) hubGain(0.5) land(true) tradeFrac(0.5) openAll(false) noPrice(false)
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const cmd = process.argv[2];
 if (cmd === 'pair') { pair(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'cause') { cause(process.argv.slice(3)); process.exit(0); }
 if (cmd === 'report') { report(process.argv.slice(3)); process.exit(0); }
-const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1 }, JSON.parse(process.argv[3] || '{}'));
+const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1, rec: false, foodFloor: 15, holdN: 12, holdRate: 0.03 }, JSON.parse(process.argv[3] || '{}'));
 const OUT = process.argv[4] || '';
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v105.html'), 'utf8');
@@ -44,7 +45,7 @@ vm.runInContext(`(() => {
 
   function hubDirs() { return PR.land ? HUBDIR : Object.fromEntries(Object.entries(HUBDIR).map(([k, v]) => [k, v.filter(c => PORTS.includes(c))])); }
   function hubCount(f, d) { const H = hubDirs()[d]; return H.filter(cn => S.city[cn] && S.city[cn].owner === f).length; }
-  function amp(f, d) { return 1 + PR.hubGain * hubCount(f, d); }
+  function amp(f, d) { const h = hubCount(f, d); return 1 + PR.hubGain * (PR.rec ? Math.max(h, 1) : h); } // rec: 수도를 거점 1곳으로 인정(거점 0개 세력 기본 증폭)
   function price(f) { if (!D || PR.noPrice) return null; return IT.Pn ** PR.a * ((f && IT.Pf[f]) || 1) ** PR.b; }
   function realInc(c) { return Math.round(cityGold(c, (c.owner !== S.player ? DF().inc : 1) * ((c.tax || 30) / 30)) / 3); }
 
@@ -52,7 +53,12 @@ vm.runInContext(`(() => {
     if (PR.roots === 'none') return 'none';
     if (PR.roots === 'rot') return ROOTS[(IT.rotN++) % 4];
     if (PR.roots === 'forced') return ROOTS[Math.floor(RND() * 4)];
-    const g = G(S.fac[f].ruler); const sc = { 경륜: g.i + g.p, 강병: g.w + g.t, 상략: g.c * 1.6, 덕화: (g.p + g.t + g.c) * 0.7 };
+    const rs = fid => { const g = G(S.fac[fid].ruler); return { 경륜: g.i + g.p, 강병: g.w + g.t, 상략: g.c * 1.6, 덕화: (g.p + g.t + g.c) * 0.7 }; };
+    const sc = rs(f);
+    if (PR.rec) { // 쏠림 보정: 뿌리별 점수를 시나리오 전체 군주 평균·표준편차로 표준화한 상대 점수로 비교
+      if (!IT.rm) { const all = Object.keys(S.fac).filter(x => S.fac[x].alive).map(rs); IT.rm = {}; ROOTS.forEach(r => { const m = mean(all.map(o => o[r])); IT.rm[r] = { m, sd: Math.max(1, Math.sqrt(mean(all.map(o => (o[r] - m) ** 2)))) }; }); }
+      ROOTS.forEach(r => sc[r] = (sc[r] - IT.rm[r].m) / IT.rm[r].sd);
+    }
     return ROOTS.reduce((b, r) => sc[r] > sc[b] ? r : b, '경륜');
   }
   function initFac(f) {
@@ -110,20 +116,21 @@ vm.runInContext(`(() => {
         return true; });
       if (open('경륜')) { const avail = st.deg.reduce((s, x) => s + (x >= 100 ? 6 : x >= 80 ? 5 : x >= 60 ? 3 : 0), 0) - st.found;
         if (avail > 0) push('인물', 500, 1.6, () => { const cn = capitalOf(f); const g = spawnRandom(cn); g.st = '현역'; g.fac = f; g.loc = cn; g.loy = 70; st.found++; IT.foundTot++; return true; }); }
+      if (PR.rec && open('경륜') && st.deg.some(x => x >= 20)) push('연수', 700, 0.9, () => { const gs = gensOf(f); const g = gs[Math.floor(RND() * gs.length)]; if (!g) return false; const k2 = ['t', 'w', 'i', 'p', 'c'][Math.floor(RND() * 5)]; g[k2] = Math.min(100, g[k2] + 1); st.drill = (st.drill || 0) + 1; return true; });
       if (open('상략')) { const dAvg = mean(st.deg); const capT = 1.5 * incF * mean([0, 1, 2, 3].map(d => amp(f, PART[d])));
         if (dAvg > 3) { const x0 = Math.min(budget / P, capT * 0.5); if (x0 > 200) { const o = { name: '차익', cost: 0, sc: 1.5 * (0.8 + 0.4 * RND()), noBudget: 1, fn: () => {
           const vtot = st.vol.reduce((s, v) => s + v, 0); const sat = Math.max(0.2, 1 - vtot / Math.max(1, capT));
-          const margin = (0.03 + 0.10 * dAvg / 100) * sat; const profit = x0 * margin * P; const fee = 0.01 * x0 * P; cs[0].gold += Math.round(profit - fee); bump(st.gain, '차익', profit); o.cost = fee;
+          const margin = (PR.rec ? 0.06 + 0.14 * dAvg / 100 : 0.03 + 0.10 * dAvg / 100) * sat; const profit = x0 * margin * P; const fee = 0.01 * x0 * P; cs[0].gold += Math.round(profit - fee); bump(st.gain, '차익', profit); o.cost = fee;
           st.vol[Math.floor(RND() * 4)] += x0; return true; } }; cand.push(o); } }
         const fc = frontCity(f); if (fc) { const mc = mercCost(fc, 2000); const rsv = reserveOf(fc, f); if (fc.gold > mc + rsv * 2 && garrisonCap(fc) - fc.troops > 2000) { const gg = gensIn(fc.n, f).find(g => !g.acted && !g.away && !(g.inj > 0)); if (gg) cand.push({ name: '용병', cost: 0, sc: 1.2 * (0.8 + 0.4 * RND()), fn: () => { const r = cmdMerc(fc.n, gg.n, 2000); if (r.ok) { bump(st.spend, '용병', mc); st.merc = (st.merc || 0) + 2000; } return false; } }); } } }
       if (open('강병') && st.deg.some(x => x >= 40)) push('물자', 1000, 1.3, () => { const fc = frontCity(f); if (!fc) return false; installArms(); const t = ['보병', '궁병', '기병'].sort((x, y) => (fc.arm[x] || 0) - (fc.arm[y] || 0))[0]; fc.arm[t] = (fc.arm[t] || 0) + 8; fc.train = Math.min(100, fc.train + 2); return true; });
       if (open('덕화')) {
         const lo = cs.slice().sort((x, y) => x.loy - y.loy)[0]; const fd = cs.slice().sort((x, y) => y.food - x.food)[0];
-        if (lo && fd.food > 20000) push('민생', 600, 1.1, () => { lo.pop = Math.round(lo.pop * 1.01); lo.loy = Math.min(100, lo.loy + 4); fd.food -= 3000; bump(st.food, '민생', 3000); return true; });
-        const fcs = cs.filter(c => c.food > Math.ceil(c.troops / ECO.troopFood) * 14 + 6000 && isFront(c.n, f)).sort((x, y) => y.food - x.food)[0];
+        if (lo && fd.food > 20000 && (!PR.rec || fd.food - 3000 >= Math.ceil(fd.troops / ECO.troopFood) * PR.foodFloor)) push('민생', 600, 1.1, () => { lo.pop = Math.round(lo.pop * 1.01); lo.loy = Math.min(100, lo.loy + 4); fd.food -= 3000; bump(st.food, '민생', 3000); return true; });
+        const fcs = cs.filter(c => c.food > Math.ceil(c.troops / ECO.troopFood) * (PR.rec ? PR.foodFloor : 14) + 6000 && isFront(c.n, f)).sort((x, y) => y.food - x.food)[0];
         if (fcs) { installArms(); push('군비화', 300, 1.4, () => { const t = ['보병', '궁병', '기병'].sort((x, y) => (fcs.arm[x] || 0) - (fcs.arm[y] || 0))[0]; fcs.arm[t] = (fcs.arm[t] || 0) + 2; fcs.food -= 6000; bump(st.food, '군비화', 6000); return true; }); }
         // 군량 판매: 잉여 군량(필요 30개월 초과)을 철마다가 아니라 항상 팔 수 있음 (+15%)
-        cs.forEach(c => { const need = Math.ceil(c.troops / ECO.troopFood); const ex = c.food - need * 30; if (ex > 20000) { const amt = Math.min(50000, Math.floor(ex / 1000) * 1000); const g = Math.floor(amt / 100 * foodPrice(c) * 1.15); c.food -= amt; c.gold += g; bump(st.gain, '군량판매', g); bump(st.food, '군량판매', amt); } });
+        cs.forEach(c => { const need = Math.ceil(c.troops / ECO.troopFood); const ex = c.food - need * (PR.rec ? PR.foodFloor : 30); if (ex > 20000) { const amt = Math.min(50000, Math.floor(ex / 1000) * 1000); const g = Math.floor(amt / 100 * foodPrice(c) * 1.15); c.food -= amt; c.gold += g; bump(st.gain, '군량판매', g); bump(st.food, '군량판매', amt); } });
       }
       if (!cand.length) break;
       cand.forEach(o => { o.sc = o.sc0 !== undefined ? o.sc0 : o.sc; });
@@ -163,6 +170,7 @@ vm.runInContext(`(() => {
         const ex = Math.round(base * (p - 1));
         if (c.gold >= ex) c.gold -= ex; else { c.gold = 0; const dd = Math.floor(c.troops * 0.02); c.troops -= dd; c.loy = clampN(c.loy - 1, 0, 100); if (st) st.bank++; }
         if (st) st.extra.upkeep += ex;
+        if (PR.rec) { const exc = c.gold - PR.holdN * inc * p; if (exc > 0) { const h = Math.round(exc * PR.holdRate); c.gold -= h; if (st) st.extra.hold = (st.extra.hold || 0) + h; } } // 보유량 항
       });
       if (!PR.noTrade) Object.keys(S.fac).forEach(fid => { if (S.fac[fid].alive) tradeTurn(fid); });
       updatePrice();
@@ -170,6 +178,7 @@ vm.runInContext(`(() => {
     return r; }; }
   { const f = aiTurn; aiTurn = function (fid) { CURF = fid; try { return f.apply(this, arguments); } finally { CURF = null; } }; }
   { const f = armCost; armCost = function (c, k) { const v = f.apply(this, arguments); if (D && !PR.noPrice && c && c.owner) { const p = price(c.owner) || 1; return Math.round(v * p / 10) * 10; } return v; }; }
+  if (PR.rec) { const f = reserveOf; reserveOf = function (c, fid) { const v = f.apply(this, arguments); return Math.round(v * (D && IT && fid ? price(fid) || 1 : 1)); }; } // 예비금 물가 반영
   const origPrice = priceIdx;
   priceIdx = function () { if (D && !PR.noPrice && IT) { return price(CURF) || 1; } return origPrice(); };
 
