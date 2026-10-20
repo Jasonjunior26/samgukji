@@ -101,6 +101,18 @@ for yy in range(qq.height):
     for xx in range(qq.width):
         if ap[xx, yy] == 0: px[xx, yy] = tidx
 qq.save(png, optimize=True, transparency=tidx)
+# 양자화 오차(255색 팔레트가 전체 그림을 함께 덮으므로 행이 늘면 원본 행 색도 조금 바뀐다): 불투명 픽셀의 RGB 절대차 평균·최대
+def qerr(y0, y1):
+    src = atlas.crop((0, y0, W, y1)).load(); out = qq.convert('RGBA').crop((0, y0, W, y1)).load(); n = tot = mx = 0
+    for yy in range(y1 - y0):
+        for xx in range(W):
+            p = src[xx, yy]
+            if p[3] == 0: continue
+            q = out[xx, yy]; d = max(abs(p[k] - q[k]) for k in range(3)); n += 1; tot += d; mx = max(mx, d)
+    return n, (tot / n if n else 0), mx
+if '--stats' in sys.argv:
+    n0, m0, x0 = qerr(0, ROW * len(need)); print(f'양자화 오차 원본 {len(need)}행: 불투명 {n0} 평균 {m0:.2f} 최대 {x0}')
+    if frows: n1, m1, x1 = qerr(ROW * len(need), atlas.height); print(f'양자화 오차 외국 {len(frows)}행: 불투명 {n1} 평균 {m1:.2f} 최대 {x1}')
 rows = {str(s): r for r, s in enumerate(need)}
 for r, _ in frows: rows['f%d' % r] = r
 meta = {'row': ROW, 'rows': rows, 'generic': GENERIC, 'noTier': sorted(NO_TIER), 'uniq': uniq,

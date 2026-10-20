@@ -1,8 +1,34 @@
 # 변화 기록 — UI·저장/불러오기·음악·보고서
 
-## 현재 상태 요약 (2026-10-19, 커밋 d069af4)
+## 현재 상태 요약 (2026-10-20, BUILD v107 항목 7 — 아래 v1.5)
 > 예정(미빌드): 장수 전용 그림 폐지, 1품·군주만 고른 그림+변형 — v1.3 설계 참조.
 > 예정(미빌드): 메인 화면 휴대폰 가로 3단 배치 + 지도 현대 전략게임풍 재작성 + 명령 분류 탭 — v1.4 설계 참조.
+> 자산(v1.5): `jojo-units`에 외국 병종 5종×3색 15행(97~111), `jojo-sfx`에 자체 효과음 4종(`gun`·`hoof`·`coin`·`gate.open`), `ICON_SVG` 상수(교역 물품 14·뿌리 4·갈래 8·상대국 5)가 들어 있다. 호출처·사용처는 아직 없음(항목 3·4·5·6이 연결). 원본 재채색 자산은 `jojo-*` 블록 규칙(개인 플레이 전용, 공개 배포 전 제거)을 따르고, synth_sfx·gen_icons 산출은 제한 없음.
+
+---
+
+## v1.5 (2026-10-20, BUILD v107) — 외국 병종·효과음·아이콘 자산 임베드
+지시서 `docs/v107_빌드명세.md` §8(항목 7) 필수 작업만. 자산 원본은 `assets/`(gitignore, 커밋 안 함), 도구는 `tools/`.
+### 변경 사항
+- `tools/jojo_assets.py --foreign <폴더>`: `assets/foreign/<이름>_{red,ora,blu}.png`(`tools/sprite_foreign.py` 산출, 1536×64) 15장을 원본 97행 아래 행 97~111에 후사르·맥궁병·사무라이·원탁기사·총사 × red→ora→blu 순으로 붙이고 `JOJO_UNITS.foreign = {후사르:97, 맥궁병:100, 사무라이:103, 원탁기사:106, 총사:109}`를 넣는다. **명세와 다른 점**: `rows`의 키는 `'f'+행`(`f97`~`f111`) — 원본 그림 번호 97·98·107~111이 이미 `rows`에 있어 숫자 키가 충돌하기 때문(행 번호 97~111 자체는 명세 그대로). 블록은 제자리 교체(jojo-maps 앞 순서 유지), `--stats`로 양자화 오차 출력.
+- `tools/jojo_audio.py --extra <폴더>`: `assets/sfx/{gun,hoof,coin,gate_open}.wav`(`tools/synth_sfx.py` 산출)를 같은 IMA ADPCM으로 넣고 `EXTRA_SCENES`로 map에 `gun`(v .9)·`hoof`(v .55, 4배속 skip)·`coin`(v .7)·`gate.open`(v .9)을 등록(`conf: 자체`). **호출처는 연결하지 않음**(이름만). 주의: ffmpeg가 깔려 있어 `--no-ffmpeg`로 돌려야 ADPCM이 유지됨(아니면 ogg로 바뀜). 명세의 "폴백 `SND` 합성음 추가"는 하지 않음(아래 남은 일).
+- html 코드(1회 패치): `ICON_SVG` 블록 10줄(12016~12025, `{goods:{유리:'<svg…>',…}, roots, branches, nations}` — 글자는 SVG `<text>` serif, `<img>` 없음)을 V4 규칙 블록 앞에 삽입; `isForeign`(12199, `eliteName`이 `JOJO_UNITS.foreign`에 있으면 참)·`clsName`(12200, 외국 병종이면 `eliteName`을 병과 이름으로); `jojoIndex`(12791, 외국 병종이면 `'f' + (foreign[이름] + 진영색)`). 줄 수 13,326 → 13,338.
+- `tools/jojo_index_check.js`: 외국 병종 5종×3색 행 검사 추가(없으면 종료 코드 1).
+### 시뮬레이션·검증 결과
+- html 크기(LF 기준, `git cat-file -s`): 8,501,965 → 8,782,461 (+280,496). 블록별 `jojo-units` 1,344,196 → 1,563,831(+219,635), `jojo-sfx` 770,122 → 819,655(+49,533), `ICON_SVG` +11,247(SVG 본문 8,927). 명세 예상(+530KB/+37KB/+9KB)보다 병종이 작은 것은 15장 RGBA PNG(398KB)를 아틀라스 255색 팔레트 PNG로 다시 묶어 압축이 더 잘 되기 때문(원본 97행만 재생성하면 base64 1310KB, 15행 추가 후 1524KB).
+- 양자화 오차(`--stats`, 불투명 픽셀 RGB 절대차): 원본 97행 평균 0.33 → 0.77(최대 29 동일), 외국 15행 평균 4.05 최대 29. HEAD 블록과 비교하면 원본 97행 불투명 2,450,550픽셀 중 990,427이 RGB 최대 15 차이(255색 팔레트를 112행이 나눠 쓰는 탓), 알파 변화 0.
+- `node tools/jojo_index_check.js`: 81조합 행 없음 0, 외국 5종 15조합 행 없음 0, 아틀라스 112행.
+- `node tools/battle_sim.js 5` → `docs/sim/v107_s4_sim5.txt`: 오류 없음(야전 8000·15000 공격 승 5/5 평균 7.4턴, 공성 8000 1/5 14.2턴, 공성 15000 2/5 12.0턴; "block 34 window.addEventListener" 메시지는 기존 무해 경고, 블록 번호만 33→34).
+- 모든 `<script>` 블록 39개 `new vm.Script` 컴파일 오류 0. `jojo-sfx` 원본 48 clip·map 54개 바이트 동일, 새 clip 4(gun 0.84s·hoof 0.90s·coin 0.60s·gate_open 1.00s, base64 합계 49KB). `jojo-units` 원본 `rows` 97개·`uniq` 불변.
+- 실행 명령: `python -I -X utf8 tools/jojo_assets.py C:/Users/USER/orca/workspaces/samgukji/reverse-engineering-jojo --stats --foreign <assets/foreign>` (`docs/sim/v107_s4_assets.txt`), `python -I -X utf8 tools/jojo_audio.py <RE경로> --no-ffmpeg --extra <assets/sfx>` (`docs/sim/v107_s4_audio.txt`). `-I`는 `PYTHONIOENCODING`을 무시하므로 `-X utf8`을 쓴다.
+### 알려진 문제·미확인
+- 효과음 4종 **청취 미확인**(수치만). 외국 병종 스프라이트의 게임 화면 3색 확인(`tools/shot_harness.html` 장면 `go`)은 **미확인** — 시험 전장(`V4T`)에 `eliteName`을 넣는 길이 없어 건너뜀.
+- `JSND.sfx`는 V4 화면(`UI.scr === 'v4'`)에서만 재생하므로 `coin`·`gate.open`을 전략 화면에서 쓰려면 호출 항목이 `inV4` 조건을 손봐야 한다.
+- 외국 병종은 그림·이름만 있고 V4 `CLS`(사거리 등)가 없어 v107에서는 쓰이지 않는 자산. `eliteName`이 외국 병종 이름인 부대가 생기기 전에는 `isForeign`이 항상 거짓.
+- 로딩 영향(+280KB) 미확인. 작업 사본은 autocrlf로 CRLF인데 도구가 넣은 블록은 LF(커밋 시 git이 정규화).
+- 선택 작업(열린 성문 그림·외국 장수 초상·`⚓`/`驛` 표식·`gun` 호출·`SND` 폴백 합성음)은 하지 않았다.
+### 관련 커밋
+- WIP 60f657e(임베드·분기), 최종 커밋은 워크트리 브랜치 → build/v107 체리픽(해시는 체리픽 뒤 것이 기준).
 
 화면은 `render()`(6664줄)가 `UI.scr`에 따라 그리고, 단추는 `ACT.*` 처리기(6686~)로 받는다. 시트 `openSheet`(6682), 토스트 `toast`(6663). 저장은 `saveStr()`(6631, `face` 제외 JSON) → LZ-String식 압축(6564) → `localStorage` 슬롯 `sg_slot1~3`(`ACT.saveTo` 7038, `ACT.loadFrom` 7040), 전체 백업 내보내기/들여오기(7837, 표제 화면에서는 숨김 v88). 판 표시(10543)로 어떤 파일인지 확인. 지도는 v29 현대 일러스트풍(9503) → v86 계절 색(11362) → v89 밝은 지도(11494). 진행 단추는 v93(11598)부터 판 아래 고정 줄. 연간 보고서 v1~v3(10376~10444). 신무장 만들기 화면(10199~10347). 음악은 BGM v3(10654, 장면별 곡 `trackFor` 10748) → v84 작곡식 BGM(11213), 효과음은 합성(`SND`). **전투 v4 화면(`UI.scr === 'v4'`)**은 `V4UI`가 캔버스에 직접 그리고(가로 화면, 세로 기기 90° 회전, 전체 화면·가로 고정 시도), 효과음은 `JSND`가 조조전 원본 소리를 낸다(`SND.sfxOn`·`BGM.on` 설정 공유). 시스템 메뉴(`ACT.sys` 6992)에 "전투 방식: 조조전식(새)/기존" 전환이 있다. 세이브 호환: `S.opt.v4Battle` 값이 없는 옛 세이브는 켜진 것으로 본다.
 
