@@ -400,7 +400,7 @@ const SIEGE_FORMS = ['충차', '투석', '정란'];
 const SKILL = {}; DB.특기.forEach(s => SKILL[s.이름] = s);
 const ADJ = {}; DB.도시.forEach(c => ADJ[c.이름] = c.인접.slice());
 const CDATA = {}; DB.도시.forEach(c => CDATA[c.이름] = c);
-const FCOL = ['#3fa9ff', '#b07ae8', '#e8c840', '#e8902e', '#e05050', '#4cc47e', '#8fe0d0', '#f4f4f4', '#c98f5a', '#9fb0ff', '#ff9ec4', '#a0d860', '#d0a0ff', '#60c0e0', '#e0b080', '#c0c060', '#80e0a0', '#e07070', '#a0a0ff', '#f0c0a0'];
+const FCOL = ['#3fa9ff', '#b07ae8', '#e8c840', '#e8902e', '#e05050', '#4cc47e', '#ff907b', '#f04b9e', '#c98f5a', '#9fb0ff', '#ff9ec4', '#a0d860', '#d0a0ff', '#60c0e0', '#e0b080', '#c0c060', '#d3689e', '#e07070', '#a0a0ff', '#e26936']; /* v1.4: 세력색 회색·흰색 금지, 이름으로 고정, 같은 색 세력 나눔 */ const FAC_COL = { 공손찬: '#f04b9e', 유표: '#ff907b', 사섭: '#e26936', 왕랑: '#d3689e', 장막: '#5ec8b0', 포신: '#c070c0', 교모: '#00bcff', 한수: '#ff899f', 공주: '#8ebf63', 왕광: '#ee91de', 유대: '#daa851' }; function fixFacCols() { if (!S || !S.fac) return; Object.values(S.fac).forEach(F => { const c = FAC_COL[F.id] || FAC_COL[F.ruler]; if (c) F.col = c; else if (/^#(f4f4f4|8fe0d0|f0c0a0|80e0a0)$/i.test(F.col || '')) F.col = FCOL[Object.keys(S.fac).indexOf(F.id) % FCOL.length]; });  const pool = [...FCOL, ...Object.values(FAC_COL), '#7fd4ff', '#b9e05a', '#ffb347', '#9b8cff', '#3ccfcf', '#ff7fbf', '#c8a2ff', '#e6c35c']; const used = new Set(); Object.values(S.fac).forEach(F => { if (used.has(F.col)) { const c = pool.find(x => !used.has(x) && !Object.values(S.fac).some(G => G.col === x)); if (c) F.col = c; } used.add(F.col); }); }
 const RELS = DB.관계;
 
 let S = null; // 게임 상태
@@ -10963,7 +10963,7 @@ function unwed() { try { Object.values(S.fac).forEach(F => { if (F.wed) { Object
 
 
 // ===== v79: 꿈·파벌 제거 — 예전 세이브에 남은 꿈 관련 값 정리 =====
-{ const f = postLoad; postLoad = function () { const r = f.apply(this, arguments); try { Object.values(S.gen).forEach(g => { delete g.dream; delete g.dreamMiss; if (typeof g.why === 'string' && g.why.startsWith('꿈(')) { g.disc = Math.max(0, (g.disc || 0) - 20); g.why = null; } }); Object.values(S.fac).forEach(F => { delete F.clique; }); S.eventQueue = (S.eventQueue || []).filter(e => e.id !== 'clique'); } catch (e) { } return r; }; }
+{ const f = postLoad; postLoad = function () { const r = f.apply(this, arguments); try { Object.values(S.gen).forEach(g => { delete g.dream; delete g.dreamMiss; if (typeof g.why === 'string' && g.why.startsWith('꿈(')) { g.disc = Math.max(0, (g.disc || 0) - 20); g.why = null; } }); Object.values(S.fac).forEach(F => { delete F.clique; }); S.eventQueue = (S.eventQueue || []).filter(e => e.id !== 'clique'); } catch (e) { } return r; }; } { const f = postLoad; postLoad = function () { const r = f.apply(this, arguments); try { fixFacCols(); } catch (e) { } return r; }; } { const f = newGame; newGame = function () { const r = f.apply(this, arguments); try { fixFacCols(); } catch (e) { } return r; }; }
 
 </script>
 <style>.tacrow{display:flex;align-items:center;gap:8px;margin:4px 0}.tacrow .b{flex:0 0 auto}.tacrow small{color:#aab3c5;font-size:11px}</style><script>
