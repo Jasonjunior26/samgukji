@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>천하쟁패 v1.4 메인 화면 목업</title>
+<style>
+:root{--bg:#0f1428;--panel:#151c38;--card:#1c2547;--line:#2c3866;--text:#ece8dc;--muted:#aab2cf;--gold:#ffd75e;--gold2:#c9a24a;--tint:#f0a8b8}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR","Nanum Gothic",sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+#app{display:grid;grid-template-rows:30px 1fr;grid-template-columns:56px 1fr 260px;height:100vh;height:100dvh;min-width:640px;min-height:320px}
+/* 상단 줄 */
+#top{grid-column:1/4;display:flex;align-items:center;gap:12px;padding:0 6px 0 10px;background:#0b1022;border-bottom:1px solid var(--line);font-size:13px;white-space:nowrap;overflow:hidden}
+#top .date{font-weight:700;color:var(--gold);display:flex;align-items:center;gap:6px}
+#top .fc{width:10px;height:10px;border-radius:2px;border:1px solid #fff}
+#top .st{display:flex;align-items:center;gap:4px}
+#top .st b{font-weight:600;color:var(--text)}
+#top .st i{font-style:normal;color:var(--muted)}
+#top .sp{flex:1}
+#top .season{display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:10px;background:#1c2547;border:1px solid var(--line)}
+#top .season .sw{width:10px;height:10px;border-radius:50%;background:var(--tint);border:1px solid #fff}
+#top .menu{width:34px;height:26px;border-radius:5px;border:1px solid var(--line);background:#1c2547;color:var(--text);font-size:15px}
+/* 왼쪽 레일 */
+#rail{display:flex;flex-direction:column;background:#0b1022;border-right:1px solid var(--line)}
+#rail button{flex:1;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:0;border-left:3px solid transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
+#rail button svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#rail button.on{color:var(--gold);background:#1a2246;border-left-color:var(--gold)}
+/* 지도 */
+#mapwrap{position:relative;overflow:hidden;touch-action:none;cursor:grab}
+#map{display:block;width:100%;height:100%}
+#seasonbar{position:absolute;left:6px;bottom:6px;display:flex;gap:3px;background:rgba(11,16,34,.86);border:1px solid var(--line);border-radius:6px;padding:3px}
+#seasonbar button{min-width:30px;height:26px;padding:0 5px;border-radius:4px;border:0;background:none;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
+#seasonbar button.on{background:#2a3566;color:#fff}
+#zoomui{position:absolute;right:6px;bottom:6px;display:flex;flex-direction:column;gap:3px}
+#zoomui button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:rgba(11,16,34,.86);color:var(--text);font-size:17px;cursor:pointer}
+/* 오른쪽 패널 */
+#panel{display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0}
+#pscroll{flex:1;overflow-y:auto;min-height:0;padding:6px 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+.card .h{display:flex;align-items:baseline;gap:6px}
+.card .h .nm{font-size:16px;font-weight:700}
+.card .h .ju{font-size:13px;color:var(--muted)}
+.card .h .own{margin-left:auto;font-size:13px;display:flex;align-items:center;gap:4px}
+.card .h .own i{width:9px;height:9px;border-radius:2px;border:1px solid #fff;display:inline-block}
+.card .sub{font-size:13px;color:var(--muted);margin:2px 0 4px}
+.card .sub b{color:var(--text);font-weight:600}
+.card .g{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 6px;font-size:13px}
+.card .g span{display:flex;justify-content:space-between}
+.card .g i{font-style:normal;color:var(--muted)}
+.tabt{font-size:13px;color:var(--gold);margin:8px 2px 4px;display:flex;justify-content:space-between}
+.tabt i{font-style:normal;color:var(--muted)}
+.cmd{display:flex;align-items:center;gap:8px;min-height:40px;padding:3px 8px;border-radius:6px;border:1px solid transparent;cursor:pointer}
+.cmd:hover{background:#1f2950;border-color:var(--line)}
+.cmd .k{font-size:14px;font-weight:700;min-width:30px}
+.cmd .d{font-size:13px;color:var(--muted);line-height:1.25;flex:1}
+.cmd .c{font-size:12px;color:var(--gold2)}
+#endturn{margin:6px 8px 8px;height:40px;border-radius:7px;border:0;background:var(--gold2);color:#1a1305;font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+@media (max-width:720px){#top{gap:8px;font-size:13px}#top .st{gap:3px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top"></div>
+  <nav id="rail"></nav>
+  <div id="mapwrap">
+    <svg id="map"></svg>
+    <div id="seasonbar"></div>
+    <div id="zoomui"><button data-z="1.3">+</button><button data-z="0.77">−</button></div>
+  </div>
+  <aside id="panel"><div id="pscroll"></div><button id="endturn">이번 달 끝내기</button></aside>
+</div>
+<script>
+const DATA=/*__DATA__*/null;
+const {cities,roads,facs,rivers,coast,islands,seasons,fix}=DATA;
+const NS='http://www.w3.org/2000/svg';
+const byName={};cities.forEach((c,i)=>{c.i=i;byName[c.n]=c;});
+const facCol={};facs.forEach(f=>facCol[f.r]=f.col);
+const capitals=new Set(facs.map(f=>f.home));
+const PLAYER='조조';
+let sel=byName['초'],tab='군사';
+let season=new URLSearchParams(location.search).get('s');if(!seasons[season])season='spring';
+
+// ---------- 보로노이 (반평면 교차, 변마다 이웃 번호를 붙여 세력 경계를 뽑는다) ----------
+function clip(P,L,a,b,c,lab){
+  const oP=[],oL=[],n=P.length;
+  for(let i=0;i<n;i++){
+    const p=P[i],q=P[(i+1)%n],dp=a*p[0]+b*p[1]-c,dq=a*q[0]+b*q[1]-c,ip=dp<=0,iq=dq<=0;
+    const X=()=>{const t=dp/(dp-dq);return[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];};
+    if(ip&&iq){oP.push(p);oL.push(L[i]);}
+    else if(ip&&!iq){oP.push(p);oL.push(L[i]);oP.push(X());oL.push(lab);}
+    else if(!ip&&iq){oP.push(X());oL.push(L[i]);}
+  }
+  return[oP,oL];
+}
+let cells;
+function voronoi(){
+  const t0=performance.now();
+  cells=cities.map((s,i)=>{
+    let P=[[-10,-10],[1010,-10],[1010,1020],[-10,1020]],L=[-1,-1,-1,-1];
+    const others=cities.map((o,j)=>[j,(o.x-s.x)**2+(o.y-s.y)**2]).filter(e=>e[0]!==i).sort((a,b)=>a[1]-b[1]);
+    for(const[j]of others){const o=cities[j];[P,L]=clip(P,L,o.x-s.x,o.y-s.y,(o.x*o.x+o.y*o.y-s.x*s.x-s.y*s.y)/2,j);}
+    return{P,L};
+  });
+  console.log('voronoi ms',(performance.now()-t0).toFixed(1));
+}
+voronoi();
+const polyD=P=>'M'+P.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L')+'Z';
+const landD=polyD(coast)+islands.map(polyD).join('');
+
+// 강: Catmull-Rom → 베지어, 하류로 갈수록 굵게(구간별 굵기)
+function riverSVG(){
+  let s='';
+  for(const r of rivers){const p=r.p,n=p.length-1;
+    for(let i=0;i<n;i++){const w=r.w*(0.22+0.5*(i+1)/n);
+      const seg=[p[Math.max(0,i-1)],p[i],p[i+1],p[Math.min(n,i+2)]];
+      const d=`M${p[i]}C${p[i][0]+(seg[2][0]-seg[0][0])/6},${p[i][1]+(seg[2][1]-seg[0][1])/6} ${p[i+1][0]-(seg[3][0]-seg[1][0])/6},${p[i+1][1]-(seg[3][1]-seg[1][1])/6} ${p[i+1]}`;
+      s+=`<path d="${d}" stroke-width="${w.toFixed(2)}"/>`;}
+  }
+  return s;
+}
+// 간단한 결정적 난수
+const hash=(s,k=0)=>{let h=2166136261^k;for(const ch of s){h^=ch.charCodeAt(0);h=Math.imul(h,16777619);}return((h>>>0)%10000)/10000;};
+const terrColor=(c,S)=>c.t==='산악'||c.t==='관문'?S.mount:c.t==='남만'?S.south:c.t==='강변'||c.t==='나루'?S.river_land:S.plain;
+
+// ---------- 정적 층(계절이 바뀔 때만 다시 만든다) ----------
+const svg=document.getElementById('map');
+let W=0,H=0,cam={x:620,y:470,k:0.72};{const q=new URLSearchParams(location.search);if(q.get('z'))cam.k=+q.get('z');if(q.get('cx'))cam.x=+q.get('cx');if(q.get('cy'))cam.y=+q.get('cy');}
+function buildStatic(){
+  const S=seasons[season];
+  document.documentElement.style.setProperty('--tint',S.tint);
+  let terr='',ridge='';
+  cities.forEach((c,i)=>{terr+=`<path d="${polyD(cells[i].P)}" fill="${terrColor(c,S)}" stroke="${terrColor(c,S)}" stroke-width="2"/>`;
+    if(c.t==='산악'||c.t==='관문'){for(let k=0;k<4;k++){const a=hash(c.n,k)*6.283,r=10+hash(c.n,k+9)*26,x=c.x+Math.cos(a)*r,y=c.y+Math.sin(a)*r,w=5+hash(c.n,k+5)*4;
+      ridge+=`M${(x-w).toFixed(1)},${(y+w*0.5).toFixed(1)}L${x.toFixed(1)},${(y-w*0.45).toFixed(1)}L${(x+w).toFixed(1)},${(y+w*0.5).toFixed(1)}`;}}});
+  // 영토: 세력마다 한 path, 그룹 투명도로 칠해 같은 세력 안 이음매가 안 보이게
+  const by={};cities.forEach((c,i)=>{if(c.own)(by[c.own]=by[c.own]||[]).push(polyD(cells[i].P));});
+  let territ='';for(const f in by)territ+=`<g opacity="${fix.terr_alpha}"><path d="${by[f].join('')}" fill="${facCol[f]}" stroke="${facCol[f]}" stroke-width="1"/></g>`;
+  let bord='';
+  cells.forEach((cl,i)=>{const n=cl.P.length;cl.L.forEach((j,k)=>{if(j<=i)return;const a=cities[i].own,b=cities[j].own;if(a===b)return;
+    const p=cl.P[k],q=cl.P[(k+1)%n];bord+=`M${p[0].toFixed(1)},${p[1].toFixed(1)}L${q[0].toFixed(1)},${q[1].toFixed(1)}`;});});
+  let rd='',wd='';
+  for(const r of roads){const a=byName[r.a],b=byName[r.b];if(!a||!b)continue;const s=`M${a.x},${a.y}L${b.x},${b.y}`;if(r.w)wd+=s;else rd+=s;}
+  svg.innerHTML=`<defs><clipPath id="land"><path d="${landD}"/></clipPath><filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="9"/></filter></defs>
+  <rect id="sea" x="0" y="0" width="100%" height="100%" fill="${S.sea}"/>
+  <g id="world">
+    <path d="${landD}" fill="none" stroke="${S.band}" stroke-opacity=".28" stroke-width="30" stroke-linejoin="round"/>
+    <path d="${landD}" fill="none" stroke="${S.band}" stroke-opacity=".5" stroke-width="12" stroke-linejoin="round"/>
+    <path d="${landD}" fill="${S.plain}"/>
+    <g clip-path="url(#land)"><g filter="url(#soft)">${terr}</g>
+      <path d="${ridge}" fill="none" stroke="${S.ridge}" stroke-opacity=".55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      ${territ}
+      <path d="${bord}" fill="none" stroke="${fix.border}" stroke-opacity=".8" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <g fill="none" stroke="${fix.river}" stroke-linecap="round" stroke-opacity=".95">${riverSVG()}</g>
+    </g>
+    <path d="${landD}" fill="none" stroke="#2d3a48" stroke-opacity=".7" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+    <path d="${rd}" fill="none" stroke="${fix.road}" stroke-width="1.3" stroke-dasharray="4 3" stroke-opacity=".9" vector-effect="non-scaling-stroke"/>
+    <path d="${wd}" fill="none" stroke="${fix.water_case}" stroke-opacity=".9" stroke-width="3.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${wd}" fill="none" stroke="${fix.water}" stroke-width="1.6" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>
+    <g id="selroads"></g>
+  </g>
+  <g id="scr"></g>`;
+  buildSelRoads();camApply();
+}
+function buildSelRoads(){
+  let d='';for(const r of roads)if(r.a===sel.n||r.b===sel.n){const a=byName[r.a],b=byName[r.b];if(a&&b)d+=`M${a.x},${a.y}L${b.x},${b.y}`;}
+  document.getElementById('selroads').innerHTML=`<path d="${d}" fill="none" stroke="${fix.sel_case}" stroke-opacity=".85" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="${fix.sel_road}" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+}
+
+// ---------- 화면 층: 거점 아이콘·이름표 (카메라가 바뀔 때마다) ----------
+const SHIELD='M-10,-11H-6V-8H-2V-11H2V-8H6V-11H10V2Q10,8 0,12Q-10,8 -10,2Z';
+const GATE='M-11,-10H11V-5H8V10H3V3Q3,-1 0,-1Q-3,-1 -3,3V10H-8V-5H-11Z';
+const ANCHOR='M0,-6V7M-6,2Q0,10 6,2M-4,-2H4';
+const CROWN='M-6,0L-7,-7L-3,-4L0,-9L3,-4L7,-7L6,0Z';
+function prio(c){if(c===sel)return 0;if(capitals.has(c.n))return 1;if(c.k==='도시'&&c.g===1)return 2;if(c.own===PLAYER)return 2;if(c.k==='도시'&&c.g===2)return 3;if(c.k==='도시')return 4;return 5;}
+function toS(x,y){return[(x-cam.x)*cam.k+W/2,(y-cam.y)*cam.k+H/2];}
+function drawScreen(){
+  const k=cam.k,lim=k<0.55?2:k<0.95?3:9,f=Math.max(0.75,Math.min(1.25,0.7+0.45*k));
+  const list=cities.map(c=>{const[sx,sy]=toS(c.x,c.y);return{c,sx,sy,p:prio(c)};}).filter(o=>o.sx>-30&&o.sx<W+30&&o.sy>-30&&o.sy<H+30);
+  list.sort((a,b)=>a.p-b.p||a.c.g-b.c.g);
+  let ic='',lb='';const occ=[];
+  const hit=r=>occ.some(o=>r[0]<o[2]&&r[2]>o[0]&&r[1]<o[3]&&r[3]>o[1]);
+  // 아이콘 (작은 것부터 그려 큰 것이 위로)
+  const showMinor=k>=0.5;
+  for(const o of [...list].reverse()){const c=o.c;
+    if(c.k!=='도시'&&!showMinor&&o.p>0)continue;
+    const col=c.own?facCol[c.own]:'#8d93a3';
+    let s=c.k==='도시'?[0.95,0.8,0.66][c.g-1]:0.62;s*=f;
+    const tr=`translate(${o.sx.toFixed(1)},${o.sy.toFixed(1)}) scale(${s.toFixed(3)})`;
+    if(c===sel)ic+=`<circle cx="${o.sx}" cy="${o.sy}" r="${(16*s+5).toFixed(1)}" fill="none" stroke="${fix.sel_case}" stroke-width="4.5"/><circle cx="${o.sx}" cy="${o.sy}" r="${(16*s+5).toFixed(1)}" fill="none" stroke="${fix.gold}" stroke-width="2.2"/>`;
+    if(c.k==='나루'){ic+=`<g transform="${tr}"><circle r="10" fill="${c.own?col:'#3d4b6a'}" stroke="${fix.icon_outer}" stroke-width="4"/><circle r="10" fill="none" stroke="#fff" stroke-width="1.6"/><path d="${ANCHOR}" fill="none" stroke="${c.own?'#10142a':'#fff'}" stroke-width="2" stroke-linecap="round"/><circle cy="-7.5" r="1.6" fill="none" stroke="${c.own?'#10142a':'#fff'}" stroke-width="1.4"/></g>`;}
+    else{const d=c.k==='관문'?GATE:SHIELD;
+      ic+=`<g transform="${tr}"><path d="${d}" fill="${col}" stroke="${fix.icon_outer}" stroke-width="4.2" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/>`;
+      if(c.k==='도시'&&c.g===1)ic+=`<rect x="-3" y="-3" width="6" height="6" fill="#10142a" opacity=".55"/>`;
+      if(capitals.has(c.n))ic+=`<path d="${CROWN}" transform="translate(0,-15)" fill="${fix.gold}" stroke="${fix.icon_outer}" stroke-width="1.6" stroke-linejoin="round"/>`;
+      if(c.own===PLAYER)ic+=`<circle cx="11" cy="-10" r="3.6" fill="#3ddc6a" stroke="${fix.icon_outer}" stroke-width="1.6"/>`;
+      ic+='</g>';}
+    const r=(c.k==='도시'?12:10)*s;occ.push([o.sx-r,o.sy-r,o.sx+r,o.sy+r]);
+  }
+  // 이름표: 우선순위 순, 아래→오른쪽→위→왼쪽 중 빈 자리, 없으면 숨김
+  for(const o of list){const c=o.c;if(o.p>lim)continue;if(c.k!=='도시'&&!showMinor)continue;
+    const fs=c.k==='도시'?(c.g===1?13:12):11,w=c.n.length*fs+8,h=fs+6,r=(c.k==='도시'?12:10)*f*0.9;
+    const cand=[[o.sx-w/2,o.sy+r+1],[o.sx+r+2,o.sy-h/2],[o.sx-w/2,o.sy-r-h-(capitals.has(c.n)?8:1)],[o.sx-r-2-w,o.sy-h/2]];
+    let pos=null;for(const[x,y]of cand){const R=[x,y,x+w,y+h];if(o.p===0||!hit(R)){pos=R;break;}}
+    if(!pos)continue;occ.push(pos);
+    const isSel=c===sel;
+    lb+=`<g><rect x="${pos[0].toFixed(1)}" y="${pos[1].toFixed(1)}" width="${w}" height="${h}" rx="4" fill="${fix.label_bg}"${isSel?` stroke="${fix.gold}" stroke-width="1.2"`:''}/><text x="${(pos[0]+w/2).toFixed(1)}" y="${(pos[1]+h/2+fs*0.36).toFixed(1)}" font-size="${fs}" font-weight="${c.g===1||isSel?700:500}" fill="${isSel?fix.gold:fix.label_text}" text-anchor="middle">${c.n}</text></g>`;
+  }
+  document.getElementById('scr').innerHTML=ic+lb;
+}
+function clampCam(){
+  const kmin=Math.min(W/1020,H/1030)*0.98;cam.k=Math.max(kmin,Math.min(3,cam.k));
+  const hw=W/2/cam.k,hh=H/2/cam.k;
+  cam.x=hw*2>=1020?500:Math.max(-10+hw,Math.min(1010-hw,cam.x));
+  cam.y=hh*2>=1030?505:Math.max(-10+hh,Math.min(1020-hh,cam.y));
+}
+let raf=0;
+function camApply(){clampCam();const g=document.getElementById('world');if(g)g.setAttribute('transform',`translate(${(W/2-cam.x*cam.k).toFixed(2)},${(H/2-cam.y*cam.k).toFixed(2)}) scale(${cam.k.toFixed(4)})`);drawScreen();}
+const req=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;camApply();});};
+function zoomAt(f,px,py){const wx=(px-W/2)/cam.k+cam.x,wy=(py-H/2)/cam.k+cam.y;cam.k*=f;clampCam();cam.x=wx-(px-W/2)/cam.k;cam.y=wy-(py-H/2)/cam.k;req();}
+function resize(){const r=svg.getBoundingClientRect();W=r.width;H=r.height;camApply();}
+
+// 드래그·휠·핀치·탭
+const wrap=document.getElementById('mapwrap'),pts=new Map();let moved=0,pinch0=null;
+wrap.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;wrap.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);moved=0;
+  if(pts.size===2){const[a,b]=[...pts.values()];pinch0={d:Math.hypot(a[0]-b[0],a[1]-b[1]),k:cam.k};}});
+wrap.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const p=pts.get(e.pointerId),dx=e.clientX-p[0],dy=e.clientY-p[1];
+  if(pts.size===1){cam.x-=dx/cam.k;cam.y-=dy/cam.k;moved+=Math.abs(dx)+Math.abs(dy);req();}
+  pts.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pts.size===2&&pinch0){const[a,b]=[...pts.values()],r=svg.getBoundingClientRect();const d=Math.hypot(a[0]-b[0],a[1]-b[1]);moved=99;
+    zoomAt(pinch0.k*d/pinch0.d/cam.k,(a[0]+b[0])/2-r.left,(a[1]+b[1])/2-r.top);}});
+const up=e=>{if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);if(pts.size<2)pinch0=null;
+  if(moved<6&&pts.size===0){const r=svg.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;let best=null,bd=22;
+    for(const c of cities){const[sx,sy]=toS(c.x,c.y),d=Math.hypot(sx-px,sy-py);if(d<bd){bd=d;best=c;}}
+    if(best){sel=best;buildSelRoads();drawScreen();renderPanel();}}};
+wrap.addEventListener('pointerup',up);wrap.addEventListener('pointercancel',up);
+wrap.addEventListener('wheel',e=>{e.preventDefault();const r=svg.getBoundingClientRect();zoomAt(e.deltaY<0?1.15:1/1.15,e.clientX-r.left,e.clientY-r.top);},{passive:false});
+document.querySelectorAll('#zoomui button').forEach(b=>b.onclick=()=>zoomAt(+b.dataset.z,W/2,H/2));
+window.addEventListener('resize',resize);
+
+// ---------- UI: 상단 줄·레일·패널 ----------
+const ICON={군사:'<path d="M4 20L16 8M14 4h6v6M4 4l6 6M20 20l-4-4M3 17l4 4"/>',내정:'<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>',인사:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>',
+  외교:'<path d="M5 4h11l3 3v13H5zM9 9h7M9 13h7M9 17h4"/>',계략:'<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  교역:'<path d="M12 3v18M5 7h14M5 7l-3 7h6zM19 7l-3 7h6z"/>',정보:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>'};
+const CMDS={
+  군사:[['징병','백성을 모아 병사를 늘린다','금 300'],['훈련','병사의 훈련도를 올린다','금 100'],['출진','이웃 도시로 군을 보내 싸운다','군량'],['이동','장수와 병사를 아군 도시로 옮긴다',''],['수송','금·군량을 다른 아군 도시로 보낸다','']],
+  내정:[['개간','농지를 넓혀 군량 수입을 늘린다','금 200'],['상업','시장을 키워 금 수입을 늘린다','금 200'],['치수','둑을 쌓아 홍수 피해를 막는다','금 250'],['성벽','성을 보수해 방어를 높인다','금 300'],['구휼','곡식을 풀어 민심을 얻는다','군량 1000']],
+  인사:[['등용','재야 인재를 찾아가 부하로 삼는다',''],['수색','도시를 뒤져 인재와 재물을 찾는다',''],['포상','금을 내려 충성도를 올린다','금 100'],['임명','태수·군사 등 직책을 맡긴다',''],['해고','부하를 내보낸다','']],
+  외교:[['친선','선물을 보내 우호를 쌓는다','금 500'],['동맹','공동의 적에 맞서 손을 잡는다',''],['휴전','일정 기간 싸움을 멈춘다',''],['권고','약한 세력에 항복을 권한다',''],['조정','천자에게 관직을 청한다','금 1000']],
+  계략:[['유언','소문을 퍼뜨려 적 도시 민심을 깎는다','금 100'],['이간','적 장수 사이를 갈라놓는다',''],['매수','적 장수를 몰래 끌어들인다','금 500'],['선동','적 도시에 폭동을 일으킨다',''],['첩자','적 도시에 사람을 심어 둔다','금 200']],
+  교역:[['매매','금과 군량을 시세대로 사고판다','물가 104%'],['상거래','교역 상대국과 물건을 주고받는다',''],['학습','먼 나라의 기술을 배운다','금 400'],['친교','먼 나라와 사귀어 재야를 발견한다',''],['군마','북방에서 말을 사들인다','금 600']],
+  정보:[['세력','각 세력의 도시·병력을 본다',''],['장수','알고 있는 장수를 찾아본다',''],['도시','도시 목록과 수치를 본다',''],['정찰','적 도시의 사정을 살핀다','금 50'],['관심 인물','눈여겨 둔 인물의 행방',''] ]};
+function renderTop(){const S=seasons[season];
+  document.getElementById('top').innerHTML=`<span class="date"><span class="fc" style="background:${facCol[PLAYER]}"></span>190년 ${S.mon}월 · ${PLAYER}</span>
+  <span class="st"><i>금</i><b>12,480</b></span><span class="st"><i>군량</i><b>38,200</b></span><span class="st"><i>병력</i><b>52,300</b></span><span class="st"><i>물가</i><b>104%</b></span>
+  <span class="sp"></span><span class="season"><span class="sw"></span>${S.ko}</span><button class="menu" aria-label="메뉴">☰</button>`;}
+function renderRail(){const r=document.getElementById('rail');r.innerHTML=Object.keys(CMDS).map(t=>`<button class="${t===tab?'on':''}" data-t="${t}"><svg viewBox="0 0 24 24">${ICON[t]}</svg>${t}</button>`).join('');
+  r.querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;renderRail();renderPanel();});}
+function renderSeasonBar(){const b=document.getElementById('seasonbar');b.innerHTML=Object.entries(seasons).map(([k,S])=>`<button class="${k===season?'on':''}" data-s="${k}">${S.ko}</button>`).join('');
+  b.querySelectorAll('button').forEach(x=>x.onclick=()=>{season=x.dataset.s;history.replaceState(null,'','?s='+season);renderSeasonBar();renderTop();buildStatic();});}
+const GENS=['하후돈','하후연','조인','조홍','악진','이전'];
+function renderPanel(){const c=sel,h=k=>hash(c.n,k);
+  const n=v=>v.toLocaleString('ko-KR');
+  const gold=n(Math.round(300+h(1)*2400)),food=n(Math.round(2000+h(2)*20000)),sol=n(Math.round((3+h(3)*25)*1000/(c.g||3)));
+  const own=c.own?`<i style="background:${facCol[c.own]}"></i>${c.own}`:'<span style="color:var(--muted)">무주지</span>';
+  const gov=c.own===PLAYER?GENS[Math.floor(h(4)*GENS.length)]:c.own?(capitals.has(c.n)?c.own:'—'):'없음';
+  document.getElementById('pscroll').innerHTML=`<div class="card"><div class="h"><span class="nm">${c.n}</span><span class="ju">${c.ju} · ${c.k==='도시'?c.g+'등급':c.k} · ${c.t}</span><span class="own">${own}</span></div>
+   <div class="sub">태수 <b>${c.n==='초'?'조조':gov}</b> · 장수 <b>${c.own?1+Math.floor(h(5)*6):0}</b>명</div>
+   <div class="g"><span><i>금</i>${gold}</span><span><i>군량</i>${food}</span><span><i>병력</i>${sol}</span><span><i>민충</i>${Math.round(40+h(6)*55)}</span><span><i>농업</i>${Math.round(200+h(7)*700)}</span><span><i>상업</i>${Math.round(150+h(8)*700)}</span></div></div>
+   <div class="tabt">${tab}<i>${c.own===PLAYER?'명령 가능':'아군 도시가 아님'}</i></div>
+   ${CMDS[tab].map(([k,d,cost])=>`<div class="cmd"><span class="k">${k}</span><span class="d">${d}</span>${cost?`<span class="c">${cost}</span>`:''}</div>`).join('')}`;}
+renderTop();renderRail();renderSeasonBar();renderPanel();
+const r0=svg.getBoundingClientRect();W=r0.width;H=r0.height;
+buildStatic();
+</script>
+</body>
+</html>
