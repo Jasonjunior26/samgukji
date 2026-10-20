@@ -17,8 +17,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Malgun
 #top .st b{font-weight:600;color:var(--text)}
 #top .st i{font-style:normal;color:var(--muted)}
 #top .sp{flex:1}
+#top .root{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#2a2146;border:1px solid var(--gold);color:var(--gold);font-weight:700}
+#top .pol{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;background:#1c2547;border:1px solid var(--line)}
+#top .pol i{font-style:normal;color:var(--muted)}
+#top .pol b{font-weight:600}
+#top .pol b.own{color:var(--gold)}
 #top .season{display:flex;align-items:center;gap:5px;padding:2px 8px;border-radius:10px;background:#1c2547;border:1px solid var(--line)}
 #top .season .sw{width:10px;height:10px;border-radius:50%;background:var(--tint);border:1px solid #fff}
+@media(max-width:760px){#top{gap:6px}#top .st.pr,#top .season,#top .pol i{display:none}}
 #top .menu{width:34px;height:26px;border-radius:5px;border:1px solid var(--line);background:#1c2547;color:var(--text);font-size:15px}
 /* 왼쪽 레일 */
 #rail{display:flex;flex-direction:column;background:#0b1022;border-right:1px solid var(--line)}
@@ -302,10 +308,11 @@ const CMDS={
   계략:[['유언','소문을 퍼뜨려 적 도시 민심을 깎는다','금 100'],['이간','적 장수 사이를 갈라놓는다',''],['매수','적 장수를 몰래 끌어들인다','금 500'],['선동','적 도시에 폭동을 일으킨다',''],['첩자','적 도시에 사람을 심어 둔다','금 200']],
   교역:[['매매','금과 군량을 시세대로 사고판다','물가 104%'],['상거래','교역 상대국과 물건을 주고받는다',''],['학습','먼 나라의 기술을 배운다','금 400'],['친교','먼 나라와 사귀어 재야를 발견한다',''],['군마','북방에서 말을 사들인다','금 600']],
   정보:[['세력','각 세력의 도시·병력을 본다',''],['장수','알고 있는 장수를 찾아본다',''],['도시','도시 목록과 수치를 본다',''],['정찰','적 도시의 사정을 살핀다','금 50'],['관심 인물','눈여겨 둔 인물의 행방',''] ]};
+const ROOT='경륜',POLS=[['구현령','경륜'],['상업 진흥','상략']];
 function renderTop(){const S=seasons[season];
   document.getElementById('top').innerHTML=`<span class="date"><span class="fc" style="background:${facCol[PLAYER]}"></span>190년 ${S.mon}월 · ${PLAYER}</span>
-  <span class="st"><i>금</i><b>12,480</b></span><span class="st"><i>군량</i><b>38,200</b></span><span class="st"><i>병력</i><b>52,300</b></span><span class="st"><i>물가</i><b>104%</b></span>
-  <span class="sp"></span><span class="season"><span class="sw"></span>${S.ko}</span><button class="menu" aria-label="메뉴">☰</button>`;}
+  <span class="st"><i>금</i><b>12,480</b></span><span class="st"><i>군량</i><b>38,200</b></span><span class="st"><i>병력</i><b>52,300</b></span><span class="st pr"><i>물가</i><b>104%</b></span>
+  <span class="sp"></span><span class="root" title="뿌리: 시작 때 정해 끝까지 간다">뿌리 ${ROOT}</span><span class="pol" title="올해 국책(매년 1월 선택). ★ = 소속 뿌리 국책(효과 100%)"><i>국책</i>${POLS.map(p=>`<b class="${p[1]===ROOT?'own':''}">${p[0]}${p[1]===ROOT?'★':''}</b>`).join('·')}</span><span class="season"><span class="sw"></span>${S.ko}</span><button class="menu" aria-label="메뉴">☰</button>`;}
 function renderRail(){const r=document.getElementById('rail');r.innerHTML=Object.keys(CMDS).map(t=>`<button class="${t===tab?'on':''}" data-t="${t}"><svg viewBox="0 0 24 24">${ICON[t]}</svg>${t}</button>`).join('');
   r.querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;renderRail();renderPanel();});}
 function renderSeasonBar(){const b=document.getElementById('seasonbar');b.innerHTML=Object.entries(seasons).map(([k,S])=>`<button class="${k===season?'on':''}" data-s="${k}">${S.ko}</button>`).join('');
