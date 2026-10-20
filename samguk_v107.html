@@ -12043,6 +12043,58 @@ ACT.cabAutoBtn = () => { const before = JSON.stringify(cabOf(S.player)); cabOpti
 { const f = renderSheet; renderSheet = function () { const r = f.apply(this, arguments); try { const sh = document.getElementById('sheet'); if (sh && /장관|내각/.test(sh.textContent)) sh.querySelectorAll('span.def').forEach(e => { if (/수도로 가는 중/.test(e.textContent)) e.remove(); }); } catch (e) { } return r; }; }
 
 </script>
+<!-- v107 6a 2층 물가 -->
+<script>
+// ===== v107 6a: 2층 물가·예비금 — 세력 물가 = 전국 물가^1 × 세력 지수^0.3, 연 상승 상한 5%, 소득 전가 90% =====
+// 전국 물가(priceIdx, 6427)는 그대로 두고 월 상승을 (1.05)^(1/12)로 묶는다(S.pIdx2). 세력 지수 = 시작 대비 명목 수입 비(최대 4, S.fac[fid].inc0·pf).
+// 물가가 붙는 비용: 기존 7개(devCost·draftCost·trainCost·facCost·craftCost·salary·foodPrice)는 전국 물가에 세력 배율(pf^0.3)을 더 곱하고,
+// armCost·출정비(sortieFee·startBattle)·병사 금 유지비(ECO.troopGold)·행정비(ECO.admin)·v51 유지비(upkeepOf)·예비금(reserveOf)에 세력 물가를 새로 곱한다.
+// 교역 비용은 v107 S2에 교역이 없어 생략. 정예 추가 출정비(applyElite)·3938 행정 가산분은 그대로(미적용).
+const P2 = { a: 1, b: 0.3, cap: 0.05, pass: 0.9, fMax: 4 }; P2.mcap = Math.pow(1 + P2.cap, 1 / 12);
+// 전국 물가: 월 상승 상한. 옛 세이브는 현재 값으로 시작
+{ const f = priceIdx; priceIdx = function () { const raw = f.apply(this, arguments); if (!S) return raw; const mo = S.y * 12 + S.m;
+  if (S.pIdx2 == null) { S.pIdx2 = raw; S.pIdx2M = mo; } else if (S.pIdx2M !== mo) { S.pIdx2 = Math.max(1, Math.min(raw, S.pIdx2 * P2.mcap)); S.pIdx2M = mo; }
+  return S.pIdx2 || 1; }; }
+function facIncNom(fid) { return citiesOf(fid).filter(c => kindOf(c.n) === '도시').reduce((s, c) => s + Math.round(cityGold(c, 1) / 3), 0); }
+function facPriceInit(fid) { const F = S && S.fac[fid]; if (!F) return; if (F.inc0 == null || !(F.inc0 > 0)) { F.inc0 = Math.max(1, facIncNom(fid)); F.pf = 1; F.pfM = S.y * 12 + S.m; } }
+// 세력 물가. 세력 지수 pf 는 달마다 한 번 갱신: 명목 수입(= 실수입 × (1 + 전가 × (물가−1))) ÷ 시작 수입, 1~4, 월 상승 상한
+function facPriceIdx(fid) {
+  const pn = Math.pow(priceIdx(), P2.a); if (!S || !fid || !S.fac[fid]) return pn;
+  const F = S.fac[fid]; facPriceInit(fid); const mo = S.y * 12 + S.m;
+  if (F.pfM !== mo) { const prev = Math.max(1, F.pf || 1); const pPrev = pn * Math.pow(prev, P2.b); const nom = facIncNom(fid) * (1 + P2.pass * (pPrev - 1));
+    const t = Math.max(1, Math.min(P2.fMax, nom / F.inc0)); F.pf = Math.min(t, prev * P2.mcap); F.pfM = mo; }
+  return pn * Math.pow(Math.max(1, F.pf || 1), P2.b);
+}
+function facPriceMul(fid) { const F = S && fid && S.fac[fid]; if (!F) return 1; facPriceIdx(fid); return Math.pow(Math.max(1, F.pf || 1), P2.b); } // 세력 배율만 (전국 물가는 이미 곱해져 있을 때)
+// 기존 7개 비용: 전국 물가 위에 세력 배율
+[['devCost', 'c'], ['draftCost', 'c'], ['trainCost', 'c'], ['facCost', 'c'], ['craftCost', 'c'], ['salary', 'g'], ['foodPrice', 'c']].forEach(([fn, kind]) => { const f = globalThis[fn]; if (typeof f !== 'function') return;
+  globalThis[fn] = function (x) { const v = f.apply(this, arguments); if (typeof v !== 'number' || !(v > 0)) return v; const fid = x && (kind === 'g' ? x.fac : x.owner); const m = facPriceMul(fid); if (m <= 1) return v;
+    return fn === 'foodPrice' ? Math.round(v * m * 10) / 10 : Math.round(v * m); }; });
+// 군비: 세력 물가 전체(10 단위)
+{ const f = armCost; armCost = function (c, k) { const v = f.apply(this, arguments); const p = c && c.owner ? facPriceIdx(c.owner) : 1; return p > 1 ? Math.max(10, Math.round(v * p / 10) * 10) : v; }; }
+// 출정비: AI(autoBattle→sortieFee)는 함수에, 플레이어(startBattle, B.fee)는 추가분을 출발 도시에서
+{ const f = sortieFee; sortieFee = function (cn, units) { const v = f.apply(this, arguments); const c = C(cn); const p = c && c.owner ? facPriceIdx(c.owner) : 1; return p > 1 ? Math.round(v * p) : v; }; }
+{ const f = startBattle; startBattle = function (att, fromCn, toCn, units) { const r = f.apply(this, arguments);
+  try { const fee = (typeof B !== 'undefined' && B && B.fee) || 0; const p = att ? facPriceIdx(att) : 1; const ex = Math.round(fee * (p - 1)); if (ex > 0) { let left = ex; const cs = [C(fromCn), ...citiesOf(att).filter(c => c.n !== fromCn && kindOf(c.n) === '도시').sort((a, b) => b.gold - a.gold)];
+    for (const c of cs) { if (left <= 0 || !c) break; const t = Math.min(left, Math.max(0, c.gold)); c.gold -= t; left -= t; } B.feeP = ex - left; if (att === S.player && B.feeP) news(`물가로 출정비 금 ${fmt(B.feeP)}이 더 들었다.`); } } catch (e) { }
+  return r; }; }
+// 예비금: 세력 물가 곱
+{ const f = reserveOf; reserveOf = function (c, fid) { const v = f.apply(this, arguments); const p = fid ? facPriceIdx(fid) : 1; return p > 1 ? Math.round(v * p) : v; }; }
+// 매달(원본 유지비 처리 뒤): ① 소득 전가 — 도시 금 += 실수입 × 전가 × (물가−1)  ② 병사 금 유지비+행정비+v51 유지비의 물가 추가분 차감(모자라면 병사 2% 이탈·충성 −1)
+{ const f = monthlyUpdate; monthlyUpdate = function () { const r = f.apply(this, arguments);
+  try { if (S && !S.over) { const warn = {}; S.p2 = S.p2 || { pass: 0, extra: 0, short: 0 };
+    Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시' || !S.fac[c.owner]) return; const p = facPriceIdx(c.owner); if (!(p > 1)) return;
+      const inc = Math.round(cityGold(c, (c.owner !== S.player ? DF().inc : 1) * ((c.tax || 30) / 30)) / 3); const add = Math.round(inc * P2.pass * (p - 1)); c.gold += add; S.p2.pass += add;
+      const base = Math.ceil(Math.max(0, c.troops + Math.min(c.merc || 0, c.troops) - 3000) / ECO.troopGold) + (ECO.admin[c.tier] || 0) + upkeepOf(c); const ex = Math.round(base * (p - 1)); S.p2.extra += ex;
+      if (c.gold >= ex) c.gold -= ex; else { c.gold = 0; const d = Math.floor(c.troops * 0.02); c.troops -= d; c.loy = clamp(c.loy - 1, 0, 100); S.p2.short++; if (c.owner === S.player) warn[c.n] = `물가 탓에 유지비가 모자라 병사 ${fmt(d)}명이 떠났다`; } });
+    Object.entries(warn).forEach(([n, t]) => news(`${n}: ${t}.`)); } } catch (e) { }
+  return r; }; }
+// 새 게임·불러오기: 세력별 시작 수입 기준값(inc0) 준비. 옛 세이브는 현재 수입으로
+{ const f = postLoad; postLoad = function () { const r = f.apply(this, arguments); try { Object.keys(S.fac).forEach(fid => { if (S.fac[fid].alive) facPriceInit(fid); }); } catch (e) { } return r; }; }
+{ const f = newGame; newGame = function () { const r = f.apply(this, arguments); try { if (S && S.fac) Object.keys(S.fac).forEach(fid => { if (S.fac[fid].alive) facPriceInit(fid); }); } catch (e) { } return r; }; }
+// 화면: 상단 물가 표시를 플레이어 세력 물가로
+{ const f = render; render = function () { const r = f.apply(this, arguments); try { if (UI.scr === 'main' && S && S.player) { const p = facPriceIdx(S.player); if (p > 1.005) { const top = document.querySelector('.top .sub, .top small, .topbar small'); if (top) { if (/물가 [\d.]+/.test(top.textContent)) { top.innerHTML = top.innerHTML.replace(/물가 [\d.]+/, `물가 ${p.toFixed(2)}`); } else top.insertAdjacentHTML('beforeend', ` · 물가 ${p.toFixed(2)}`); } } } } catch (e) { } return r; }; }
+</script>
 <script>
 // ===== v107 항목 7: 아이콘 SVG 인라인 — tools/gen_icons.py 산출(assets/icons, 자체 제작·배포 제한 없음). <img> 대신 문자열을 innerHTML 로 넣는다.
 //   goods 교역 물품 14(16×16) · roots 뿌리 인장 4 · branches 갈래 인장 8 · nations 상대국 인장 5(64×64, 글자는 <text> serif → 게임 글꼴). 사용처 연결은 항목 4·5·6.
