@@ -26,6 +26,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Malgun
 #top .season .sw{width:10px;height:10px;border-radius:50%;background:var(--tint);border:1px solid #fff}
 @media(max-width:760px){#top{gap:6px}#top .st.pr,#top .season,#top .pol i{display:none}}
 #top .menu{width:34px;height:26px;border-radius:5px;border:1px solid var(--line);background:#1c2547;color:var(--text);font-size:15px}
+
+.info .x{float:right;width:26px;height:26px;border-radius:5px;border:1px solid var(--line);background:#1c2547;color:var(--text);cursor:pointer}
+.info h3{font-size:15px;color:var(--gold);margin-bottom:2px}
+.info .tag{font-size:13px;color:var(--muted);margin-bottom:6px}
+.info .row{font-size:13px;line-height:1.45;margin:5px 0}
+.info .row b{display:block;color:var(--gold);font-size:12px;margin-bottom:1px}
+.info .row.bad b{color:#e08a7a}
+.info .row.good b{color:#8fd19a}
+#top .root,#top .pol{cursor:pointer}
 /* 왼쪽 레일 */
 #rail{display:flex;flex-direction:column;background:#0b1022;border-right:1px solid var(--line)}
 #rail button{flex:1;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:0;border-left:3px solid transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
@@ -309,10 +318,33 @@ const CMDS={
   교역:[['매매','금과 군량을 시세대로 사고판다','물가 104%'],['상거래','교역 상대국과 물건을 주고받는다',''],['학습','먼 나라의 기술을 배운다','금 400'],['친교','먼 나라와 사귀어 재야를 발견한다',''],['군마','북방에서 말을 사들인다','금 600']],
   정보:[['세력','각 세력의 도시·병력을 본다',''],['장수','알고 있는 장수를 찾아본다',''],['도시','도시 목록과 수치를 본다',''],['정찰','적 도시의 사정을 살핀다','금 50'],['관심 인물','눈여겨 둔 인물의 행방',''] ]};
 const ROOT='경륜',POLS=[['구현령','경륜'],['상업 진흥','상략']];
+
+const ROOT_INFO={
+ 경륜:{h:'經綸 — 인재로 천하를 얻는다',how:'적 장수를 설득해 태수를 돌려세우면 성이 피 흘리지 않고 넘어온다(귀순). 성이 넘어와도 병력은 일부만 따라온다.',open:'교역 갈래: 인물(외국 재야 30명·고유 전법)·개성(외국 개성·제지·인쇄)',own:'전용: 성 단위 귀순(포섭도가 100이 되고 태수·성 안 장수 조건을 넘으면). 적 장수 등용·이간·내통 성공률 ×1.0(다른 뿌리 ×0.7)',good:'지력·매력 높은 장수가 많을수록 빠르게 큰다. 귀순한 태수는 충성 75로 오래 남는다.',bad:'장수 의존이 크다. 설득할 장수가 없거나 군주와 의리가 깊은 태수는 못 돌린다.',fit:'어울림: 지력·정치 높은 군주, 내륙 대도시'},
+ 강병:{h:'强兵 — 정예로 정면 돌파한다',how:'훈련과 장비 등급을 올린 정예로 성을 전투로 함락한다.',open:'교역 갈래: 병종(외국 병종 5종)·물자(특산 투입·장비 등급·제철·마구·공성술)',own:'전용 장치 없음(기존 전투가 서명). 훈련·장비 등급 가중',good:'전투에서 가장 강하다. 훈련·군비로 ±10~30%대 보정을 길게 유지한다.',bad:'전투 손실·유지비가 크고, 점령지 민심이 낮아 흡수가 느리다.',fit:'어울림: 무력·통솔 높은 군주, 전선이 긴 처지'},
+ 상략:{h:'商略 — 금으로 성과 사람을 산다',how:'매수·매입·조공으로 성과 장수를 사들이고, 이웃 동맹을 이간해 적을 고립시키고, 용병으로 병력을 채운다.',open:'교역 갈래: 차익(상거래·항해 기술)·용병(교역 군단·수군)',own:'전용: 동맹 이간(금 400, 성공 시 동맹·불가침 해제). 매수·매입·조공 비용 ×1.0(다른 뿌리 ×1.4). 용병은 훈련 40·유지비 1.5배',good:'가장 빠르다. 금만 있으면 싸우지 않고 성이 넘어온다.',bad:'금 의존이 크다. 물가·유지비에 약하고, 사 온 장수는 충성이 낮다(55). 용병은 정예에 진다.',fit:'어울림: 매력 높은 군주, 항구·관문 보유, 수비 성향'},
+ 덕화:{h:'德化 — 백성이 스스로 찾아오게 한다',how:'민심을 높게 유지해 이웃 적 성의 민심을 끌어온다. 적 성 민충이 30 아래로 4개월 이어지고 이웃에 우리 덕화 도시(민충 70↑)가 있으면 성이 스스로 투항한다. 점령지는 18개월 만에 온전해진다.',open:'교역 갈래: 민생(유민·민충·의술·농법)·보급(군량 교환·수송·군량으로 군비 올리기)',own:'전용: 덕망 파급(민충 80↑ 도시가 이웃 적 성 민충을 매달 −0.8, 유민 유입). 진휼·시주 효과 ×1.2. 인구 징병 한도 +10%p',good:'점령지 흡수가 가장 빠르고, 전쟁·기근으로 흔들리는 적 성이 저절로 넘어온다.',bad:'느리다(통일 기간 +35%까지 허용). 정면 전투에 약하고 인구 징병 한도가 있다.',fit:'어울림: 정치·통솔 균형, 내치 중시, 영토 안정형'}};
+const POL_INFO={
+ 총동원령:{r:'상략과 대비',g:'병력 순환이 인구 60%까지 뽑음, 징병 비용 −30%',b:'전방 신병이 많아 훈련이 매달 깎임'},
+ 정예주의:{r:'강병',g:'모든 도시 훈련 매달 +2(상한 120), 정예 출정비 절반, 전투력 +8%',b:'인구 80%까지만 뽑아 병력이 적음'},
+ 둔전제:{r:'덕화',g:'군량 +병사 유지분 50%, 개발·치수 비용 −20%, 먼 전선 보급 손실 없음',b:'상업이 덜 오름(−20%)'},
+ '상업 진흥':{r:'상략',g:'금 수입 +15%, 보물 제작 비용 −30%',b:'군량 −병사 유지분 15%, 병사 유지비(금) +20%'},
+ 구현령:{r:'경륜',g:'해마다 도시 2곳당 1명 인재가 더 모임(잠재 +0.3성), 등용 성공 +15%p',b:'기존 장수 충성 해마다 −1'},
+ '공신 우대':{r:'경륜',g:'기존 장수 충성 해마다 +3, 모반 위험 −15, 계승 혼란 1/4',b:'등용 성공 −5%p'},
+ 덕치:{r:'덕화',g:'민충 매달 +0.6, 다른 세력 백성이 더 넘어옴(+15%), 계승 혼란 조금 줄임',b:'산적을 못 막음'},
+ 법치:{r:'덕화',g:'산적 매달 −3, 모반 위험 −10, 정복지 민심 매달 +2, 금 수입 +5%',b:'백성 유입 −5%, 덕치와 함께 못 씀'}};
+function showInfo(kind){const box=document.getElementById('pscroll');let h='';
+  if(kind==='root'){const R=ROOT_INFO[ROOT];h=`<div class="card info"><button class="x" aria-label="닫기">✕</button><h3>뿌리 ${ROOT}</h3><div class="tag">${R.h} · 시작 때 정해 끝까지 간다</div>
+   <div class="row"><b>통일하는 방법</b>${R.how}</div><div class="row"><b>열리는 교역·전용 장치</b>${R.open}<br>${R.own}</div>
+   <div class="row good"><b>강점</b>${R.good}</div><div class="row bad"><b>약점</b>${R.bad}</div><div class="row"><b>${R.fit}</b></div></div>`;}
+  else{h=`<div class="card info"><button class="x" aria-label="닫기">✕</button><h3>올해 국책</h3><div class="tag">매년 1월에 바꿀 수 있다 · ★ = 소속 뿌리(효과 100%), 그 외 60%</div>`+
+   POLS.map(([n])=>{const P=POL_INFO[n],own=P.r===ROOT;return `<div class="row"><b>${n}${own?' ★':''} · 소속 ${P.r}${own?'':' (효과 60%)'}</b></div><div class="row good"><b>효익</b>${P.g}</div><div class="row bad"><b>대가</b>${P.b}</div>`;}).join('')+`</div>`;}
+  box.innerHTML=h;box.scrollTop=0;box.querySelector('.x').onclick=renderPanel;}
 function renderTop(){const S=seasons[season];
   document.getElementById('top').innerHTML=`<span class="date"><span class="fc" style="background:${facCol[PLAYER]}"></span>190년 ${S.mon}월 · ${PLAYER}</span>
   <span class="st"><i>금</i><b>12,480</b></span><span class="st"><i>군량</i><b>38,200</b></span><span class="st"><i>병력</i><b>52,300</b></span><span class="st pr"><i>물가</i><b>104%</b></span>
-  <span class="sp"></span><span class="root" title="뿌리: 시작 때 정해 끝까지 간다">뿌리 ${ROOT}</span><span class="pol" title="올해 국책(매년 1월 선택). ★ = 소속 뿌리 국책(효과 100%)"><i>국책</i>${POLS.map(p=>`<b class="${p[1]===ROOT?'own':''}">${p[0]}${p[1]===ROOT?'★':''}</b>`).join('·')}</span><span class="season"><span class="sw"></span>${S.ko}</span><button class="menu" aria-label="메뉴">☰</button>`;}
+  <span class="sp"></span><span class="root" data-info="root" title="눌러서 설명 보기">뿌리 ${ROOT}</span><span class="pol" data-info="pol" title="눌러서 설명 보기"><i>국책</i>${POLS.map(p=>`<b class="${p[1]===ROOT?'own':''}">${p[0]}${p[1]===ROOT?'★':''}</b>`).join('·')}</span><span class="season"><span class="sw"></span>${S.ko}</span><button class="menu" aria-label="메뉴">☰</button>`;
+  document.querySelectorAll('#top [data-info]').forEach(e=>e.onclick=()=>showInfo(e.dataset.info));}
 function renderRail(){const r=document.getElementById('rail');r.innerHTML=Object.keys(CMDS).map(t=>`<button class="${t===tab?'on':''}" data-t="${t}"><svg viewBox="0 0 24 24">${ICON[t]}</svg>${t}</button>`).join('');
   r.querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;renderRail();renderPanel();});}
 function renderSeasonBar(){const b=document.getElementById('seasonbar');b.innerHTML=Object.entries(seasons).map(([k,S])=>`<button class="${k===season?'on':''}" data-s="${k}">${S.ko}</button>`).join('');
@@ -329,6 +361,7 @@ function renderPanel(){const c=sel,h=k=>hash(c.n,k);
    <div class="tabt">${tab}<i>${c.own===PLAYER?'명령 가능':'아군 도시가 아님'}</i></div>
    ${CMDS[tab].map(([k,d,cost])=>`<div class="cmd"><span class="k">${k}</span><span class="d">${d}</span>${cost?`<span class="c">${cost}</span>`:''}</div>`).join('')}`;}
 renderTop();renderRail();renderSeasonBar();renderPanel();
+{const q=new URLSearchParams(location.search).get('info');if(q)showInfo(q);}
 const r0=svg.getBoundingClientRect();W=r0.width;H=r0.height;
 buildStatic();
 </script>
