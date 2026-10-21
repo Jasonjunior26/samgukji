@@ -400,7 +400,33 @@ const SIEGE_FORMS = ['충차', '투석', '정란'];
 const SKILL = {}; DB.특기.forEach(s => SKILL[s.이름] = s);
 const ADJ = {}; DB.도시.forEach(c => ADJ[c.이름] = c.인접.slice());
 const CDATA = {}; DB.도시.forEach(c => CDATA[c.이름] = c);
-const FCOL = ['#3fa9ff', '#b07ae8', '#e8c840', '#e8902e', '#e05050', '#4cc47e', '#ff907b', '#f04b9e', '#c98f5a', '#9fb0ff', '#ff9ec4', '#a0d860', '#d0a0ff', '#60c0e0', '#e0b080', '#c0c060', '#d3689e', '#e07070', '#a0a0ff', '#e26936']; /* v1.4: 세력색 회색·흰색 금지, 이름으로 고정, 같은 색 세력 나눔 */ const FAC_COL = { 공손찬: '#f04b9e', 유표: '#ff907b', 사섭: '#e26936', 왕랑: '#d3689e', 장막: '#5ec8b0', 포신: '#c070c0', 교모: '#00bcff', 한수: '#ff899f', 공주: '#8ebf63', 왕광: '#ee91de', 유대: '#daa851' }; function fixFacCols() { if (!S || !S.fac) return; Object.values(S.fac).forEach(F => { const c = FAC_COL[F.id] || FAC_COL[F.ruler]; if (c) F.col = c; else if (/^#(f4f4f4|8fe0d0|f0c0a0|80e0a0)$/i.test(F.col || '')) F.col = FCOL[Object.keys(S.fac).indexOf(F.id) % FCOL.length]; });  const pool = [...FCOL, ...Object.values(FAC_COL), '#7fd4ff', '#b9e05a', '#ffb347', '#9b8cff', '#3ccfcf', '#ff7fbf', '#c8a2ff', '#e6c35c']; const used = new Set(); Object.values(S.fac).forEach(F => { if (used.has(F.col)) { const c = pool.find(x => !used.has(x) && !Object.values(S.fac).some(G => G.col === x)); if (c) F.col = c; } used.add(F.col); }); }
+const FCOL = ['#5442f0', '#7480e7', '#42f0f0', '#de42f0', '#f3e568', '#b07ae8', '#bfa0ee', '#e8902e', '#3fa9ff', '#f042bc', '#d0a0ff', '#f042de', '#97f7c7', '#5260e0', '#f04276', '#e8c840', '#db74e7', '#c8da81', '#aa42f0', '#eea0d7', '#e07070', '#68f3e5', '#f3ad68', '#d7a0ee', '#f042cd', '#f04242', '#f04b9e', '#ff907b', '#d3689e', '#5ec8b0', '#c070c0', '#00bcff', '#ff899f', '#8ebf63', '#ee91de', '#daa851', '#8181da']; /* v1.4b: 37색(28색 이상, 지도 보정 뒤 ΔE 기준으로 고름). 앞 26색 일반 + 뒤 11색은 고정표 색 */
+/* v1.4: 세력색 회색·흰색 금지, 이름으로 고정, 같은 색 세력 나눔 */ const FAC_COL = { 공손찬: '#f04b9e', 유표: '#ff907b', 사섭: '#8181da', 왕랑: '#d3689e', 장막: '#5ec8b0', 포신: '#c070c0', 교모: '#00bcff', 한수: '#ff899f', 공주: '#8ebf63', 왕광: '#ee91de', 유대: '#daa851' };
+/* v1.4b 세력색 배정(새 게임·시나리오·중간 등장 모두 이 함수들): 성이 맞닿은 세력끼리 지도색(S7COL.mapCol 보정 뒤) Lab ΔE 를 크게(목표 25 이상) 벌리고, 전체에서도 겹치지 않게 그래프 채색. 저장된 S.fac[].col 은 건드리지 않는다(fixFacCols 는 중복·옛 회색만 고침). */
+let _facCadj = null;
+function facAdjOfCity(cn, self) { if (!_facCadj) { _facCadj = {}; DB.도시.forEach(c => { _facCadj[c.이름] = c.인접 || []; }); } const s = new Set(); (_facCadj[cn] || []).forEach(n => { const o = S.city[n] && S.city[n].owner; if (o && o !== self) s.add(o); }); return s; }
+function facAdjMap() { const m = {}; Object.keys(S.fac).forEach(id => { m[id] = new Set(); }); Object.values(S.city).forEach(c => { if (!c.owner || !m[c.owner]) return; facAdjOfCity(c.n, c.owner).forEach(o => { if (m[o]) { m[c.owner].add(o); m[o].add(c.owner); } }); }); return m; }
+function pickFacCol(id, adjIds) {
+  const F = S.fac[id] || {}, all = Object.values(S.fac).filter(G => G.id !== id && G.col), live = all.filter(G => G.alive !== false);
+  const used = new Set(all.map(G => G.col)), fx = FAC_COL[id] || FAC_COL[F.ruler];
+  if (fx && !used.has(fx)) return fx;
+  const adjC = live.filter(G => adjIds && adjIds.has(G.id)).map(G => G.col), othC = live.map(G => G.col);
+  let pool = FCOL.filter(c => !used.has(c)); if (!pool.length) pool = FCOL;
+  let best = pool[0], bs = -1;
+  pool.forEach(c => { let ma = 99, mo = 99; adjC.forEach(x => { ma = Math.min(ma, S7COL.mapDE(c, x)); }); othC.forEach(x => { mo = Math.min(mo, S7COL.mapDE(c, x)); });
+    const s = Math.min(ma, 40) * 3 + Math.min(mo, 25) + (ma >= 25 ? 40 : 0); if (s > bs) { bs = s; best = c; } });
+  return best;
+}
+function assignFacCols() {
+  if (!S || !S.fac) return; const adj = facAdjMap(), ids = Object.keys(S.fac), fx = id => FAC_COL[id] || FAC_COL[S.fac[id].ruler];
+  const live = id => S.fac[id].alive !== false && adj[id].size >= 0 && Object.values(S.city).some(c => c.owner === id);
+  ids.forEach(id => { S.fac[id].col = null; });
+  ids.filter(fx).forEach(id => { S.fac[id].col = fx(id); });
+  const rest = ids.filter(id => !fx(id)).sort((a, b) => (live(b) - live(a)) || (adj[b].size - adj[a].size));
+  rest.forEach(id => { S.fac[id].col = pickFacCol(id, adj[id]); });
+  for (let pass = 0; pass < 3; pass++) rest.filter(live).forEach(id => { S.fac[id].col = null; S.fac[id].col = pickFacCol(id, adj[id]); });
+}
+function fixFacCols() { if (!S || !S.fac) return; const seen = new Set(); Object.values(S.fac).forEach(F => { if (!F.col || /^#(f4f4f4|8fe0d0|f0c0a0|80e0a0)$/i.test(F.col) || seen.has(F.col)) { F.col = null; F.col = pickFacCol(F.id, facAdjMap()[F.id]); } seen.add(F.col); }); }
 const RELS = DB.관계;
 
 let S = null; // 게임 상태
@@ -429,7 +455,7 @@ function newGame(pid, opt) {
     };
   });
   DB.보물.forEach(it => { S.items[it.이름] = { n: it.이름, kind: it.종류, eff: it.효과, owner: it.보유 || null, loc: it.이름 === '적로' ? '양양' : null }; });
-  if (SC && SC.세력) applyScenario(SC);
+  if (SC && SC.세력) applyScenario(SC); assignFacCols();
   Object.values(S.gen).forEach(g => { if (g.st !== '미등장') initGrowth(g); });
   if (opt.custom) loadCustoms().forEach(cg => addCustom(cg, cg.mode === '우리 세력' ? pid : null));
   Object.values(S.gen).forEach(g => { if (g.st === '현역' && C(g.loc).owner !== g.fac) { const cp = capitalOf(g.fac); if (cp) g.loc = cp; } });
@@ -1130,7 +1156,7 @@ function monthlyUpdate() {
 }
 function rebel(g, c) {
   const old = g.fac; const nid = g.n;
-  S.fac[nid] = { id: nid, ruler: g.n, alive: true, col: FCOL[Object.keys(S.fac).length % FCOL.length], hos: {}, ally: {}, heonje: false };
+  S.fac[nid] = { id: nid, ruler: g.n, alive: true, col: pickFacCol(nid, facAdjOfCity(c.n, nid)), hos: {}, ally: {}, heonje: false };
   Object.keys(S.fac).forEach(o => { if (o !== nid) { S.fac[nid].hos[o] = 50; S.fac[o].hos[nid] = 50; } });
   setHos(nid, old, 95);
   c.owner = nid; g.fac = nid; g.loy = 100; c.gov = g.n;
@@ -6372,7 +6398,7 @@ function relApply(n, r) { const t = r.n; if (!G(n) || !G(t)) return; S.rels2 = S
 // ===== 빈 도시에서 신무장이 새 군주로 시작 (다른 신무장을 휘하로) =====
 function scenEmptyCities(scen) { const sc = DB.시나리오[scen]; const taken = new Set(); ((sc && sc.세력) || []).forEach(f => (f.도시 || []).forEach(c => taken.add(c))); return DB.도시.filter(c => c.종류 === '도시' && !taken.has(c.이름)).map(c => c.이름); }
 function foundFaction(nid, cn, subs) { const c = C(cn); const g = G(nid); if (!c || !g) return false; if (c.owner) return false;
-  S.fac[nid] = { id: nid, ruler: nid, alive: true, col: FCOL[Object.keys(S.fac).length % FCOL.length], hos: {}, ally: {}, heonje: false, adv: null, title: null, cab: {} };
+  S.fac[nid] = { id: nid, ruler: nid, alive: true, col: pickFacCol(nid, facAdjOfCity(cn, nid)), hos: {}, ally: {}, heonje: false, adv: null, title: null, cab: {} };
   Object.keys(S.fac).forEach(o => { if (o !== nid) { S.fac[nid].hos[o] = 50; S.fac[o].hos = S.fac[o].hos || {}; S.fac[o].hos[nid] = 50; } });
   const mo = S.y * 12 + S.m; S.fac[nid].pact = {}; Object.keys(S.fac).forEach(o => { if (o === nid || !S.fac[o].alive) return; S.fac[o].pact = S.fac[o].pact || {}; S.fac[nid].pact[o] = S.fac[o].pact[nid] = mo + 12; });
   c.owner = nid; c.gov = nid; c.troops = Math.max(c.troops, 8000); c.gold = Math.max(c.gold, 3000); c.food = Math.max(c.food, 30000); c.loy = Math.max(c.loy, 65);
@@ -13149,10 +13175,11 @@ const S7COL = (() => {
   function lab2rgb([L, a, b]) { const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200; const g = t => t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787; const X = g(fx) * 0.95047, Y = g(fy), Z = g(fz) * 1.08883; return [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.2040 * Y + 1.0570 * Z].map(v => Math.max(0, Math.min(255, unlin(Math.max(0, v))))); }
   const chroma = h => { const [, a, b] = rgb2lab(hex(h)); return Math.hypot(a, b); };
   const cache = {};
-  function mapCol(h) { if (cache[h]) return cache[h]; const [L, a, b] = rgb2lab(hex(h)), C = Math.hypot(a, b) || 1; let C2 = Math.max(C * 1.7, 35), L2 = Math.min(L, 45), out;
+  function mapCol(h) { if (cache[h]) return cache[h]; const [L, a, b] = rgb2lab(hex(h)), C = Math.hypot(a, b) || 1; let C2 = Math.max(C * 1.7, 35), L2 = 30 + Math.max(0, Math.min(1, (L - 35) / 55)) * 16, out;
     for (let k = 0; k < 12; k++) { out = toHex(lab2rgb([L2, a / C * C2, b / C * C2])); if (chroma(out) >= 35) break; C2 += 6; if (k > 5) L2 += 2; }
     return (cache[h] = out); }
-  return { mapCol, hex, toHex, chroma };
+  const dc = {}; function mapDE(a, b) { const k = a + b; if (dc[k] != null) return dc[k]; const x = rgb2lab(hex(mapCol(a))), y = rgb2lab(hex(mapCol(b))); return (dc[k] = dc[b + a] = Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2])); }
+  return { mapCol, hex, toHex, chroma, mapDE };
 })();
 // ---------- 도시·보로노이 (도시 위치는 고정이라 한 번만) ----------
 function s7Clip(P, L, a, b, c, lab) { const oP = [], oL = [], n = P.length;
