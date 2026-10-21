@@ -548,13 +548,13 @@ function hasSk(g, s) { return g && g.sk && g.sk.includes(s); }
 function ssDist(a, b) { const d = Math.abs(a - b) % 150; return Math.min(d, 150 - d); } // 인연(1581)·평균 상성(1870)에만 쓴다. 등용·합류·충성 사유에는 쓰지 않는다(RC_ROOT 로 대체)
 // 노선×인재 유형 보정 (군주 개인 상성 ssDist 를 대체). 유형: 상략=탐욕, 덕화=의리, 강병=무력. 경륜은 유형 없음.
 // k.* = 예전 -ssDist/3 항(평균 약 -12.5)을 대신하는 상수. tools/recruit_calib.js 로 변경 전후 평균 성공률을 맞춘 값.
-const RC_ROOT = { gyeongryun: 5, uiCap: 10, th: { 상략: 6, 덕화: 14, 강병: 80 }, act: { 비경륜: -5, 자기유형: 10 }, own: 10, k: { 재야: -16.5, 포로: -15.2, 현역: -14.8, 합류: -15.3, 항복: -15.5 } };
+const RC_ROOT = { gyeongryun: 5, gyeongryunOff: 8, typeOff: 14, uiCap: 10, th: { 상략: 6, 덕화: 14, 강병: 80 }, act: { 비경륜: -5, 자기유형: 10 }, k: { 재야: -17.5, 포로: -16.7, 현역: -14.8, 합류: -16.5, 항복: -16.9 } };
 function rcHas(g, r) { if (!g) return false; if (r === '상략') return ((g.pers && g.pers.탐욕) || 0) >= RC_ROOT.th.상략; if (r === '덕화') return (g.ui || 0) >= RC_ROOT.th.덕화; if (r === '강병') return stat(g, 'w') >= RC_ROOT.th.강병; return false; }
-// 경륜은 상태 무관 +gyeongryun(5). 적 현역 등용: 비경륜 -5 (+자기 유형이면 +10). 재야·포로 등용은 비경륜이 자기 유형 인재일 때만 +10.
-function rcAdj(fid, tgt) { const r = fid && rootOf(fid); if (!r) return 0; if (r === '경륜') return RC_ROOT.gyeongryun; if (tgt.st === '현역') return RC_ROOT.act.비경륜 + (rcHas(tgt, r) ? RC_ROOT.act.자기유형 : 0); return r !== '경륜' && rcHas(tgt, r) ? RC_ROOT.own : 0; }
+// 적 현역 등용: 경륜 +gyeongryun(5), 비경륜 -5(+자기 유형 act.자기유형 10). 비현역(재야·포로·합류·항복): 경륜 +gyeongryunOff(8), 비경륜 자기 유형 +typeOff(14) (+자기 유형이면 +10). 재야·포로 등용은 비경륜이 자기 유형 인재일 때만 +10.
+function rcAdj(fid, tgt) { const r = fid && rootOf(fid); if (!r) return 0; if (tgt.st === '현역') return r === '경륜' ? RC_ROOT.gyeongryun : RC_ROOT.act.비경륜 + (rcHas(tgt, r) ? RC_ROOT.act.자기유형 : 0); return r === '경륜' ? RC_ROOT.gyeongryunOff : rcHas(tgt, r) ? RC_ROOT.typeOff : 0; }
 // 덕화 군주가 영입할 때는 인재 의리 감점을 uiCap(평균 수준)까지만 받는다.
 function rcUi(fid, g) { return fid && rootOf(fid) === '덕화' ? Math.min(g.ui, RC_ROOT.uiCap) : g.ui; }
-function rcJoinAdj(fid, g) { const r = fid && rootOf(fid); return r === '경륜' ? RC_ROOT.gyeongryun : r && rcHas(g, r) ? RC_ROOT.own : 0; }
+function rcJoinAdj(fid, g) { const r = fid && rootOf(fid); return r === '경륜' ? RC_ROOT.gyeongryunOff : r && rcHas(g, r) ? RC_ROOT.typeOff : 0; }
 function itemBonus(g, key) { let v = 0; Object.values(S.items).forEach(it => { if (it.owner === g.n && it.eff[key]) v += it.eff[key]; }); return v; }
 function stat(g, k) { const map = { t: '통솔', w: '무력', i: '지력', p: '정치', c: '매력', a: '안목' }; return clamp(g[k] + itemBonus(g, map[k]), 1, 110); }
 function addExp(g, k, v) {
