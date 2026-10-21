@@ -9,6 +9,7 @@
      인자: m=월(계절), city=선택 도시, tab=탭, info=root|pol, sheet=명령(군사 등, 시트 열기), root=뿌리, zoom=배율 -->
 <iframe id="g" src="../samguk_v107.html"></iframe>
 <pre id="out"></pre>
+<script src="s7_contrast.js"></script>
 <script>
 const Q = new URLSearchParams(location.search), sl = ms => new Promise(r => setTimeout(r, ms));
 const out = o => { document.getElementById('out').textContent = JSON.stringify(o); };
@@ -27,6 +28,7 @@ document.getElementById('g').addEventListener('load', async () => {
     if (Q.get('sheet')) w.eval('ACT').cmd(Q.get('sheet'));
     if (Q.get('act')) w.eval(Q.get('act'));
     await sl(150);
+    if (Q.get('contrast')) { out(s7Contrast(w)); return; }
     if (!Q.get('test')) { out({ errs, land: w.eval('S7').land, perf: w.eval('S7').perf }); return; }
     // ---- 기능 시험 ----
     const R = { errs, land: w.eval('S7').land, W: w.innerWidth, H: w.innerHeight }, D = w.document, chk = {};
