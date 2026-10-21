@@ -12147,7 +12147,7 @@ function trCheck(fid, nat, cn, old, nv) {
   if (!trOpen(fid, '인물')) return; // 6b 뿌리 게이트: 인물 갈래가 닫힌 세력은 발견 없음
   TR_TIER.forEach(([th, tier]) => {
     if (old >= th || nv < th) return;
-    const gs = Object.values(S.gen).filter(g => g.nat === nat && g.trTier === tier && g.st === '미등장'); if (!gs.length) return;
+    let gs = Object.values(S.gen).filter(g => g.nat === nat && g.trTier === tier && g.st === '미등장'); if (!gs.length) { gs = []; for (let i = 0; i < [3, 2, 1][tier - 1]; i++) { try { const x = spawnRandom(cn); if (x) { x.loc = cn; x.st = '재야'; gs.push(x); } } catch (e) { } } if (gs.length) { const names = gs.map(g => g.n).join('·'); if (fid === S.player) news(`${TR_NAT[nat].n}과(와)의 교역(교역도 ${th})으로 ${names}이(가) ${cn}에 찾아왔다 (재야).`); } return; }
     gs.forEach(g => { g.st = '재야'; g.found = true; g.loc = cn; g.appear = S.y; g.born = S.y - (g.trAge || 30); g.die = g.born + R(58, 78); g.loy = 70; try { initGrowth(g); } catch (e) { } try { addKn(g.n, 60); } catch (e) { } });
     const names = gs.map(g => g.n).join('·'); const N = TR_NAT[nat];
     if (fid === S.player) { const id = `trade_${nat}_${tier}`; SMETA[id] = ['바다 건너 온 인재', 'field']; storyEvent(id, `${N.n}과(와)의 교역이 깊어져(교역도 ${th}) ${tier === 3 ? '전설의 인물' : '이름난 인물'} ${names}이(가) ${cn}에 머물고 있다는 소식이 왔다. 등용 명령으로 데려올 수 있다.`, gs[0].n); news(`${N.n} 인물 ${names}이(가) ${cn}에 나타났다 (재야).`); }
@@ -12375,7 +12375,7 @@ ACT.trGinsengPick = v => { const r = useGinseng(v); toast(r.msg, r.ok); renderSh
 
 // ========== 6b: 거점·증폭 · 뿌리 게이트 · 세력 단위 한도 · 물가 · 명령 · AI 뿌리별 교역도 · 화면 (docs/v107_빌드명세.md 7-3) ==========
 // 수치는 "가정"(시험기 통합_시뮬레이션.md §2 모델에서 옮김): hubGain 0.5(확정) · usaSum 150(확정) · tradeFrac 0.5(가정) · coastRisk 0.03(가정) · AI 친교 2/월·학습 확률 20%(가정)
-const TR6B = { gainMul: 0.35, gainMulSang: 0.7, hubGain: 0.5, usaSum: 150, tradeFrac: 0.5, minFrac: 0.2, coastRisk: 0.03, banq: 200, study: { 개성: 300, 병종: 800 }, studyMo: { 개성: 2, 병종: 3 }, studyRel: { 개성: 20, 병종: 40 }, aiBanq: 2, aiStudyP: 20, aiFoodKeepMo: 24, aiFoodMax: 5000, gainPer: 300, gainMax: 6, gainBox: 10 };
+const TR6B = { gainMul: 0.35, gainMulSang: 0.7, hubGain: 0.5, usaSum: 150, tradeFrac: 0.5, minFrac: 0.2, coastRisk: 0.03, banq: 200, study: { 개성: 300, 병종: 800 }, studyMo: { 개성: 2, 병종: 3 }, studyRel: { 개성: 20, 병종: 40 }, aiBanq: 2, aiBanqN: 1, aiStudyP: 20, aiFoodKeepMo: 18, aiFoodMax: 5000, gainPer: 300, gainMax: 6, gainBox: 10 };
 const TR_LAND = ['대군', '안문', '서평', '무위', '장액', '월수', '운남', '영창']; // 육로 거점 8곳 (교역_성향_설계.md §3-1)
 const TR_HUB = { kor: ['양평', '북평', '남피', '북해', '동래'], jpn: ['동래', '북해', '낭야', '동해', '광릉', '말릉', '오', '회계', '건안'], eeu: ['대군', '안문', '서평', '무위', '장액'], weu: ['월수', '운남', '영창', '남해', '합포', '교지'], usa: ['건안', '회계', '오', '말릉', '광릉', '동해', '남해', '합포', '교지'] }; // 방면↔거점 (통합_시뮬레이션.md §2, 가정)
 const TR_ROOT_BR = { 경륜: ['인물', '개성'], 강병: ['병종', '물자'], 상략: ['차익', '용병'], 덕화: ['민생', '보급'] }; // 뿌리 → 열린 갈래 2개 (교역_성향_설계.md §4)
@@ -12464,11 +12464,12 @@ function trIncl(fid) { if (fid === S.player) return 1; const r = trRoot(fid); if
 function trAiMonthly(fid) {
   const cn = trAiCity(fid); if (!cn) return; const m = trPriceMul(fid); const box = { v: 0 };
   const nats = Object.keys(TR_NAT).filter(k => trNatOpen(fid, k)).sort((a, b) => trAmp(fid, b) - trAmp(fid, a));
+  let banqN = 0; // 6c: 친교는 한 달 aiBanqN 나라만 (가정)
   nats.forEach(nat => {
     const N = TR_NAT[nat]; const cost = Math.round(TR6B.banq * m);
-    if (trLeft(fid, nat) >= cost && trPay(fid, cn, cost)) trGain(fid, nat, TR6B.aiBanq, cn); // 친교(전부): 금 200×물가 → +2×증폭
+    if (banqN < TR6B.aiBanqN && trRel(fid, nat) < 100 && trLeft(fid, nat) >= cost && trPay(fid, cn, cost)) { trGain(fid, nat, TR6B.aiBanq, cn); banqN++; } // 친교(전부): 금 200×물가 → +2×증폭
     const rel = trRel(fid, nat);
-    if (trOpen(fid, '개성') && rel >= TR6B.studyRel.개성 && P(TR6B.aiStudyP)) { const g = gensOf(fid).find(x => x.st === '현역' && !x.away && !isRuler(x) && !hasTr(x, N.trait)); const c2 = Math.round(TR6B.study.개성 * m); if (g && trLeft(fid, nat) >= c2 && trPay(fid, cn, c2)) { g.tr = g.tr || []; g.tr.push(N.trait); trGain(fid, nat, 4, cn); } } // 경륜: 학습(개성)은 바로 익힘(단순화)
+    if (trOpen(fid, '개성') && rel >= TR6B.studyRel.개성 && P(TR6B.aiStudyP)) { const g = gensOf(fid).find(x => x.st === '현역' && !x.away && !isRuler(x) && !hasTr(x, N.trait)); const c2 = Math.round(TR6B.study.개성 * m); if (g && trLeft(fid, nat) >= c2 && trPay(fid, cn, c2)) { g.tr = g.tr || []; g.tr.push(N.trait); try { trTraitBonus(fid, g); } catch (e) { } trGain(fid, nat, 4, cn); } } // 경륜: 학습(개성)은 바로 익힘(단순화)
     if (trOpen(fid, '병종') && rel >= TR6B.studyRel.병종 && !trUnits(fid).includes(N.unit.n) && P(TR6B.aiStudyP)) { const c2 = Math.round(TR6B.study.병종 * m); if (trLeft(fid, nat) >= c2 && trPay(fid, cn, c2)) { trUnits(fid).push(N.unit.n); trGain(fid, nat, 4, cn); world(`${fname(fid)}이(가) ${N.n}에서 ${N.unit.n} 전술을 들여왔다.`, 2, [cn]); } } // 강병: 학습(병종)
     if (trOpen(fid, '보급') && N.food) { const fc = citiesOf(fid).filter(c => kindOf(c.n) === '도시').sort((a, b) => b.food - a.food)[0]; if (fc) { const need = Math.ceil(fc.troops / ECO.troopFood) * TR6B.aiFoodKeepMo; const q = Math.min(TR6B.aiFoodMax, fc.food - need); if (q >= 1000) trDeal(fid, nat, fc.n, 'food', '군량', Math.floor(q / 100) * 100, box); } } // 덕화: 군량 교환(24개월분 초과분)
   });
@@ -12510,7 +12511,7 @@ function trMonthly() {
     const g = G(s.g); if (!g || g.st !== '현역' || !g.away || g.away.type !== '학습') return false;
     s.left--; g.away.left = s.left; if (s.left > 0) return true;
     g.away = null; const N = TR_NAT[s.nat]; const fid = g.fac; let got = '';
-    if (s.kind === '개성') { g.tr = g.tr || []; if (!g.tr.includes(N.trait)) g.tr.push(N.trait); got = `개성 ${N.trait}`; }
+    if (s.kind === '개성') { g.tr = g.tr || []; if (!g.tr.includes(N.trait)) g.tr.push(N.trait); got = `개성 ${N.trait}`; try { got += trTraitBonus(fid, g); } catch (e) { } }
     else { if (!trUnits(fid).includes(N.unit.n)) trUnits(fid).push(N.unit.n); got = `특수 병종 ${N.unit.n}(${N.unit.f}) 해금`; }
     const cn = C(s.cn) && C(s.cn).owner === fid ? s.cn : (capitalOf(fid) || g.loc); g.loc = cn; const v = trGain(fid, s.nat, 8, cn);
     if (fid === S.player) news(`${g.n}이(가) ${N.n} 학습을 마치고 ${cn}으로 돌아왔다: ${got}. 교역도 +${v}.`);
@@ -12532,7 +12533,7 @@ function openWorldTrade() {
     const info = `<div class="dim sm">거점 ${hubs.length ? hubs.join('·') : '없음(수도를 1곳으로 침)'} → 증폭 ×${trAmp(fid, k).toFixed(1)} (이 방면 거점: ${TR_HUB[k].join('·')}) · 교역도 상승과 거래 한도에 곱해집니다.</div><div class="dim sm">${root ? `뿌리 ${root}: 열린 갈래 ${TR_ROOT_BR[root].join('·')}` : '뿌리 미정: 모든 갈래 열림'} · 이번 달 한도 금 ${fmt(trLimit(fid, k))} (쓴 금 ${fmt(trStat(fid).spent)}) · 물가 ×${trPriceMul(fid).toFixed(2)}</div>`;
     return `${tabs}<div class="pn"><b>${N.n}</b> · 교역도 ${rel}/100${trBar(rel)}<small>특산품 ${Object.keys(N.goods).join('·')} · 원하는 중국 상품 ${N.want}${N.food ? ' · 군량도 사 줌' : ''} · 특수 병종 ${N.unit.n}(${N.unit.f})${trUnits(fid).includes(N.unit.n) ? ' 해금' : ''}</small></div>${info}
     ${why ? `<div class="warn sm">${why}</div>` : ''}<div class="kv">단계</div>${steps}${found ? `<div class="dim sm">발견된 인물: ${found}</div>` : ''}
-    ${trStoreHtml(UI.city)}${tools}
+    ${trStoreHtml(UI.city)}${tools}${typeof trFxHtml === 'function' ? trFxHtml(fid) : ''}
     <div class="grid2">${btn('학습<small>2~3개월 사절</small>', 'trMode', '학습', { dis: !!why || rel < TR6B.studyRel.개성 || !(trOpen(fid, '개성') || trOpen(fid, '병종')) })}${btn(`친교<small>금 ${fmt(Math.round(TR6B.banq * trPriceMul(fid)))} · 교역도↑</small>`, 'trMode', '친교', { dis: !!why })}</div>`;
   });
 }
@@ -12560,7 +12561,7 @@ function openTrStudy() {
   openSheet(`${TR_NAT[nat].n} · 학습`, () => {
     const N = TR_NAT[nat], rel = trRel(fid, nat), have = trUnits(fid).includes(N.unit.n); const m = trPriceMul(fid);
     const tabs = `<div class="grid2">${btn(`개성 ${N.trait}<small>교역도 ${TR6B.studyRel.개성} · 금 ${fmt(Math.round(TR6B.study.개성 * m))} · ${TR6B.studyMo.개성}개월${o1 ? '' : ' · 뿌리로 닫힘'}</small>`, 'trKind', '개성', { p: UI.f.kind === '개성', s: 1, dis: !o1 || rel < TR6B.studyRel.개성 })}${btn(`병종 ${N.unit.n}<small>교역도 ${TR6B.studyRel.병종} · 금 ${fmt(Math.round(TR6B.study.병종 * m))} · ${TR6B.studyMo.병종}개월${have ? ' · 해금됨' : ''}${o2 ? '' : ' · 뿌리로 닫힘'}</small>`, 'trKind', '병종', { p: UI.f.kind === '병종', s: 1, dis: !o2 || rel < TR6B.studyRel.병종 || have })}</div>`;
-    const d = UI.f.kind === '개성' ? `${TRAITS[N.trait][1]} · 돌아온 장수가 익힙니다 (전투 반영은 6c).` : `${N.unit.n}(${N.unit.f}) · 세력 단위로 해금됩니다 (출진 정예 반영은 6c).`;
+    const d = UI.f.kind === '개성' ? `${TRAITS[N.trait][1]} · 돌아온 장수가 익히고 능력 하나가 +2 (세력당 5번까지, 전투 반영은 범위 밖).` : `${N.unit.n}(${N.unit.f}) · 세력 단위로 해금됩니다 (출진 정예 반영은 6c).`;
     return `${tabs}<div class="dim sm">${d} 떠날 때 교역도 +4×증폭, 돌아올 때 +8×증폭.</div><div class="kv">보낼 장수 (군주 제외)</div>${trGenList(UI.f.g)}`;
   }, () => btn(UI.f.g ? `${UI.f.g}을(를) 보낸다` : '장수를 고르세요', 'trStudyGo', '', { p: 1, dis: !UI.f.g }));
 }
@@ -13377,6 +13378,122 @@ function s7Main() { const F = S.fac[S.player], cs = citiesOf(S.player), r = root
 { let q = 0; window.addEventListener('resize', () => { if (q) return; q = requestAnimationFrame(() => { q = 0; try { if (UI.scr !== 'main' || !S) return; if (s7Land() !== S7.land) render(); else s7Cam(); } catch (e) { } }); }); }
 </script>
 <!-- /v107 S7 -->
+<!-- v107 6c 갈래 효과·고가품·연수·덕화 인구 구간 -->
+<script>
+// ===== v107 6c: 갈래 효과(경륜 연수·강병 병종/물자·상략 차익·덕화 민생/군비화/군량 하한) · 고가품 40/70/100 · 덕화 r3 인구 구간 =====
+// 설계: docs/v107_빌드명세.md 7-4. 수치는 시험기 tools/integrated_sim.js(rec+r3 D안: foodFloor 18 · foodBuyN 12 · sinkArm 0.4 · popInc .08 · popLoy .3 · popFind .012)를 그대로 옮긴 "가정".
+// 상태: S.trade.fx[fid] = { traits, vol, volL, pool, mo:{ym, 횟수}, sink:{군비,시설}, gain:{}, n:{} } (저장됨, 없으면 그때 만듦)
+// 6d(의용병·인구 증가 가산)와는 분리: 이 블록은 덕화 '인구 구간' 이점(r3)만 다룬다.
+const TR6C = {
+  traitMax: 5, traitAdd: 2,                                   // 경륜 개성: 학습 완료마다 임의 능력 +2 (세력당 최대 5회)
+  drill: 700, drillRel: 20, drillMo: 2,                       // 경륜 연수: 700×물가 → 장수 능력 1개 +1(상한 100), 교역도 20 이상 방면이 있을 때, 달 2회
+  unitTrain: 0.15, unitCapBase: 80, unitCapPer: 4,            // 강병 병종: 해금 n개 → 전선 도시 훈련 월 +0.15n (상한 80+4n)
+  mat: 1000, matRel: 40, matArm: 8, matTrain: 2, matMo: 2,    // 강병 물자: 1000×물가 → 전선 도시 최저 병과 군비 +8·훈련 +2
+  arbBase: 0.06, arbSlope: 0.14, arbFee: 0.01, arbCapK: 1.5, arbMin: 200, arbMo: 2, arbAvg: 3, // 상략 차익(위탁): 이익률 (0.06+0.14×평균 교역도/100)×포화, 수수료 1%
+  lux: [40, 70, 100], luxM: [0.10, 0.20, 0.32], luxCap: 0.6, luxMer: 1.5, luxFee: 0.01, luxMo: 2, sinkFrac: 0.7, sinkArm: 0.4, // 고가품
+  decay: 0.9,                                                 // 차익·고가품 포화(거래량) 월 감쇠
+  wel: 600, welFood: 3000, welMinFood: 20000, welPop: 0.01, welLoy: 4, welMo: 1, // 덕화 민생
+  armzFood: 6000, armzGold: 300, armzArm: 2, armzMo: 1,      // 덕화 군량 군비화
+  foodFloor: 18, foodBuyN: 12, foodBuyK: 3,                   // 군량 하한 18개월분 · 12개월분 밑이면 금으로 구입(AI)
+  popT: [120000, 170000, 230000], popInc: 0.08, popLoy: 0.3, popFind: 0.012 // 덕화 r3 (조정 D안)
+};
+function trFx(fid) { const T = trT(); T.fx = T.fx || {}; const o = T.fx[fid] = T.fx[fid] || {}; o.traits = o.traits || 0; o.vol = o.vol || 0; o.volL = o.volL || 0; o.pool = o.pool || 0; o.sink = o.sink || { 군비: 0, 시설: 0 }; o.gain = o.gain || {}; o.n = o.n || {}; const ym = trYm(); if (!o.mo || o.mo.ym !== ym) o.mo = { ym }; return o; }
+function trFxCnt(fid, k, add) { const o = trFx(fid); if (add) { o.mo[k] = (o.mo[k] || 0) + 1; o.n[k] = (o.n[k] || 0) + 1; } return o.mo[k] || 0; }
+const trFxCities = fid => citiesOf(fid).filter(c => kindOf(c.n) === '도시');
+function trIncF(fid) { return trFxCities(fid).reduce((s, c) => s + Math.round(cityGold(c, (c.owner !== S.player ? DF().inc : 1) * ((c.tax || 30) / 30)) / 3), 0); } // 월 금 수입(월 진행 1086줄과 같은 식)
+function trRelMax(fid) { return Math.max(0, ...Object.keys(TR_NAT).map(k => trRel(fid, k))); }
+function trRelAvg(fid) { const ks = Object.keys(TR_NAT); return ks.reduce((s, k) => s + trRel(fid, k), 0) / ks.length; }
+function trBestNat(fid) { return Object.keys(TR_NAT).filter(k => trNatOpen(fid, k)).sort((a, b) => trLeft(fid, b) - trLeft(fid, a))[0] || 'kor'; }
+function trFxPayCity(fid) { const cn = capitalOf(fid); return cn && C(cn) && kindOf(cn) === '도시' ? cn : ((trFxCities(fid)[0] || {}).n || null); }
+function trFxPay(fid, cost) { const nat = trBestNat(fid), cn = trFxPayCity(fid); if (!cn) return '도시가 없습니다.'; if (trLeft(fid, nat) < cost) return `이번 달 교역 한도(남은 금 ${fmt(trLeft(fid, nat))})가 모자랍니다 (${fmt(cost)} 필요).`; if (!trPay(fid, cn, cost)) return `금이 부족합니다 (${fmt(cost)} 필요).`; return null; }
+function trFront(fid) { const cs = trFxCities(fid); const fr = cs.filter(c => isFront(c.n, fid)); return (fr.length ? fr : cs).sort((a, b) => b.troops - a.troops)[0] || null; }
+function trLowArm(c) { installArms(); return ['보병', '궁병', '기병'].sort((x, y) => (c.arm[x] || 0) - (c.arm[y] || 0))[0]; }
+const TR_STATK = ['t', 'w', 'i', 'p', 'c'], TR_STATN = { t: '통솔', w: '무력', i: '지력', p: '정치', c: '매력' };
+function trStatUp(g, add) { const k = TR_STATK[Math.floor(Math.random() * 5)]; const old = g[k] || 0; g[k] = Math.min(100, old + add); return { k, d: g[k] - old }; }
+// 경륜 개성: 학습(개성) 완료 때 호출 — 외국 개성 습득(6b) + 시험기 모델의 능력 +2 (세력당 5회)
+function trTraitBonus(fid, g) { const o = trFx(fid); if (!g || o.traits >= TR6C.traitMax) return ''; o.traits++; const r = trStatUp(g, TR6C.traitAdd); return r.d ? ` ${TR_STATN[r.k]} +${r.d}` : ''; }
+function trLuxTier(fid) { const b = trRelMax(fid); return TR6C.lux.filter(x => b >= x).length; }
+// 덕화 r3: 도시 인구 구간 수 t (12만/17만/23만)
+function trPopTier(c) { if (!c || !c.owner || !c.pop || kindOf(c.n) !== '도시' || rootOf(c.owner) !== '덕화') return 0; return TR6C.popT.filter(x => c.pop >= x).length; }
+{ const f = cityGold; cityGold = function (c) { const v = f.apply(this, arguments); const t = trPopTier(c); return t ? Math.round(v * (1 + TR6C.popInc * t)) : v; }; } // 덕화 인구 구간: 도시 수입 +8%×t
+
+// ---------- 갈래 행동 (플레이어 단추·AI 공용). 반환 {ok, msg} ----------
+function trFxWhy(fid, k) {
+  const P = trPriceMul(fid);
+  if (k === 'drill') { if (!trOpen(fid, '개성')) return '경륜 뿌리만 연수를 열 수 있습니다.'; if (trRelMax(fid) < TR6C.drillRel) return `교역도 ${TR6C.drillRel} 이상인 나라가 있어야 합니다.`; if (trFxCnt(fid, 'drill') >= TR6C.drillMo) return `연수는 한 달 ${TR6C.drillMo}번까지입니다.`; return null; }
+  if (k === 'mat') { if (!trOpen(fid, '물자')) return '강병 뿌리만 물자 보급을 열 수 있습니다.'; if (trRelMax(fid) < TR6C.matRel) return `교역도 ${TR6C.matRel} 이상인 나라가 있어야 합니다.`; if (trFxCnt(fid, 'mat') >= TR6C.matMo) return `물자 보급은 한 달 ${TR6C.matMo}번까지입니다.`; if (!trFront(fid)) return '도시가 없습니다.'; return null; }
+  if (k === 'arb') { if (!trOpen(fid, '차익')) return '상략 뿌리만 차익 위탁을 열 수 있습니다.'; if (trRelAvg(fid) <= TR6C.arbAvg) return `다섯 나라 평균 교역도가 ${TR6C.arbAvg}보다 커야 합니다.`; if (trFxCnt(fid, 'arb') >= TR6C.arbMo) return `차익 위탁은 한 달 ${TR6C.arbMo}번까지입니다.`; if (trArbX(fid) <= TR6C.arbMin) return '이번 달 교역 한도에 여유가 없습니다.'; return null; }
+  if (k === 'lux') { if (!trLuxTier(fid)) return `어느 나라든 교역도 ${TR6C.lux[0]} 이상이어야 고가품을 다룹니다.`; if (trFxCnt(fid, 'lux') >= TR6C.luxMo) return `고가품 판매는 한 달 ${TR6C.luxMo}번까지입니다.`; if (trLuxX(fid) <= 200) return '수입이 적어 팔 물량이 없습니다.'; return null; }
+  if (k === 'wel') { if (!trOpen(fid, '민생')) return '덕화 뿌리만 민생을 열 수 있습니다.'; if (trFxCnt(fid, 'wel') >= TR6C.welMo) return '민생은 한 달 한 번입니다.'; if (!trWelFood(fid)) return `군량 ${fmt(TR6C.welMinFood)} 넘고 ${TR6C.foodFloor}개월분을 남길 수 있는 도시가 없습니다.`; return null; }
+  if (k === 'armz') { if (!trOpen(fid, '민생')) return '덕화 뿌리만 군량 군비화를 열 수 있습니다.'; if (trFxCnt(fid, 'armz') >= TR6C.armzMo) return '군량 군비화는 한 달 한 번입니다.'; if (!trArmzCity(fid)) return `전선 도시 중 군량 ${TR6C.foodFloor}개월분 + ${fmt(TR6C.armzFood)}이 넘는 곳이 없습니다.`; return null; }
+  return '알 수 없는 갈래입니다.';
+}
+const trNeedFood = c => Math.ceil((c.troops || 0) / ECO.troopFood);
+function trWelFood(fid) { const fd = trFxCities(fid).sort((a, b) => b.food - a.food)[0]; return fd && fd.food > TR6C.welMinFood && fd.food - TR6C.welFood >= trNeedFood(fd) * TR6C.foodFloor ? fd : null; }
+function trArmzCity(fid) { return trFxCities(fid).filter(c => isFront(c.n, fid) && c.food > trNeedFood(c) * TR6C.foodFloor + TR6C.armzFood).sort((a, b) => b.food - a.food)[0] || null; }
+function trArbCap(fid) { const ks = ['kor', 'jpn', 'eeu', 'weu']; return TR6C.arbCapK * trIncF(fid) * ks.reduce((s, k) => s + trAmp(fid, k), 0) / ks.length; }
+function trArbX(fid) { const left = Math.max(0, trBudget(fid) - trStat(fid).spent); return Math.min(left / trPriceMul(fid), trArbCap(fid) * 0.5); }
+function trLuxCap(fid) { return TR6C.luxCap * trIncF(fid) * (trRoot(fid) === '상략' ? TR6C.luxMer : 1) * trLuxTier(fid); }
+function trLuxX(fid) { return trLuxCap(fid) * 0.5; }
+function trFxDo(fid, k) {
+  const why = trFxWhy(fid, k); if (why) return { ok: false, msg: why };
+  const P = trPriceMul(fid), o = trFx(fid); let msg = '';
+  if (k === 'drill') { const cost = Math.round(TR6C.drill * P); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const gs = gensOf(fid); const g = gs[Math.floor(Math.random() * gs.length)]; if (!g) return { ok: false, msg: '장수가 없습니다.' }; const r = trStatUp(g, 1); msg = `${g.n}이(가) 외국 연수를 다녀왔다: ${TR_STATN[r.k]} ${r.d ? '+1' : '(이미 100)'} (금 ${fmt(cost)}).`; }
+  else if (k === 'mat') { const cost = Math.round(TR6C.mat * P); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const c = trFront(fid); const t = trLowArm(c); c.arm[t] = (c.arm[t] || 0) + TR6C.matArm; c.train = Math.min(100, (c.train || 0) + TR6C.matTrain); msg = `외국 물자가 ${c.n}에 닿았다: ${t} 군비 +${TR6C.matArm}, 훈련 +${TR6C.matTrain} (금 ${fmt(cost)}).`; }
+  else if (k === 'arb') { const x0 = trArbX(fid), cap = Math.max(1, trArbCap(fid)); const sat = Math.max(0.2, 1 - o.vol / cap); const mg = (TR6C.arbBase + TR6C.arbSlope * trRelAvg(fid) / 100) * sat; const profit = x0 * mg * P, fee = TR6C.arbFee * x0 * P; const net = Math.round(profit - fee); const cn = trFxPayCity(fid); trEarn(fid, cn, net); o.vol += x0; o.gain.차익 = (o.gain.차익 || 0) + net; msg = `상인단에 금 ${fmt(Math.round(x0 * P))}어치 위탁 거래를 맡겨 순이익 금 ${fmt(net)} (이익률 ${(mg * 100).toFixed(1)}%, 포화 ×${sat.toFixed(2)}).`; }
+  else if (k === 'lux') { const tier = trLuxTier(fid), mer = trRoot(fid) === '상략'; const x0 = trLuxX(fid), cap = Math.max(1, trLuxCap(fid)); const sat = Math.max(0.2, 1 - o.volL / cap); const mg = TR6C.luxM[tier - 1] * (mer && tier >= 2 ? TR6C.luxMer : 1) * sat; const profit = x0 * mg * P, fee = TR6C.luxFee * x0 * P; const net = Math.round(profit - fee); const cn = trFxPayCity(fid); trEarn(fid, cn, net); o.volL += x0; o.gain.고가품 = (o.gain.고가품 || 0) + net; o.tier = tier; if (fid !== S.player) trLuxSink(fid, profit * TR6C.sinkFrac); msg = `${tier}등급 고가품을 팔아 순이익 금 ${fmt(net)} (이익률 ${(mg * 100).toFixed(1)}%, 포화 ×${sat.toFixed(2)}).`; }
+  else if (k === 'wel') { const cost = Math.round(TR6C.wel * P); const fd = trWelFood(fid); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const lo = trFxCities(fid).sort((a, b) => a.loy - b.loy)[0]; lo.pop = Math.round(lo.pop * (1 + TR6C.welPop)); lo.loy = Math.min(100, lo.loy + TR6C.welLoy); fd.food -= TR6C.welFood; msg = `${lo.n}에 민생 구휼: 인구 +${Math.round(TR6C.welPop * 100)}%, 민충 +${TR6C.welLoy} (금 ${fmt(cost)}, ${fd.n} 군량 ${fmt(TR6C.welFood)}).`; }
+  else if (k === 'armz') { const cost = Math.round(TR6C.armzGold * P); const c = trArmzCity(fid); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const t = trLowArm(c); c.arm[t] = (c.arm[t] || 0) + TR6C.armzArm; c.food -= TR6C.armzFood; msg = `${c.n} 군량 ${fmt(TR6C.armzFood)}을(를) 군비로 바꿨다: ${t} +${TR6C.armzArm} (금 ${fmt(cost)}).`; }
+  trFxCnt(fid, k, true); return { ok: true, msg };
+}
+// 고가품 이익의 70%를 풀에 모아 군비(전선 도시 최저 병과 +3, 40%)·시설(60%)에 쓴다 (AI만. 플레이어는 이익을 직접 쓴다)
+function trLuxSink(fid, amt) {
+  const o = trFx(fid); o.pool += amt; let armB = o.pool * TR6C.sinkArm, facB = o.pool * (1 - TR6C.sinkArm); const cs = trFxCities(fid); if (!cs.length) return;
+  const fr = cs.filter(c => isFront(c.n, fid)); const pool = fr.length ? fr : cs; installArms();
+  for (let k = 0; k < 40 && armB > 0; k++) { const c = pool[k % pool.length]; const t = trLowArm(c); const cost = armCost(c, t); if (cost > armB || c.gold < cost + reserveOf(c, fid)) break; c.gold -= cost; c.arm[t] = (c.arm[t] || 0) + 3; armB -= cost; o.pool -= cost; o.sink.군비 += cost; }
+  for (const c of cs) { if (facB <= 0) break; c.facs = c.facs || []; if (c.facs.length >= gradeOf(c)) continue; const cost = facCost(c); if (cost > facB || c.gold < cost + reserveOf(c, fid)) continue;
+    const ks = Object.keys(FACS).filter(k => !c.facs.includes(k) && canFac(c, k)); if (!ks.length) continue; const fc = ks[Math.floor(Math.random() * ks.length)]; // 시험기는 여기 인덱스가 빈 값을 자주 골라 시설 투자가 적었다(구현 때 확인 결과)
+    c.gold -= cost; c.facs.push(fc); facB -= cost; o.pool -= cost; o.sink.시설 += cost; }
+}
+// ---------- AI: 6b 월 교역 뒤 갈래 행동 ----------
+const TR6C_AI = { 경륜: ['drill', 'drill'], 강병: ['mat', 'mat'], 상략: ['arb', 'arb'], 덕화: ['armz', 'wel'] };
+function trBranchAi(fid) {
+  const r = trRoot(fid); const acts = (TR6C_AI[r] || []).concat(['lux', 'lux']);
+  acts.forEach(k => { if (!trFxWhy(fid, k)) trFxDo(fid, k); });
+  if (r === '덕화') trFoodFloorAi(fid);
+}
+function trFoodFloorAi(fid) { // 덕화 군량 하한: 12개월분 밑이면 금으로 사들임(예비금 + 1000 남김)
+  trFxCities(fid).forEach(c => { const need = trNeedFood(c); if (!need || c.food >= need * TR6C.foodBuyN) return; const rs = reserveOf(c, fid); if (c.gold <= rs + 1000) return;
+    const amt = Math.min(need * TR6C.foodBuyK, Math.floor((c.gold - rs) / foodBuyPrice(c) * 100 / 1000) * 1000); if (amt < 1000) return; try { const x = cmdFoodTrade(c.n, 'buy', amt); if (x && x.ok) { const o = trFx(fid); o.n.군량구입 = (o.n.군량구입 || 0) + amt; } } catch (e) { } });
+}
+{ const f = trAiMonthly; trAiMonthly = function (fid) { const r = f.apply(this, arguments); try { trBranchAi(fid); } catch (e) { console.warn('tr6c', e); } return r; }; }
+trWelfareHook = fid => trFxDo(fid, 'wel');
+trMercHook = fid => (typeof mercAI === 'function' ? 'S5 mercAI' : null); // 상략 용병은 S5 mercAI·cmdMerc 래퍼(고용비 ×0.8·훈련 40·계약 12개월)가 이미 맡는다
+trBranchFx = (fid, kind) => trOpen(fid, kind) ? 1 : 0;
+
+// ---------- 매달(모든 세력, 플레이어 포함): 강병 병종 훈련 · 덕화 인구 구간 · 포화 감쇠 ----------
+function trFxAdd(c, key, v) { c[key] = (c[key] || 0) + v; const n = Math.floor(c[key]); c[key] -= n; return n; } // 소수 누적 → 정수만 반영
+function trFxMonthly() {
+  Object.keys(S.fac).forEach(fid => { if (!S.fac[fid].alive) return; const o = trFx(fid); o.vol *= TR6C.decay; o.volL *= TR6C.decay;
+    const n = trOpen(fid, '병종') ? trUnits(fid).length : 0;
+    if (n > 0) { const cap = TR6C.unitCapBase + TR6C.unitCapPer * n; trFxCities(fid).forEach(c => { if (!isFront(c.n, fid) || (c.train || 0) >= cap) return; const d = trFxAdd(c, '_trU', TR6C.unitTrain * n); if (d) c.train = Math.min(cap, (c.train || 0) + d); }); }
+  });
+  Object.values(S.city).forEach(c => { const t = trPopTier(c); if (!t) return; const d = trFxAdd(c, '_trL', TR6C.popLoy * t); if (d) c.loy = Math.min(100, c.loy + d);
+    if (Math.random() < TR6C.popFind * t) { try { const g = spawnRandom(c.n); if (g) { g.st = '현역'; g.fac = c.owner; g.loc = c.n; g.loy = 70; const o = trFx(c.owner); o.n.인재 = (o.n.인재 || 0) + 1; if (c.owner === S.player) news(`${c.n}의 넉넉한 백성 사이에서 ${g.n}이(가) 나와 우리 편이 되었다 (덕화).`); } } catch (e) { } } });
+}
+{ const f = monthlyUpdate; monthlyUpdate = function () { const r = f.apply(this, arguments); try { trFxMonthly(); } catch (e) { console.warn('tr6c', e); } return r; }; }
+
+// ---------- 화면: 교역 창 아래 갈래 단추 ----------
+function trFxHtml(fid) {
+  const P = trPriceMul(fid), tier = trLuxTier(fid), o = trFx(fid);
+  const it = [['drill', `연수<small>경륜 · 금 ${fmt(Math.round(TR6C.drill * P))} · 능력 +1</small>`], ['mat', `물자 보급<small>강병 · 금 ${fmt(Math.round(TR6C.mat * P))} · 전선 군비 +${TR6C.matArm}</small>`], ['arb', `차익 위탁<small>상략 · 약 금 ${fmt(Math.round(trArbX(fid) * P))}어치</small>`],
+    ['lux', `고가품 ${tier ? tier + '등급' : '잠김'}<small>교역도 ${TR6C.lux.join('/')} · 누구나</small>`], ['wel', `민생<small>덕화 · 금 ${fmt(Math.round(TR6C.wel * P))}+군량 ${fmt(TR6C.welFood)}</small>`], ['armz', `군량 군비화<small>덕화 · 군량 ${fmt(TR6C.armzFood)}+금 ${fmt(Math.round(TR6C.armzGold * P))}</small>`]];
+  const n = trUnits(fid).length, pt = trFxCities(fid).reduce((s, c) => s + trPopTier(c), 0);
+  const pas = [n && trOpen(fid, '병종') ? `특수 병종 ${n}개: 전선 도시 훈련 월 +${(TR6C.unitTrain * n).toFixed(2)} (상한 ${TR6C.unitCapBase + TR6C.unitCapPer * n})` : '', pt ? `덕화 인구 구간 ${pt}: 해당 도시 수입 +${Math.round(TR6C.popInc * 100)}%·민충 월 +${TR6C.popLoy}·인재 발견 (구간마다)` : '', o.traits ? `개성 학습 능력 보너스 ${o.traits}/${TR6C.traitMax}` : ''].filter(Boolean);
+  return `<div class="kv">갈래 효과 (뿌리로 열림 · 교역 한도에서 지불)</div><div class="grid3">${it.map(([k, l]) => btn(l, 'trFx', k, { dis: !!trFxWhy(fid, k), s: 1 })).join('')}</div>${pas.length ? `<div class="dim sm">${pas.join(' · ')}</div>` : ''}`;
+}
+ACT.trFx = v => { const r = trFxDo(S.player, v); toast(r.msg, r.ok); if (r.ok) news(r.msg); renderSheet(); };
+</script>
 <script>
 // ===== 전투 v4 (조조전식) 규칙 핵심 v2 — 조조전 EXE 공식(docs/formulas.md)·원본 표(JOJO_RULES)를 그대로, HP만 병력으로 바꿈 =====
 // 병력 환산: 조조전 피해(HP 기준) ÷ 300 × √(공격 부대 병력 × 대상 최대 병력).  같은 크기끼리면 "조조전 HP 300짜리 부대가 받는 비율"과 같음
