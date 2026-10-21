@@ -4,7 +4,7 @@
 // 사용: node tools/battle_calib.js [V4 반복=5] [옛 반복=20] [단계당 매치업 상한=60] [기록 파일(jsonl, 선택)]
 //   단계: 새 게임 직후, 12·24·36개월 뒤(플레이어는 가만히, 침공은 위임). 매치업은 aiTurn과 같은 규칙(자유 장수 8명, autoUnits, 성격별 부대 수)에 병력 비율 0.4/0.7/1.0.
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },

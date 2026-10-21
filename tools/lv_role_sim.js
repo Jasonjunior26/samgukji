@@ -1,7 +1,7 @@
 // 부장 역할별 LV 변형 비교 (선봉=무력, 참모=지력 등 유효능력치만 LV에 반영)
 // 사용: node tools/lv_role_sim.js [판수=40]
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },

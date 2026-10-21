@@ -1,7 +1,7 @@
 // 부장 효과 격리 시험: 주장 능력 동일한 거울 군대에서 A측에만 부장을 붙이고 LV 규칙별 승률 비교
 // 사용: node tools/lv_mirror_sim.js [판수=40]
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },

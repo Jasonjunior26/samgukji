@@ -2,7 +2,7 @@
 // 사용: node tools/bond_campaign_sim.js [전투수=40] [부대원수=3] [시드=1] [사교가=0|1]
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const N = +(process.argv[2] || 40), K = +(process.argv[3] || 3), SEED = +(process.argv[4] || 1), SOC = +(process.argv[5] || 0);
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = SEED >>> 0; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

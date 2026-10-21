@@ -1,7 +1,7 @@
 // 성문 규칙(v4.11) 점검기: 게임 HTML을 Node vm 에 올려 원본 지도별 성곽·성문 수, 자동 성문·틈 메우기, 수비 AI 열기(병력비 1.3)를 찍는다.
 // 사용: node tools/gate_check.js > docs/sim/v107_s3_gate_check.txt   (패치 없이 실제 코드로 돈다)
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = 7; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

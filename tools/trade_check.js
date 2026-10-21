@@ -4,7 +4,7 @@
 // 6c: 갈래 행동 점검(뿌리별 trFxDo 시험 호출)과 진행 뒤 세력별 갈래 집계(S.trade.fx)를 함께 찍는다.
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const MONTHS = +(process.argv[2] || 24), RR = process.argv[3] === 'rr', SEED = +(process.argv[4] || 1);
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 function mk(seedIn) {
   const store = {}; let seed = seedIn >>> 0; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

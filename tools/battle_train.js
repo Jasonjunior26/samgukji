@@ -3,7 +3,7 @@
 // v4.10(v107)부터 훈련도 계수가 게임 코드(dmgJ) 안에 있으므로 패치 없이 실제 코드로 잰다.
 // (v105 때는 두 번째 인수로 하한 LO를 받아 메모리에서 dmgJ를 패치했다 — 이제 인수는 병력으로 바뀜)
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },

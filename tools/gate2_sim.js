@@ -1,7 +1,7 @@
 // 성문 규칙 2차 시험기 (docs/성문_설계.md 2차). 1차 gate_sim.js 의 패치를 재사용하고 열기 기준·복귀·자동 문 지정을 추가. html 은 메모리에서만 패치.
 // 사용: node tools/gate2_sim.js [판수=60] [구간 1|2|3|12|123]  (REC 환경변수로 3구간 규칙 JSON 지정)
 const fs = require('fs'), vm = require('vm'), path = require('path');
-let html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+let html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 function patch(re, f) { if (!re.test(html)) throw new Error('patch anchor not found: ' + re); html = html.replace(re, f); }
 // 패치1: canHit 에 성벽 규칙
 patch(/function canHit\(u, tx, ty, fx, fy\) \{/, m => `function wallOk(u, tx, ty, fx, fy) { if (!W || !W.castle) return true; const o = unitAt(tx, ty); if (!o) return true; const x = fx == null ? u.x : fx, y = fy == null ? u.y : fy; if (inCastle(x, y) === inCastle(tx, ty)) return true; if ([2, 4, 5].includes(famOf(u))) return true; if (gateOpen()) return true; if (globalThis.GM && GM.S) GM.S.deny++; return false; }

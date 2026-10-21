@@ -7,7 +7,7 @@
 //  AI openOK: 수비 병력 합 >= RATIO x 공격 병력 합, 또는 공격 원거리 부대가 처음의 절반 이하, 또는 성 밖에 나온 수비 부대가 있음.
 //  열린 뒤 수비는 성 밖으로 나갈 수 있음(농성 제한 해제). RATIO=0이면 규칙 R2·R3만(AI는 안 연다)이 아니라 '항상 연다'.
 const fs = require('fs'), vm = require('vm'), path = require('path');
-let html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
+let html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 function patch(re, f) { if (!re.test(html)) throw new Error('patch anchor not found: ' + re); html = html.replace(re, f); }
 // 패치1: canHit 에 성벽 규칙
 patch(/function canHit\(u, tx, ty, fx, fy\) \{/, m => `function wallOk(u, tx, ty, fx, fy) { if (!W || !W.castle) return true; const o = unitAt(tx, ty); if (!o) return true; const x = fx == null ? u.x : fx, y = fy == null ? u.y : fy; if (inCastle(x, y) === inCastle(tx, ty)) return true; if ([2, 4, 5].includes(famOf(u))) return true; if (gateOpen()) return true; if (globalThis.GM && GM.S) GM.S.deny++; return false; }
