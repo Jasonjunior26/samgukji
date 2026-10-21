@@ -16,7 +16,7 @@ function mk(seedIn) {
 const ctx = mk(1); ctx.MONTHS = MONTHS;
 const out = vm.runInContext(`(() => {
   const lines = []; const say = s => lines.push(s);
-  const month = () => { const pend = endMonth(); pend.forEach(d => { try { const r = autoBattle(d.att, d.from, d.to, d.units); if (r.win) C(d.to).food += d.food; else C(d.from).food += d.food; } catch (e) { } }); };
+  const month = () => { const pend = endMonth(); pend.forEach(d => { try { const r = autoBattle(d.att, d.from, d.to, d.units); if (r.win) C(d.to).food += d.food; else C(d.from).food += d.food; } catch (e) { } }); monthlyUpdate(); };
   ['190', '200'].forEach(sc => {
     newGame('조조'); S.opt.v4Battle = false; // 시나리오 선택 인자는 미확인: 두 판 모두 기본 시나리오(시작 연도 S.y)로 돈다
     say('== 판 ' + sc + ' (시작 연도 ' + S.y + ') 세력 ' + Object.keys(S.fac).length);
