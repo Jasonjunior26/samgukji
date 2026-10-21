@@ -5097,7 +5097,7 @@ function cabEffRaw(fid, post) { const g = cabActive(fid, post); if (!g) return 0
 // ---------- 6. 훈련 ----------
 function cmdTrain(cn, gn) {
   const c = C(cn), g = G(gn); const cost = trainCost(c); if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${cost} 필요).` };
-  let v = 4 * abf(stat(g, 't')); if (hasFac(c, '훈련장')) v *= 1.3; if (c.train > 100) v *= 100 / c.train; v = Math.max(1, Math.round(v));
+  let v = 4 * abf(stat(g, 't')); if (hasFac(c, '훈련장')) v *= 1.3; if (rootOf(c.owner) === '강병') v *= 1.25; if (c.train > 100) v *= 100 / c.train; v = Math.max(1, Math.round(v));
   c.train += v; g.acted = true; const b = g.t; addExp(g, 't', 9);
   return { ok: true, msg: `${g.n}이(가) 병사를 훈련시켜 훈련 +${v} (${c.train}). 통솔 경험을 쌓았다${g.t > b ? ` — 통솔 +${g.t - b}!` : ''}.` };
 }
@@ -5105,7 +5105,7 @@ function monthlyDecay() {
   Object.values(S.city).forEach(c => {
     if (!c.owner || kindOf(c.n) !== '도시') return; c.peak = c.peak || {}; c.decAcc = c.decAcc || {};
     ['dev', 'com', 'flood'].forEach(k => { c.peak[k] = Math.max(c.peak[k] || 0, c[k]); c.decAcc[k] = (c.decAcc[k] || 0) + decayOf(c, c[k]); const w = Math.floor(c.decAcc[k]); if (w) { c[k] = Math.max(0, c[k] - w); c.decAcc[k] -= w; } });
-    c.decAcc.tr = (c.decAcc.tr || 0) + 1 + Math.pow(Math.max(0, c.train - 100) / 50, 2); const wt = Math.floor(c.decAcc.tr); if (wt) { c.train = Math.max(0, c.train - wt); c.decAcc.tr -= wt; }
+    c.decAcc.tr = (c.decAcc.tr || 0) + (rootOf(c.owner) === '강병' ? 0.5 : 1) + Math.pow(Math.max(0, c.train - 100) / 50, 2); const wt = Math.floor(c.decAcc.tr); if (wt) { c.train = Math.max(0, c.train - wt); c.decAcc.tr -= wt; }
   });
 }
 // 출진하고 돌아오면 실전 경험 +5
@@ -13367,7 +13367,7 @@ vMap = function () { return '<div class="s7slot"></div>'; };
 // ---------- 노선·국책 설명 (전용 장치는 RT_DESC, 교역 품목은 TR_ROOT_BR·TR_BR_N 상수를 읽는다 — 수치를 여기 적지 않는다) ----------
 const S7_ROOT = {
   경륜: { h: '경륜 — 인재로 얻는다', how: '적 태수를 설득해 성째 넘겨받는다.', good: '귀순한 태수는 오래 남는다.', bad: '설득할 장수가 없으면 막힌다.', fit: '지력·정치 높은 군주' },
-  강병: { h: '강병 — 정예로 돌파한다', how: '훈련·장비를 올린 정예로 성을 친다.', good: '전투가 가장 강하다.', bad: '손실·유지비가 크고 흡수가 느리다.', fit: '무력·통솔 높은 군주' },
+  강병: { h: '강병 — 정예로 돌파한다', how: '훈련·장비를 올린 정예로 성을 친다.', good: '전투가 가장 강하다. 훈련도가 오래 유지된다.', bad: '손실·유지비가 크고 흡수가 느리다.', fit: '무력·통솔 높은 군주' },
   상략: { h: '상략 — 금으로 산다', how: '매수·매입·조공으로 성과 사람을 사고 동맹을 갈라놓는다.', good: '금만 있으면 가장 빠르다.', bad: '금 의존. 사 온 장수는 충성이 낮다.', fit: '매력 높은 군주, 항구 보유' },
   덕화: { h: '덕화 — 백성이 찾아온다', how: '민심으로 이웃 성을 투항시킨다.', good: '점령지 흡수가 가장 빠르다.', bad: '느리고 정면 전투에 약하다.', fit: '정치·통솔 균형' } };
 function s7Info(kind) { const r = rootOf(S.player), x = `<button type="button" class="x" data-a="s7info" data-v="" aria-label="닫기">✕</button>`;
@@ -13637,7 +13637,7 @@ function openTradeCmd() { openSheet(`${UI.city} · 교역`, tradeCmdHtml); }
 function s7Chips(v) { const r = rootOf(S.player); if (!r) return ''; const c = [];
   if ((v === '계략' || v === '인사') && r !== '경륜') c.push(`${r} 노선 · ${v === '인사' ? '등용' : '이간·내통'} 성공 ×0.7`);
   if (v === '계략' && r !== '상략') c.push(`${r} 노선 · 매수 비용 ×1.4`);
-  if (v === '군사') { if (r === '상략') c.push('상략 노선 · 용병 고용 ×0.8'); if (r === '덕화') c.push('덕화 노선 · 징병 +10%p'); if (r === '강병') c.push('강병 노선 · 훈련·병종·물자 전용'); }
+  if (v === '군사') { if (r === '상략') c.push('상략 노선 · 용병 고용 ×0.8'); if (r === '덕화') c.push('덕화 노선 · 징병 +10%p'); if (r === '강병') c.push('강병 노선 · 훈련 효과 ×1.25 · 월 감소 절반'); }
   return c.length ? `<div>${c.map(x => `<span class="s7chip">${x}</span>`).join(' ')}</div>` : ''; }
 function s7PlotRows() { const r = rootOf(S.player); if (!r) return ''; const c = C(UI.city), own = !!(c && c.owner === S.player);
   return [['설득', '경륜', '적 태수 귀순', '설득', !own], ['동맹 이간', '상략', `금 ${fmt(Math.round(400 * priceIdx()))} · 동맹 깨기`, '동맹 이간', !own], ['민심 투항', '덕화', '이웃 성 민심·투항 전망', '민심', false]]
