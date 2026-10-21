@@ -819,7 +819,7 @@ function cmdScheme(cn, an, type, target) {
   const p = schemeChance(ag, tg, type);
   if (!P(p)) { if (tc || tg) { const of = tc ? tc.owner : tg.fac; if (of) setHos(of, ag.fac, hos(of, ag.fac) + 5); } return { ok: false, msg: `계략이 실패했다.` }; }
   if (type === '이간') { const v = 8 + R(0, 10); tg.loy = clamp(tg.loy - v, 0, 100); tg.slander = { v: Math.round(v / 2) + 4, until: S.y * 12 + S.m + 6 }; return { ok: true, msg: `${tg.n}의 충성이 ${v} 떨어졌다 (${tg.loy}).` }; }
-  if (type === '유언비어') { tc.loy = clamp(tc.loy - 15, 0, 100); tc.dev = clamp(tc.dev - 4, 0, 100); tc.com = clamp(tc.com - 4, 0, 100); return { ok: true, msg: `${tc.n}의 민심이 흔들렸다.` }; }
+  if (type === '유언비어') { tc.loy = clamp(tc.loy - 15, 0, 100); tc.dev = clamp(tc.dev - 4, 0, 100); tc.com = clamp(tc.com - 4, 0, 100); return { ok: true, msg: `${tc.n}의 민충이 흔들렸다.` }; }
   if (type === '화계') { const f = Math.floor(tc.food * 0.2); tc.food -= f; tc.dev = clamp(tc.dev - 5, 0, 100); return { ok: true, msg: `${tc.n}의 창고가 불타 군량 ${fmt(f)}이 사라졌다.` }; }
   if (type === '내통') { S.traitors[tg.n] = ag.fac; return { ok: true, msg: `${tg.n}이(가) 우리가 쳐들어가면 돌아서기로 약속했다.` }; }
 }
@@ -2816,7 +2816,7 @@ function cmdDraft(cn, gn, amt) {
   c.train = Math.round((c.train * c.troops + 25 * amt) / Math.max(1, c.troops + amt));
   c.troops += amt; c.pop = Math.max(0, c.pop - amt);
   c.loy = clamp(c.loy - Math.ceil(amt / (hasTr(g, '모병가') ? 800 : 400)), 0, 100); g.acted = true; addExp(g, 't', 6);
-  return { ok: true, msg: `${g.n}이(가) 병사 ${fmt(amt)}명을 모았다. (인구 ${fmt(c.pop)})${hasTr(g, '모병가') ? ' · 개성 모병가로 비용·민심 부담 감소' : ''}` };
+  return { ok: true, msg: `${g.n}이(가) 병사 ${fmt(amt)}명을 모았다. (인구 ${fmt(c.pop)})${hasTr(g, '모병가') ? ' · 개성 모병가로 비용·민충 부담 감소' : ''}` };
 }
 // 매달 인구 변화와 수입 (monthlyUpdate 안의 기존 수입 계산을 대체)
 function monthlyPop() {
@@ -4943,11 +4943,11 @@ function warDamage(c, pct, why) { if (!c || kindOf(c.n) !== '도시') return; c.
     if (was && !(typeof B !== 'undefined' && B && B.to === toCn)) { warDamage(tc, 0.1); tc.pop = Math.round(tc.pop * 0.95); if ((tc.facs || []).length && P(30)) tc.facs.splice(R(0, tc.facs.length - 1), 1); }
     // 기술 빼앗기: 시설이 있는 도시를 차지하면 앞선 분야 하나를 한 단계
     if (was && S.fac[was]) { const facsT = (tc.facs || []).filter(x => ['병기창', '훈련장', '조선소'].includes(x)); if (facsT.length) { const ahead = Object.keys(TECH).filter(k => techLv(was, k) > techLv(att, k)); if (ahead.length) { const k = pick(ahead); techOf(att)[k] = techLv(att, k) + 1; if (att === S.player) news(`${toCn}의 시설에서 ${TECH[k].n} 기술을 얻었다 (${techLv(att, k)}단계).`); } } }
-    if (att === S.player && was && kindOf(toCn) === '도시') (S.eventQueue = S.eventQueue || []).push({ id: 'plunder', title: `${toCn} 점령`, art: 'castle', text: `${toCn}을(를) 차지했다. 약탈하면 금을 크게 얻지만 도시가 크게 상하고 민심을 잃는다.`, opts: [{ l: `약탈 (금 약 ${fmt(Math.round(tc.gold * 0.5 + (tc.dev + tc.com) * 20))})`, a: 'plunder:' + toCn }, { l: '백성을 보호', a: 'none' }] });
+    if (att === S.player && was && kindOf(toCn) === '도시') (S.eventQueue = S.eventQueue || []).push({ id: 'plunder', title: `${toCn} 점령`, art: 'castle', text: `${toCn}을(를) 차지했다. 약탈하면 금을 크게 얻지만 도시가 크게 상하고 민충을 잃는다.`, opts: [{ l: `약탈 (금 약 ${fmt(Math.round(tc.gold * 0.5 + (tc.dev + tc.com) * 20))})`, a: 'plunder:' + toCn }, { l: '백성을 보호', a: 'none' }] });
     return r;
   };
 }
-function plunder(cn) { const c = C(cn); const g = Math.round(c.gold * 0.5 + (c.dev + c.com) * 20); C(capitalOf(S.player)).gold += g; c.dev = Math.round(c.dev * 0.7); c.com = Math.round(c.com * 0.7); c.loy = clamp(c.loy - 20, 0, 100); c.pop = Math.round(c.pop * 0.92); return `${cn}을(를) 약탈해 금 ${fmt(g)}을(를) 얻었다. 도시가 크게 상하고 민심이 떨어졌다.`; }
+function plunder(cn) { const c = C(cn); const g = Math.round(c.gold * 0.5 + (c.dev + c.com) * 20); C(capitalOf(S.player)).gold += g; c.dev = Math.round(c.dev * 0.7); c.com = Math.round(c.com * 0.7); c.loy = clamp(c.loy - 20, 0, 100); c.pop = Math.round(c.pop * 0.92); return `${cn}을(를) 약탈해 금 ${fmt(g)}을(를) 얻었다. 도시가 크게 상하고 민충이 떨어졌다.`; }
 // ---------- 군비 연구 ----------
 const TECH = {
   충차: { n: '충차', fac: '병기창', key: 'w', d: ['성문 피해 +20%', '+40%', '+60%'] },
@@ -5359,7 +5359,7 @@ function cityAutoRun(c) {
     // 1. 산적
     if (banditOf(c) >= 25) { g0 = c.gold; f0 = c.food; const g = best('w'); const r = cmdSuppress(c.n, g.n); if (r && r.ok) { add('토벌'); continue; } }
     // 2. 민충
-    if (c.loy < 60 || (c.loy < 80 && done['진휼'] || done['시주'])) {
+    if (c.loy < 60 || (c.loy < 80 && (done['진휼'] || done['시주']))) {
       if (c.loy < 80) { const g = best('c'); const full = loyGain(g); const v = Math.min(100 - c.loy, full); const gc = loyCost(c, '진휼', v, full), fc = loyCost(c, '시주', v, full);
         const foodOk = c.food - fc > Math.ceil(c.troops / ECO.troopFood) * 6;
         const r = foodOk ? cmdLoy(c.n, g.n, '시주') : afford(gc) ? cmdLoy(c.n, g.n, '진휼') : null; if (r && r.ok) { add(foodOk ? '시주' : '진휼'); continue; } }
@@ -5992,7 +5992,7 @@ function councilProposals(fid) {
   cs.filter(c => c.troops > 15000 && c.train < 40).forEach(c => push('국방', c.troops / 1000, `${c.n}에 병력 ${fmt(c.troops)}이 있으나 훈련이 ${c.train}입니다. 훈련부터 하셔야 합니다.`, { cn: c.n, open: '훈련' }));
   cs.filter(c => isFront(c.n, fid) && c.troops < keepOf(c.n) * 0.6).slice(0, 1).forEach(c => push('국방', 35, `전방 ${c.n}의 병력이 ${fmt(c.troops)}로 방어분(${fmt(keepOf(c.n))})에 크게 못 미칩니다.`, { cn: c.n, open: '징병' }));
   cs.filter(c => banditOf(c) >= 35).forEach(c => push('민생', banditOf(c), `${c.n} 산적이 ${Math.round(banditOf(c))}까지 늘었습니다. 토벌이 필요합니다.`, { cn: c.n, open: '토벌' }));
-  cs.filter(c => c.loy < 50).forEach(c => push('민생', 60 - c.loy, `${c.n} 민충이 ${c.loy}입니다. 시주나 진휼로 민심을 달래야 합니다.`, { cn: c.n, open: '진휼' }));
+  cs.filter(c => c.loy < 50).forEach(c => push('민생', 60 - c.loy, `${c.n} 민충이 ${c.loy}입니다. 시주나 진휼로 민충을 올려야 합니다.`, { cn: c.n, open: '진휼' }));
   cs.forEach(c => { const g = c.gov && G(c.gov); if (!g) return; if (govProfile(g).grade === 'D') { const b = gensIn(c.n, fid).filter(x => !x.away && x.n !== g.n).sort((a, b2) => gvScore(b2) - gvScore(a))[0]; push('인사', 30, `${c.n} 태수 ${g.n}(운영 D)${b && gvScore(b) > gvScore(g) + 0.1 ? `보다 ${b.n}이(가) 적임입니다` : '을(를) 바꿀 인물을 보내야 합니다'}.`, { cn: c.n, open: '임명' }); } });
   const unhappy = gensOf(fid).filter(g => g.loy < 50 && !isRuler(g)); if (unhappy.length) push('인사', 25 + unhappy.length * 3, `충성 50 미만인 장수가 ${unhappy.length}명(${unhappy.slice(0, 3).map(g => g.n).join('·')} 등)입니다. 면담이나 포상이 필요합니다.`, { cn: unhappy[0].loc, open: '포상' });
   const ns = new Set(); cs.forEach(c => ADJ[c.n].forEach(n => { const o = S.city[n] && S.city[n].owner; if (o && o !== fid) ns.add(o); }));
@@ -6043,7 +6043,7 @@ memoFn('starPair', g => g && g.n); memoFn('curRange', (g, k) => g && g.n + '|' +
 { const f = corpsArrange; corpsArrange = function () { const keep = []; Object.values(S.city).forEach(c => { if (c.owner === S.player && c.govLock && c.gov && G(c.gov)) keep.push([c, c.gov, G(c.gov).loc]); }); const r = f.apply(this, arguments); keep.forEach(([c, n, loc]) => { const g = G(n); if (!g || g.st !== '현역' || g.fac !== S.player) return; if (g.loc !== loc && !g.away) g.loc = loc; if (g.loc === c.n) c.gov = n; }); return r; }; }
 
 // ===== v38: 중앙 지원 (수도가 필요한 도시를 돕기) =====
-const CEN_NAME = { 1: '전방 병력', 2: '공격 거점', 3: '민심·치안', 4: '승급', 5: '시설', 6: '뒤처진 내정' };
+const CEN_NAME = { 1: '전방 병력', 2: '공격 거점', 3: '민충·치안', 4: '승급', 5: '시설', 6: '뒤처진 내정' };
 function cenCfg(fid) { const F = S.fac[fid]; if (!F.cen) F.cen = { on: true, lv: { 1: true, 2: true, 3: true, 4: true, 5: true, 6: false } }; return F.cen; }
 function centralSupport(fid) {
   const cfg = cenCfg(fid); if (!cfg.on) return []; const capN = capitalOf(fid); const cap = C(capN); if (!cap || cap.owner !== fid) return [];
@@ -6056,7 +6056,7 @@ function centralSupport(fid) {
     if (cfg.lv[1] && isFront(c.n, fid) && c.troops < keepOf(c.n) * 0.7) need.push({ p: 1, c, kind: '전방 병력', troops: Math.round(keepOf(c.n) * 0.8 - c.troops), gold: Math.min(20000, Math.round((keepOf(c.n) * 0.8 - c.troops) / 1000 * draftCost(c, 1000))) });
     const stg = fid === S.player ? ((corpsOf(c.n) && corpsOf(c.n).policy === '공격' && corpsOf(c.n).staging === c.n)) : (F.prep && F.prep.staging === c.n);
     if (cfg.lv[2] && stg && g < 50000) need.push({ p: 2, c, kind: '공격 거점', gold: 50000 - g });
-    if (cfg.lv[3] && (c.loy < 50 || banditOf(c) >= 35) && g < crsv * 3) need.push({ p: 3, c, kind: '민심·치안', gold: crsv * 3 - g });
+    if (cfg.lv[3] && (c.loy < 50 || banditOf(c) >= 35) && g < crsv * 3) need.push({ p: 3, c, kind: '민충·치안', gold: crsv * 3 - g });
     const gr = gradeReady(c); if (cfg.lv[4] && gr && gr.ok && g < gr.cost + crsv) need.push({ p: 4, c, kind: '승급', cost: gr.cost });
     if (cfg.lv[5] && (c.facs || []).length < gradeOf(c)) { const want = !hasFac(c, '서원') && !c.acad ? '서원' : (Object.values(armSpec(c)).length === 0 && !hasFac(c, '병기창') ? '병기창' : (!hasFac(c, '시장') ? '시장' : null)); if (want && canFac(c, want) && g < facCost(c) + crsv) need.push({ p: 5, c, kind: '시설', fac: want, cost: facCost(c) }); }
     const tgt = AUTO_TGT[gradeOf(c)] || 120; if (cfg.lv[6] && (c.dev + c.com + c.flood) / 3 < tgt * 0.6 && g < crsv * 4) need.push({ p: 6, c, kind: '뒤처진 내정', gold: Math.min(15000, crsv * 4 - g) });
@@ -6316,7 +6316,7 @@ function corpsRec(k) { k.rec = k.rec || { since: S.y * 12 + S.m, cap: 0, lost: 0
 { const f = autoBattle; autoBattle = function (att, fromCn, toCn, units) { const own = C(toCn) && C(toCn).owner; const sent = (units || []).reduce((s, u) => s + u.troops, 0); const r = f.apply(this, arguments); try { if (att === S.player && own) { const k = (S.corps || []).find(k => k.cities.includes(fromCn)); if (k) { const rc = corpsRec(k); if (r && r.win) rc.cap++; } } if (own === S.player && att !== S.player && r && r.win) { const k = (S.corps || []).find(k => k.cities.includes(toCn)); if (k) corpsRec(k).lost++; } } catch (e) { } return r; }; }
 // ---------- 국책: 4분야, 반대 짝, 1년에 두 분야 ----------
 const NPOL = { 군사: ['총동원령', '정예주의'], 경제: ['둔전제', '상업 진흥'], 사람: ['구현령', '공신 우대'], 통치: ['덕치', '법치'] };
-const POL_DESC = { 총동원령: '병력 순환이 인구 60%까지 뽑음, 징병 비용 −30% / 전방 신병이 많아 훈련이 매달 깎임', 정예주의: '모든 도시 훈련 매달 +2(상한 120), 정예 출정비 절반, 전투력 +8% / 인구 80%까지만 뽑아 병력이 적음', 둔전제: '군량 +병사 유지분 50%, 개발·치수 비용 −20%, 먼 전선 보급 손실 없음 / 상업이 덜 오름(−20%)', '상업 진흥': '금 수입 +15%, 보물 제작 비용 −30% / 군량 −병사 유지분 15%, 병사 유지비(금) +20%', 구현령: '해마다 도시 2곳당 1명 인재가 더 모임(잠재 +0.3성), 등용 성공 +15%p / 기존 장수 충성 해마다 −1', '공신 우대': '기존 장수 충성 해마다 +3, 모반 위험 −15, 계승 혼란 1/4 / 등용 성공 −5%p', 덕치: '민충 매달 +0.6, 다른 세력 백성이 더 넘어옴(+15%), 계승 혼란 조금 줄임 / 산적을 못 막음', 법치: '산적 매달 −3, 모반 위험 −10, 정복지 민심 매달 +2(이탈 줄임), 금 수입 +5% / 백성 유입 −5%, 덕치와 함께 못 씀' };
+const POL_DESC = { 총동원령: '병력 순환이 인구 60%까지 뽑음, 징병 비용 −30% / 전방 신병이 많아 훈련이 매달 깎임', 정예주의: '모든 도시 훈련 매달 +2(상한 120), 정예 출정비 절반, 전투력 +8% / 인구 80%까지만 뽑아 병력이 적음', 둔전제: '군량 +병사 유지분 50%, 개발·치수 비용 −20%, 먼 전선 보급 손실 없음 / 상업이 덜 오름(−20%)', '상업 진흥': '금 수입 +15%, 보물 제작 비용 −30% / 군량 −병사 유지분 15%, 병사 유지비(금) +20%', 구현령: '해마다 도시 2곳당 1명 인재가 더 모임(잠재 +0.3성), 등용 성공 +15%p / 기존 장수 충성 해마다 −1', '공신 우대': '기존 장수 충성 해마다 +3, 모반 위험 −15, 계승 혼란 1/4 / 등용 성공 −5%p', 덕치: '민충 매달 +0.6, 다른 세력 백성이 더 넘어옴(+15%), 계승 혼란 조금 줄임 / 산적을 못 막음', 법치: '산적 매달 −3, 모반 위험 −10, 정복지 민충 매달 +2(이탈 줄임), 금 수입 +5% / 백성 유입 −5%, 덕치와 함께 못 씀' };
 function polOf(fid) { const F = S.fac[fid]; return (F && F.pol) || []; }
 function hasPol(fid, p) { return polOf(fid).includes(p); }
 function aiPickPolicy(fid) { const r = G(S.fac[fid].ruler); const a = facAx(fid); const pick = []; if (a > 0) { pick.push(a >= 45 ? '총동원령' : '정예주의'); pick.push(stat(r, 'p') >= 75 ? '상업 진흥' : '둔전제'); } else { pick.push(stat(r, 'c') >= 80 ? '구현령' : '공신 우대'); pick.push(stat(r, 'i') >= stat(r, 'c') ? '법치' : '덕치'); } S.fac[fid].pol = pick; }
@@ -6550,7 +6550,7 @@ function plotAfter(fid, g, line) { try { if (typeof badd === 'function' && S.fac
     c.pop = Math.round((c.pop || 0) * 0.9);
     const gs = (attGens || []).map(G).filter(Boolean);
     if (gs[0]) gs[0].merit = (gs[0].merit || 0) + 10;
-    if (gs.some(g => hasTr(g, '약탈자'))) { const loot = 300 + Math.round((c.gold || 0) * 0.3); c.gold += loot; c.loy = clamp(c.loy - 12, 0, 100); if (att === S.player) news(`약탈로 금 ${fmt(loot)}을 얻었으나 ${toCn}의 민심이 크게 흔들렸다.`); }
+    if (gs.some(g => hasTr(g, '약탈자'))) { const loot = 300 + Math.round((c.gold || 0) * 0.3); c.gold += loot; c.loy = clamp(c.loy - 12, 0, 100); if (att === S.player) news(`약탈로 금 ${fmt(loot)}을 얻었으나 ${toCn}의 민충이 크게 흔들렸다.`); }
     updateEmperor();
     return r;
   };
@@ -6697,7 +6697,7 @@ function fixJosa(s) {
     return ch + (j && !rieul(ch) ? '으로' : '로');
   });
 }
-function btn(t, a, v, o = {}) { return `<button type="button" class="b${o.p ? ' p' : ''}${o.s ? ' s' : ''}" data-a="${a}" data-v="${esc(v == null ? '' : v)}"${o.dis ? ' disabled' : ''}${o.aria ? ` aria-label="${esc(o.aria)}"` : ''}>${t}</button>`; }
+function btn(t, a, v, o = {}) { return `<button type="button" class="b${o.p ? ' p' : ''}${o.s ? ' s' : ''}" data-a="${a}" data-v="${esc(v == null ? '' : v)}"${o.dis ? ' disabled' : ''}${o.dis && o.why ? ` title="${esc(String(o.why))}"` : ''}${o.aria ? ` aria-label="${esc(o.aria)}"` : ''}>${t}${o.dis && o.why ? `<small class="why warn">${esc(String(o.why))}</small>` : ''}</button>`; }
 function face(n, w) { return `<span class="fc">${faceSVG(n, w)}</span>`; }
 function barH(v, col = Y, h = 8) { return `<span class="bar" style="height:${h}px"><span style="width:${clamp(v, 0, 100)}%;background:${col}"></span></span>`; }
 UI.noise = {};
@@ -6710,7 +6710,6 @@ function advEst(p, key, day) {
   let t; if (iq >= 90) t = `약 ${est}%`; else if (iq >= 78) { const m = Math.round(est / 10) * 10; t = `${Math.max(0, m - 10)}~${Math.min(100, m + 10)}%`; } else t = est >= 90 ? '확실' : est >= 70 ? '유망' : est >= 45 ? '반반' : est >= 20 ? '어려움' : '가망 없음';
   return { t, a, est, e };
 }
-function advHead() { const a = advisorOf(S.player); return a ? `오른쪽은 수석참모 ${a.n}(지력 ${stat(a, 'i')})의 예측` : '군사가 없어 결과를 예측할 수 없습니다 (인사 → 임명)'; }
 function advLine(p, key) { const r = advEst(p, key); if (!r.a) return ''; return `<div class="adv">${face(r.a.n, 32)}<span><b>${r.a.n}</b> "${phrase(r.est)}${stat(r.a, 'i') >= 90 ? ` 제 계산으로는 ${r.est}% 정도입니다.` : ''}"</span></div>`; }
 function toast(msg, ok = true) { const t = $('#toast'); t.textContent = fixJosa(msg); t.className = 'show' + (ok ? '' : ' bad'); clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 2600); }
 function render() {
@@ -6810,7 +6809,7 @@ ACT.cmd = v => {
   const menus = {
     군사: [['징병', '병사를 모읍니다 · 민충이 높을수록 쌈'], ['훈련', '병사 훈련 · 통솔을 키움'], ['출진', '인접 도시를 공격합니다'], ['이동', '장수·병력·물자를 옮깁니다']],
     내정: null, 인사: [['등용', '재야·적 장수를 데려옵니다'], ['수색', '인재와 보물을 찾습니다'], ['포상', '충성을 올립니다'], ['임명', '관직·태수·수석참모·내각을 정합니다'], ['해고', '장수를 내보냅니다']],
-    외교: null, 계략: [['유언비어', '적 도시 민심을 흔듭니다 · 금 80'], ['이간', '적 장수 충성을 떨어뜨립니다 · 금 150'], ['화계', '방화: 적 창고 군량 약 30% 소실 · 금 200'], ['내통', '공격 시 적 장수를 돌아서게 합니다 · 금 300']]
+    외교: null, 계략: [['유언비어', '적 도시 민충·개발·상업을 깎습니다 · 금 80'], ['이간', '적 장수 충성을 떨어뜨립니다 · 금 150'], ['화계', '방화: 적 창고 군량 약 30% 소실 · 금 200'], ['내통', '공격 시 적 장수를 돌아서게 합니다 · 금 300']]
   };
   if (v === '내정') return openDev('개발');
   if (v === '외교') return openDiplo();
@@ -6838,7 +6837,7 @@ function openDraft() {
   UI.f = { amt: 1000, g: null };
   openSheet(`${UI.city} · 징병`, () => {
     const c = C(UI.city);
-    return `<div class="kv">금 ${fmt(c.gold)} · 민충 ${c.loy} · 병력 ${fmt(c.troops)}</div><div class="grid4">${[1000, 2000, 3000, 5000].map(a => btn(fmt(a) + `<small>금${draftCost(c, a)}</small>`, 'amt', a, { p: UI.f.amt === a, dis: c.gold < draftCost(c, a) })).join('')}</div>
+    return `<div class="kv">금 ${fmt(c.gold)} · 민충 ${c.loy} · 병력 ${fmt(c.troops)}</div><div class="grid4">${[1000, 2000, 3000, 5000].map(a => btn(fmt(a) + `<small>금 ${draftCost(c, a)}</small>`, 'amt', a, { p: UI.f.amt === a, dis: c.gold < draftCost(c, a) })).join('')}</div>
     <div class="kv">금 ${fmt(draftCost(c, UI.f.amt))} 소모 · 민충 -${Math.ceil(UI.f.amt / 400)} · 민충이 높을수록 싸게 모입니다</div>${freeList().map(g => genRow(g, `통${stat(g, 't')}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`;
   }, () => btn(UI.f.g ? `${UI.f.g}에게 ${fmt(UI.f.amt)}명 징병을 맡긴다` : '장수를 고르세요', 'draftGo', '', { p: 1, dis: !UI.f.g }));
 }
@@ -6870,7 +6869,7 @@ function sortieBody() {
   const c = C(UI.city); const us = sortieUnits(); const tot = us.reduce((s, u) => s + u.troops, 0);
   const rows = freeList().map(g => {
     const on = UI.f.sel.includes(g.n); const u = us.find(x => x.gen === g.n);
-    return `<div class="urow${on ? ' sel' : ''}"><button type="button" class="row flat" data-a="sortSel" data-v="${g.n}">${face(g.n, 32)}<span class="grow"><b>${g.n}</b><small>통${stat(g, 't')} 무${stat(g, 'w')} 지${stat(g, 'i')}${hasSk(g, '지휘') ? ' · 지휘' : ''}</small></span><span class="rt">${on ? fmt(u.troops) : '대기'}</span></button>${on ? `<div class="fms">${g.fm.concat(SIEGE_FORMS).map(f => btn(f + (FORM[f].cost ? `<small>금${FORM[f].cost}</small>` : ''), 'sortForm', g.n + '|' + f, { p: u.form === f, s: 1 })).join('')}</div><div class="fdesc">${u.form}: ${FORM[u.form].desc}</div>` : ''}</div>`;
+    return `<div class="urow${on ? ' sel' : ''}"><button type="button" class="row flat" data-a="sortSel" data-v="${g.n}">${face(g.n, 32)}<span class="grow"><b>${g.n}</b><small>통${stat(g, 't')} 무${stat(g, 'w')} 지${stat(g, 'i')}${hasSk(g, '지휘') ? ' · 지휘' : ''}</small></span><span class="rt">${on ? fmt(u.troops) : '대기'}</span></button>${on ? `<div class="fms">${g.fm.concat(SIEGE_FORMS).map(f => btn(f + (FORM[f].cost ? `<small>금 ${FORM[f].cost}</small>` : ''), 'sortForm', g.n + '|' + f, { p: u.form === f, s: 1 })).join('')}</div><div class="fdesc">${u.form}: ${FORM[u.form].desc}</div>` : ''}</div>`;
   }).join('');
   const cost = us.reduce((s, u) => s + FORM[u.form].cost, 0);
   return `<div class="kv">병력 ${fmt(c.troops)} 중 출진 비율</div><div class="grid4">${[30, 50, 70, 100].map(p => btn(p + '%', 'sortPct', p, { p: UI.f.pct === p })).join('')}</div>
@@ -6934,7 +6933,7 @@ ACT.recT = v => { UI.f.t = v; openSheet(`${v} 등용`, () => {
   const t = G(v); const gs = freeList();
   return `<div class="pn row2">${face(v, 56)}<span class="grow"><b>${v}</b><small>${t.st === '재야' ? '재야' : fname(t.fac)} · 통${t.t} 무${t.w} 지${t.i} 정${t.p} 매${t.c}</small><small>특기 ${t.sk.join(', ') || '없음'} · 진형 ${t.fm.join(' ')}</small></span></div>
   <div class="kv">예물 금 (성공률 상승 · 등용에 성공했을 때만 건넵니다)</div><div class="grid4">${[0, 100, 300, 500].map(b => btn(b ? `금 ${b}` : '없음', 'recB', b, { p: UI.f.bonus === b, dis: C(UI.city).gold < b })).join('')}</div>
-  ${UI.f.g ? advLine(recruitChance(G(UI.f.g), t, UI.f.bonus), `rec|${UI.f.g}|${v}`) : ''}<div class="kv">보낼 장수 · ${advHead()}</div>${gs.map(g => genRow(g, advEst(recruitChance(g, t, UI.f.bonus), `rec|${g.n}|${v}`).t, 'pick', g.n, UI.f.g === g.n, `매력 ${stat(g, 'c')}${hasSk(g, '명성') ? ' · 명성' : ''}`)).join('') || noGen()}`;
+  ${UI.f.g ? advLine(recruitChance(G(UI.f.g), t, UI.f.bonus), `rec|${UI.f.g}|${v}`) : ''}<div class="kv">보낼 장수</div>${gs.map(g => genRow(g, advEst(recruitChance(g, t, UI.f.bonus), `rec|${g.n}|${v}`).t, 'pick', g.n, UI.f.g === g.n, `매력 ${stat(g, 'c')}${hasSk(g, '명성') ? ' · 명성' : ''}`)).join('') || noGen()}`;
 }, () => btn(UI.f.g ? `${UI.f.g}을(를) 보낸다` : '장수를 고르세요', 'recGo', '', { p: 1, dis: !UI.f.g })); };
 ACT.recB = v => { UI.f.bonus = +v; renderSheet(); };
 ACT.recGo = () => done(cmdRecruit(UI.city, UI.f.g, UI.f.t, UI.f.bonus));
@@ -6977,7 +6976,7 @@ ACT.dpT = v => { UI.f.tf = v; UI.f.type = allied(S.player, v) ? '원조' : '동�
   const tg = UI.f.type === '공동공격' ? `<div class="kv">함께 칠 세력</div><div class="grid3">${Object.values(S.fac).filter(f => f.alive && f.id !== S.player && f.id !== v).map(f => btn(f.ruler, 'dpTg', f.id, { p: UI.f.target === f.id, s: 1 })).join('')}</div>` : '';
   return `<div class="grid3">${types.map(t => btn(t, 'dpType', t, { p: UI.f.type === t })).join('')}</div>${tg}
   ${golds.length > 1 ? `<div class="kv">${UI.f.type === '동맹' ? '예물 금 (동맹이 성사됐을 때만 건넵니다)' : '보낼 금'}</div><div class="grid3">${golds.map(g => btn(g ? `금 ${g}` : '없음', 'dpGold', g, { p: UI.f.gold === g, dis: C(UI.city).gold < g })).join('')}</div>` : ''}
-  ${UI.f.g ? advLine(diploChance(G(UI.f.g), v, UI.f.type, UI.f.gold), `dp|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">사신 · ${advHead()}</div>${gs.map(g => genRow(g, advEst(diploChance(g, v, UI.f.type, UI.f.gold), `dp|${g.n}|${v}|${UI.f.type}`).t, 'pick', g.n, UI.f.g === g.n, `매력 ${stat(g, 'c')}${hasSk(g, '변설') ? ' · 변설' : ''}`)).join('') || noGen()}`;
+  ${UI.f.g ? advLine(diploChance(G(UI.f.g), v, UI.f.type, UI.f.gold), `dp|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">사신</div>${gs.map(g => genRow(g, advEst(diploChance(g, v, UI.f.type, UI.f.gold), `dp|${g.n}|${v}|${UI.f.type}`).t, 'pick', g.n, UI.f.g === g.n, `매력 ${stat(g, 'c')}${hasSk(g, '변설') ? ' · 변설' : ''}`)).join('') || noGen()}`;
 }, () => btn(UI.f.g ? `${UI.f.g}을(를) 사신으로 보낸다` : '사신을 고르세요', 'dpGo', '', { p: 1, dis: !UI.f.g || (UI.f.type === '공동공격' && !UI.f.target) })); };
 ACT.dpType = v => { UI.f.type = v; renderSheet(); };
 ACT.dpGold = v => { UI.f.gold = +v; renderSheet(); };
@@ -6998,7 +6997,7 @@ function openScheme(type) {
 }
 ACT.scT = v => { UI.f.t = v; openSheet(`${UI.f.type} · ${v}`, () => {
   const tg = (UI.f.type === '이간' || UI.f.type === '내통') ? G(v) : (C(v).gov ? G(C(v).gov) : null);
-  return `${UI.f.g ? advLine(schemeChance(G(UI.f.g), tg, UI.f.type), `sc|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">금 ${SCOST[UI.f.type]} 소모 · ${advHead()}</div>${freeList().map(g => genRow(g, advEst(schemeChance(g, tg, UI.f.type), `sc|${g.n}|${v}|${UI.f.type}`).t, 'pick', g.n, UI.f.g === g.n, `지력 ${stat(g, 'i')}${hasSk(g, '신산') ? ' · 신산' : ''}`)).join('') || noGen()}`;
+  return `${UI.f.g ? advLine(schemeChance(G(UI.f.g), tg, UI.f.type), `sc|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">금 ${SCOST[UI.f.type]} 소모</div>${freeList().map(g => genRow(g, advEst(schemeChance(g, tg, UI.f.type), `sc|${g.n}|${v}|${UI.f.type}`).t, 'pick', g.n, UI.f.g === g.n, `지력 ${stat(g, 'i')}${hasSk(g, '신산') ? ' · 신산' : ''}`)).join('') || noGen()}`;
 }, () => btn(UI.f.g ? `${UI.f.g}에게 맡긴다` : '장수를 고르세요', 'scGo', '', { p: 1, dis: !UI.f.g })); };
 ACT.scGo = () => done(cmdScheme(UI.city, UI.f.g, UI.f.type, UI.f.t));
 
@@ -7368,7 +7367,7 @@ ACT.cmd = v => {
   const menus = {
     군사: [['징병', '병사를 모읍니다 · 민충이 높을수록 쌈'], ['훈련', '병사 훈련 · 통솔을 키움'], ['출진', '부대를 편성해 인접 도시를 칩니다'], ['이동', '장수·병력·물자를 옮깁니다']],
     인사: [['등용', '재야·적 장수를 데려옵니다'], ['수색', '이 도시의 인재와 보물을 찾습니다'], ['정찰', '장수를 보내 한 지방의 인재를 조사합니다'], ['관심 인물', `눈여겨본 인물 ${S.watch.length}명`], ['면담', '불만 있는 장수를 달랩니다'], ['포상', '충성을 올립니다'], ['임명', '관직·태수·수석참모·내각을 정합니다'], ['해고', '장수를 내보냅니다']],
-    계략: [['유언비어', '적 도시 민심을 흔듭니다 · 금 80'], ['이간', '적 장수 충성을 떨어뜨립니다 · 금 150'], ['화계', '방화: 적 창고 군량 약 30% 소실 · 금 200'], ['내통', '공격 시 적 장수를 돌아서게 합니다 · 금 300']]
+    계략: [['유언비어', '적 도시 민충·개발·상업을 깎습니다 · 금 80'], ['이간', '적 장수 충성을 떨어뜨립니다 · 금 150'], ['화계', '방화: 적 창고 군량 약 30% 소실 · 금 200'], ['내통', '공격 시 적 장수를 돌아서게 합니다 · 금 300']]
   };
   if (v === '내정') return openDev('개발');
   if (v === '외교') return openDiplo();
@@ -7432,7 +7431,7 @@ ACT.recT = v => { UI.f.t = v; UI.f.promise = false; UI.f.bonus = 0; UI.f.g = nul
   ${dm ? `<div class="kv">요구 조건</div><div class="grid2">${btn(`${dm === '녹봉' ? '녹봉 1.5배' : dm === '태수' ? '태수 자리' : '장군 칭호'} 약속${UI.f.promise ? ' ✓' : ''}`, 'recP', '', { p: UI.f.promise, s: 1 })}<span class="dim sm">${dm === '녹봉' ? '녹봉을 올려주면 마음이 기웁니다.' : `약속하면 3개월 안에 ${dm === '태수' ? '태수로 임명' : '장군 칭호를 수여'}해야 합니다. 어기면 충성이 크게 떨어집니다.`}</span></div>` : ''}
   <div class="kv">예물 금 (등용에 성공했을 때만 건넵니다)</div><div class="grid4">${[0, 100, 300, 500].map(b => btn(b ? `금 ${b}` : '없음', 'recB', b, { p: UI.f.bonus === b, dis: C(UI.city).gold < b, s: 1 })).join('')}</div>
   ${UI.f.g ? advLine(recruitChance(G(UI.f.g), t, UI.f.bonus, UI.f.promise), `rec|${UI.f.g}|${v}`) : ''}
-  <div class="kv">보낼 장수 · ${advHead()}</div>${gs.map(g => genRow(g, advEst(recruitChance(g, t, UI.f.bonus, UI.f.promise), `rec|${g.n}|${v}`).t, 'pick', g.n, UI.f.g === g.n, `매력 ${stat(g, 'c')}${hasSk(g, '명성') ? ' · 명성' : ''}`)).join('') || noGen()}
+  <div class="kv">보낼 장수</div>${gs.map(g => genRow(g, advEst(recruitChance(g, t, UI.f.bonus, UI.f.promise), `rec|${g.n}|${v}`).t, 'pick', g.n, UI.f.g === g.n, `매력 ${stat(g, 'c')}${hasSk(g, '명성') ? ' · 명성' : ''}`)).join('') || noGen()}
   <div class="grid2" style="margin-top:6px">${btn('자세히 보기', 'genD', v, { s: 1 })}${btn(S.watch.includes(v) ? '관심 해제' : '관심 인물에', 'watchT', v, { s: 1 })}</div>`;
 }, () => btn(UI.f.g ? `${UI.f.g}을(를) 보낸다` : '장수를 고르세요', 'recGo', '', { p: 1, dis: !UI.f.g })); };
 ACT.recP = () => { UI.f.promise = !UI.f.promise; renderSheet(); };
@@ -7561,7 +7560,7 @@ function unitCard(u, i, tr) {
   return `<div class="ucard"><div class="uch"><b>제${i + 1}부대</b><span>병력 ${fmt(tr || 0)} · 궁합 ${mem(u).length < 2 ? '-' : known || '?'}</span></div>
   <div class="slots">${lab.map(([k, l, s]) => { const n = u[k]; return `<button type="button" class="slot${n ? '' : ' empty'}" data-a="slot" data-v="${i}|${k}">${n ? face(n, 30) : '<span class="fc empty sm"></span>'}<small>${l}</small><b>${n || '비어 있음'}</b>${n && s ? `<i>${SK_NAME[s]} ${stat(G(n), s)}</i>` : n ? `<i>${G(n).sk.filter(x => SUPPORT_BATTLE.includes(x)).join(',')}</i>` : ''}</button>`; }).join('')}</div>
   ${found.length ? `<div class="cmb">${found.map(n => `<span>${n}</span>`).join('')}</div>` : ''}${hidden ? '<div class="cmb"><span class="q">새로운 조합의 기운이 느껴진다</span></div>' : ''}
-  ${u.gen ? `<div class="fms">${forms.map(f => btn(f + (FORM[f].cost ? `<small>금${FORM[f].cost}</small>` : ''), 'uForm', i + '|' + f, { p: u.form === f, s: 1 })).join('')}</div><div class="fdesc">${u.form}: ${FORM[u.form].desc}</div>
+  ${u.gen ? `<div class="fms">${forms.map(f => btn(f + (FORM[f].cost ? `<small>금 ${FORM[f].cost}</small>` : ''), 'uForm', i + '|' + f, { p: u.form === f, s: 1 })).join('')}</div><div class="fdesc">${u.form}: ${FORM[u.form].desc}</div>
   <div class="fms">${ROLES.map(r => btn(r, 'uRole', i + '|' + r, { p: u.role === r, s: 1 })).join('')}</div>` : ''}</div>`;
 }
 function sortieBody() {
@@ -7794,11 +7793,11 @@ ACT.cmd = v => {
     군사: [['이 도시', [['징병', '병사를 모읍니다 · 민충이 높을수록 쌈'], ['훈련', '병사 훈련 · 통솔을 키움'], ['출진', '부대를 편성해 인접 도시를 칩니다'], ['이동', '장수·병력·물자를 옮깁니다']]]],
     인사: [['세력 전체 · 어느 도시 장수든 보낼 수 있습니다', [['등용', '재야·적 장수를 데려옵니다 · 멀면 몇 달 걸림'], ['정찰', '장수를 보내 한 지방의 인재를 조사합니다'], ['관심 인물', `눈여겨본 인물 ${S.watch.length}명`], ['면담', '불만 있는 장수를 달랩니다'], ['포상', '충성을 올립니다 · 금은 그 장수 도시에서'], ['임명', '관직·태수·수석참모·내각을 정합니다'], ['해고', '장수를 내보냅니다']]],
       ['이 도시', [['수색', '이 도시의 인재와 보물을 찾습니다']]]],
-    계략: [['세력 전체 · 멀면 몇 달 걸림', [['유언비어', '민충 −15, 두 달 징병 불가·세금 −20%, 민충 낮으면 수비 사기 −10 · 금 80'], ['이간', '적 장수 충성·군주와의 인연을 떨어뜨림 · 금 150'], ['화계', '방화: 적 창고 군량 약 30% 소실 · 금 200'], ['교란', '한 달 동안 징병·이동을 막음 (공격 직전에) · 금 150'], ['내통', '충성 낮은 적 장수를 포섭, 공격 때 성문이 약해짐 · 금 300'], ['매수', '충성 낮은 적 태수를 금으로 매수, 도시째 귀순 · 도시 값의 절반'], ['첩보망', '1년 동안 그 세력 정보가 쌓이고 계략 +10% · 금 300']]]]
+    계략: [['세력 전체 · 멀면 몇 달 걸림', [['유언비어', '민충 −15, 개발·상업 −4, 두 달 징병 불가·세금 −20%, 민충 낮으면 수비 사기 −10 · 금 80'], ['이간', '적 장수 충성·군주와의 인연을 떨어뜨림 · 금 150'], ['화계', '방화: 적 창고 군량 약 30% 소실 · 금 200'], ['교란', '한 달 동안 징병·이동을 막음 (공격 직전에) · 금 150'], ['내통', '충성 낮은 적 장수를 포섭, 공격 때 성문이 약해짐 · 금 300'], ['매수', '충성 낮은 적 태수를 금으로 매수, 도시째 귀순 · 도시 값의 ' + buyPct(S.player) + '%'], ['첩보망', '1년 동안 그 세력 정보가 쌓이고 계략 +10% · 금 300']]]]
   };
   if (v === '내정') return openDev('개발');
   if (v === '외교') return openDiplo();
-  openSheet(v, () => menus[v].map(([h, items]) => { const cityOnly = h === '이 도시'; return `<div class="kv">${cityOnly ? `${UI.city}에서` : h}</div><div class="col">${items.map(([n, d]) => `<button type="button" class="row" data-a="sub" data-v="${n}"${cityOnly && !own ? ' disabled' : ''}><span class="grow"><b>${n}</b><small>${d}</small></span><span class="rt">&gt;</span></button>`).join('')}</div>`; }).join('') + ((S.envoys || []).some(e => G(e.g) && G(e.g).fac === S.player) ? `<div class="kv">파견 중</div>${S.envoys.filter(e => G(e.g) && G(e.g).fac === S.player).map(e => `<div class="dim sm">${e.g} → ${e.tloc} (${ENV_NAME[e.kind]}) · ${e.left}개월 남음</div>`).join('')}` : ''));
+  openSheet(v, () => menus[v].map(([h, items]) => { const cityOnly = h === '이 도시'; return `<div class="kv">${cityOnly ? `${UI.city}에서` : h}</div><div class="col">${items.map(([n, d]) => `<button type="button" class="row" data-a="sub" data-v="${n}"${cityOnly && !own ? ' disabled' : ''}><span class="grow"><b>${n}</b><small>${d}</small>${cityOnly && !own ? '<small class="why warn">아군 도시에서만</small>' : ''}</span><span class="rt">&gt;</span></button>`).join('')}</div>`; }).join('') + ((S.envoys || []).some(e => G(e.g) && G(e.g).fac === S.player) ? `<div class="kv">파견 중</div>${S.envoys.filter(e => G(e.g) && G(e.g).fac === S.player).map(e => `<div class="dim sm">${e.g} → ${e.tloc} (${ENV_NAME[e.kind]}) · ${e.left}개월 남음</div>`).join('')}` : ''));
 };
 
 // 등용
@@ -7828,7 +7827,7 @@ ACT.recT = v => { UI.f.t = v; UI.f.promise = false; UI.f.bonus = 0; UI.f.g = nul
   ${dm ? `<div class="kv">요구 조건</div><div class="grid2">${btn(`${dm === '녹봉' ? '녹봉 1.5배' : dm === '태수' ? '태수 자리' : '장군 칭호'} 약속${UI.f.promise ? ' ✓' : ''}`, 'recP', '', { p: UI.f.promise, s: 1 })}<span class="dim sm">${dm === '녹봉' ? '녹봉을 올려주면 마음이 기웁니다.' : `약속하면 3개월 안에 ${dm === '태수' ? '태수로 임명' : '장군 칭호를 수여'}해야 합니다. 어기면 충성이 크게 떨어집니다.`}</span></div>` : ''}
   <div class="kv">예물 금 (성공했을 때만 보낸 장수의 도시에서 건넵니다)</div><div class="grid4">${[0, 100, 300, 500].map(b => btn(b ? `금 ${b}` : '없음', 'recB', b, { p: UI.f.bonus === b, dis: gold < b, s: 1 })).join('')}</div>
   ${UI.f.g ? advLine(recruitChance(G(UI.f.g), t, UI.f.bonus, UI.f.promise), `rec|${UI.f.g}|${v}`) : ''}
-  <div class="kv">보낼 장수 · ${advHead()}</div>${senderRows('rec', arg, g => advEst(recruitChance(g, t, UI.f.bonus, UI.f.promise), `rec|${g.n}|${v}`).t, g => `매력 ${stat(g, 'c')}${hasSk(g, '명성') ? ' · 명성' : ''}`)}
+  <div class="kv">보낼 장수</div>${senderRows('rec', arg, g => advEst(recruitChance(g, t, UI.f.bonus, UI.f.promise), `rec|${g.n}|${v}`).t, g => `매력 ${stat(g, 'c')}${hasSk(g, '명성') ? ' · 명성' : ''}`)}
   <div class="grid2" style="margin-top:6px">${btn('자세히 보기', 'genD', v, { s: 1 })}${btn(S.watch.includes(v) ? '관심 해제' : '관심 인물에', 'watchT', v, { s: 1 })}</div>`;
 }, () => btn(sendLabel('rec', { t: UI.f.t }, '보낸다'), 'recGo', '', { p: 1, dis: !UI.f.g })); };
 ACT.recB = v => { UI.f.bonus = +v; renderSheet(); };
@@ -7847,7 +7846,7 @@ ACT.dpT = v => { UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '
   const tg = UI.f.type === '공동공격' ? `<div class="kv">함께 칠 세력</div><div class="grid3">${Object.values(S.fac).filter(f => f.alive && f.id !== S.player && f.id !== v).map(f => btn(f.ruler, 'dpTg', f.id, { p: UI.f.target === f.id, s: 1 })).join('')}</div>` : '';
   return `<div class="grid3">${types.map(t => btn(t, 'dpType', t, { p: UI.f.type === t })).join('')}</div>${tg}
   ${golds.length > 1 ? `<div class="kv">${UI.f.type === '동맹' ? '예물 금 (동맹이 성사됐을 때만 건넵니다)' : '보낼 금'} · 사신의 도시 금고에서</div><div class="grid3">${golds.map(g => btn(g ? `금 ${g}` : '없음', 'dpGold', g, { p: UI.f.gold === g, dis: gold < g })).join('')}</div>` : ''}
-  ${UI.f.g ? advLine(diploChance(G(UI.f.g), v, UI.f.type, UI.f.gold), `dp|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">사신 · 상대 수도 ${capitalOf(v)}까지 · ${advHead()}</div>${senderRows('dip', { tf: v }, g => advEst(diploChance(g, v, UI.f.type, UI.f.gold), `dp|${g.n}|${v}|${UI.f.type}`).t, g => `매력 ${stat(g, 'c')}${hasSk(g, '변설') ? ' · 변설' : ''}`)}`;
+  ${UI.f.g ? advLine(diploChance(G(UI.f.g), v, UI.f.type, UI.f.gold), `dp|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">사신 · 상대 수도 ${capitalOf(v)}까지</div>${senderRows('dip', { tf: v }, g => advEst(diploChance(g, v, UI.f.type, UI.f.gold), `dp|${g.n}|${v}|${UI.f.type}`).t, g => `매력 ${stat(g, 'c')}${hasSk(g, '변설') ? ' · 변설' : ''}`)}`;
 }, () => btn(sendLabel('dip', { tf: UI.f.tf }, '사신으로 보낸다'), 'dpGo', '', { p: 1, dis: !UI.f.g || (UI.f.type === '공동공격' && !UI.f.target) })); };
 ACT.dpGo = () => done(dispatch('dip', UI.f.g, { tf: UI.f.tf, type: UI.f.type, gold: UI.f.gold, target: UI.f.target }));
 
@@ -7868,7 +7867,7 @@ function openScheme(type) {
 ACT.scT = v => { UI.f.t = v; UI.f.g = null; openSheet(`${UI.f.type} · ${v}`, () => {
   const tg = (UI.f.type === '이간' || UI.f.type === '내통') ? G(v) : (C(v).gov ? G(C(v).gov) : null);
   const flt = null;
-  return `${UI.f.g ? advLine(schemeChance(G(UI.f.g), tg, UI.f.type), `sc|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">금 ${SCOST[UI.f.type]} · 맡은 장수의 도시 금고에서 · ${advHead()}</div>${senderRows(UI.f.type, { t: v }, g => advEst(schemeChance(g, tg, UI.f.type), `sc|${g.n}|${v}|${UI.f.type}`).t, g => `지력 ${stat(g, 'i')}${hasSk(g, '신산') ? ' · 신산' : ''}`, flt)}`;
+  return `${UI.f.g ? advLine(schemeChance(G(UI.f.g), tg, UI.f.type), `sc|${UI.f.g}|${v}|${UI.f.type}`) : ''}<div class="kv">금 ${SCOST[UI.f.type]} · 맡은 장수의 도시 금고에서</div>${senderRows(UI.f.type, { t: v }, g => advEst(schemeChance(g, tg, UI.f.type), `sc|${g.n}|${v}|${UI.f.type}`).t, g => `지력 ${stat(g, 'i')}${hasSk(g, '신산') ? ' · 신산' : ''}`, flt)}`;
 }, () => btn(sendLabel(UI.f.type, { t: UI.f.t }, '보낸다'), 'scGo', '', { p: 1, dis: !UI.f.g })); };
 ACT.scGo = () => done(dispatch(UI.f.type, UI.f.g, { t: UI.f.t }));
 
@@ -8045,7 +8044,7 @@ function trTags(g) { if (!(g.tr && g.tr.length)) return ''; if (!((g.fac === S.p
       인사: [['세력 전체 · 어느 도시 장수든 보낼 수 있습니다', [['등용', '재야·적 장수를 데려옵니다'], ['정찰', '한 지방의 인재를 조사합니다'], ['관심 인물', `눈여겨본 인물 ${S.watch.length}명`], ['면담', '불만 있는 장수를 달랩니다'], ['포상', '6개월 동안 충성을 끌어올립니다'], ['임명', '관직·태수·수석참모·내각을 정합니다'], ['유학', '양양·무위·오·업에 보내 크게 키웁니다'], ['해고', '장수를 내보냅니다']]],
         ['이 도시', [['수련', '능력치를 골라 집중 수련 · 금 300 + 능력치×10'], ['사제', '스승과 제자를 맺어 매달 가르침'], ['수색', '이 도시의 인재와 보물을 찾습니다']]]]
     };
-    openSheet(v, () => menus[v].map(([h, items]) => { const cityOnly = h === '이 도시'; return `<div class="kv">${cityOnly ? `${UI.city}에서` : h}</div><div class="col">${items.map(([n, d]) => `<button type="button" class="row" data-a="sub" data-v="${n}"${cityOnly && !own ? ' disabled' : ''}><span class="grow"><b>${n}</b><small>${d}</small></span><span class="rt">&gt;</span></button>`).join('')}</div>`; }).join(''));
+    openSheet(v, () => menus[v].map(([h, items]) => { const cityOnly = h === '이 도시'; return `<div class="kv">${cityOnly ? `${UI.city}에서` : h}</div><div class="col">${items.map(([n, d]) => `<button type="button" class="row" data-a="sub" data-v="${n}"${cityOnly && !own ? ' disabled' : ''}><span class="grow"><b>${n}</b><small>${d}</small>${cityOnly && !own ? '<small class="why warn">아군 도시에서만</small>' : ''}</span><span class="rt">&gt;</span></button>`).join('')}</div>`; }).join(''));
   };
   const sub = ACT.sub;
   ACT.sub = v => ({ 수련: openDrill, 사제: openMentor, 유학: openStudy, 수송: openConvoy }[v] || (() => sub(v)))();
@@ -8056,7 +8055,7 @@ function openDev(kind) {
   UI.f = { kind, g: null };
   openSheet(`${UI.city} · 내정`, () => {
     const c = C(UI.city); const k = UI.f.kind;
-    const tabs = ['개발', '상업', '치수', '성벽', '서원', '시주', '세율'].map(t => btn(t + (t === '세율' ? `<small>${c.tax || 30}%</small>` : t === '서원' ? `<small>${(c.acad || 0) >= 5 ? '최고' : '금' + acadCost(c)}</small>` : t === '시주' ? '<small>군량1천</small>' : `<small>금${devCost(c, t)}</small>`), 'devTab', t, { p: t === k, s: 1 })).join('');
+    const tabs = ['개발', '상업', '치수', '성벽', '서원', '시주', '세율'].map(t => btn(t + (t === '세율' ? `<small>${c.tax || 30}%</small>` : t === '서원' ? `<small>${(c.acad || 0) >= 5 ? '최고' : '금' + acadCost(c)}</small>` : t === '시주' ? '<small>군량1천</small>' : `<small>금 ${devCost(c, t)}</small>`), 'devTab', t, { p: t === k, s: 1 })).join('');
     if (k === '세율') { const tx = c.tax || 30; return `<div class="grid4">${tabs}</div><div class="pn"><b>세율 ${tx}%</b><small>금·군량 수입이 세율에 비례합니다. 30%보다 높으면 민충이 떨어질 수 있고, 낮으면 오를 수 있습니다.</small></div><div class="grid4">${[10, 20, 30, 40, 50].map(v => btn(v + '%', 'taxSet', v, { p: tx === v })).join('')}</div>`; }
     const gs = freeList();
     if (k === '서원') return `<div class="grid4">${tabs}</div><div class="pn"><b>서원 ${c.acad || 0}/5단계</b><small>세력의 평균 서원 단계가 높을수록 매년 3월 청년 인재가 더 많이, 더 뛰어나게 모입니다(최대 2 + 도시 수 ÷ 3명). 유지비는 매달 단계 × 금 20입니다. 다음 단계 금 ${acadCost(c)}.</small></div>${gs.sort((a, b) => stat(b, 'p') + stat(b, 'a') - stat(a, 'p') - stat(a, 'a')).map(g => genRow(g, '', 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`;
@@ -8072,7 +8071,7 @@ function openDraft() {
   openSheet(`${UI.city} · 징병`, () => {
     const c = C(UI.city); const cap = draftCap(c);
     return `<div class="kv">인구 ${fmt(c.pop)} · 병력 ${fmt(c.troops)} · 이번에 모을 수 있는 최대 ${fmt(cap)}명</div><div class="dim sm">한 번에 인구의 3%까지, 도시 병력은 인구의 50%(주둔 한도)까지, 세력 전체 병력은 세력 인구의 20%까지 모을 수 있습니다. 모은 만큼 인구가 줄어 수입도 줄어듭니다.</div>
-    <div class="grid4">${[1000, 2000, 3000, 5000].map(a => btn(fmt(a) + `<small>금${draftCost(c, a)}</small>`, 'amt', a, { p: UI.f.amt === a, dis: c.gold < draftCost(c, a) || a > Math.max(cap, 1000) })).join('')}</div>
+    <div class="grid4">${[1000, 2000, 3000, 5000].map(a => btn(fmt(a) + `<small>금 ${draftCost(c, a)}</small>`, 'amt', a, { p: UI.f.amt === a, dis: c.gold < draftCost(c, a) || a > Math.max(cap, 1000) })).join('')}</div>
     <div class="kv">금 ${fmt(draftCost(c, Math.min(UI.f.amt, cap)))} · 민충 -${Math.ceil(Math.min(UI.f.amt, cap) / 400)}</div>${freeList().map(g => genRow(g, `통${stat(g, 't')}`, 'pick', g.n, UI.f.g === g.n, hasTr(g, '모병가') ? '<span class="hot">모병가: 비용 −30%, 한도 +30%</span>' : null)).join('') || noGen()}`;
   }, () => btn(UI.f.g ? `${UI.f.g}에게 ${fmt(UI.f.amt)}명 징병을 맡긴다` : '장수를 고르세요', 'draftGo', '', { p: 1, dis: !UI.f.g || draftCap(C(UI.city)) < 100 }));
 }
@@ -8257,13 +8256,14 @@ function devPlan(kind) {
   return sel => {
     const c = C(UI.city); let gold = c.gold, food = c.food; const key = { 개발: 'dev', 상업: 'com', 치수: 'flood', 성벽: 'def' }[kind]; let lv = key ? c[key] : 0; let acad = c.acad || 0; let loySim = c.loy;
     const step = n => {
-      if (kind === '시주' || kind === '진휼') { const g = G(n); const left = 100 - loySim; if (left <= 0) return '민충 최대'; const v = Math.min(left, loyGain(g)); const cost = loyCost(c, kind, v, loyGain(g)); if (kind === '시주') { if (food < cost) return `군량 부족 (${fmt(cost)})`; food -= cost; } else { if (gold < cost) return `금 부족 (${fmt(cost)})`; gold -= cost; } loySim += v; return null; }
+      if (kind === '시주' || kind === '진휼') { const g = G(n); const dh = rootOf(S.player) === '덕화'; const left = 100 - loySim; if (left <= 0 && !(dh && baepumTargets(c).length)) return '민충 최대'; const v = Math.min(left, loyGain(g)); const cost = loyCost(c, kind, v, loyGain(g)); if (kind === '시주') { if (food < cost) return `군량 부족 (${fmt(cost)})`; food -= cost; } else { if (gold < cost) return `금 부족 (${fmt(cost)})`; gold -= cost; } loySim += v; if (dh && v > 0) loySim += Math.min(100 - loySim, Math.round(v * 0.2)); return null; }
       if (kind === '서원') { if (acad >= 5) return '서원 최고 단계'; const cost = Math.round(500 * (acad + 1) * TIERF[c.tier] / 10) * 10; if (gold < cost) return `금 부족 (${cost} 필요)`; gold -= cost; acad++; return null; }
       if (lv >= devMax(c, kind)) return `${kind} 최대치`; const tmp = { ...c, [key]: lv }; const cost = devCost(tmp, kind); if (gold < cost) return `금 부족 (${cost} 필요)`; gold -= cost; lv = Math.min(devMax(c, kind), lv + devGainWhy(G(n), kind, c).v); return null;
     };
     for (const n of sel) { const e = step(n); if (e) return { ok: false, info: `선택한 장수 중 실행 불가: ${e}`, blocked: () => e }; }
+    const bpLine = (rootOf(S.player) === '덕화' && (kind === '진휼' || kind === '시주') && loySim >= BAEPUM.min) ? (() => { const tg = baepumTargets(c); if (!tg.length) return ''; const x = Math.min(BAEPUM.mon, sel.map(G).filter(Boolean).reduce((a, g) => a + baepumDrop(baepumGain(g)), 0)); return ` · 베풂 — 이웃 적 도시 ${tg.length}곳 민충 −${Math.round(x * 10) / 10}`; })() : '';
     const info = kind === '진휼' ? `민충 ${c.loy} → 약 ${Math.min(100, loySim)} · 남는 금 ${fmt(gold)}` : kind === '시주' ? `민충 ${c.loy} → 약 ${Math.min(100, loySim)} · 남는 군량 ${fmt(food)}` : kind === '서원' ? `서원 ${c.acad || 0} → ${acad}단계 · 남는 금 ${fmt(gold)}` : `${kind} ${c[key]} → 약 ${lv} (효과 ${Math.round(effv(lv))}) · 매달 −${kind === '성벽' ? 0 : decayOf(c, c[key]).toFixed(1)} · 남는 금 ${fmt(gold)}`;
-    return { ok: true, info, blocked: n => { const save = [gold, food, lv, acad]; const e = step(n); [gold, food, lv, acad] = save; return e; } };
+    return { ok: true, info: info + bpLine, blocked: n => { const save = [gold, food, lv, acad]; const e = step(n); [gold, food, lv, acad] = save; return e; } };
   };
 }
 function openDevMulti(kind) {
@@ -8271,7 +8271,7 @@ function openDevMulti(kind) {
   openMulti({
     title: `${UI.city} · ${kind}`, verb: `${kind}을(를) 맡긴다`, keep: false,
     head: () => `<div class="grid4">${['개발', '상업', '치수', '성벽', '서원', '시설', '승급', '공방', '매매', '시주', '진휼', '세율'].map(t => btn(t, 'devTabM', t, { p: t === kind, s: 1 })).join('')}</div>`,
-    list: () => freeList().map(g => { if (kind === '진휼' || kind === '시주') return { g, score: stat(g, 'c'), right: `+${loyGain(g)} · ${kind === '시주' ? '군량' : '금'} ${fmt(loyCost(c, kind, loyGain(g), loyGain(g)))}` }; if (kind === '서원') return { g, score: stat(g, 'p') + stat(g, 'a'), right: '' }; const r = devGainWhy(g, kind, c); return { g, score: r.v, right: `<b>+${r.v}</b>`, extra: r.why.length > 1 ? `<span class="hot">${r.why.slice(1).join(' · ')}</span>` : '' }; }).sort((a, b) => b.score - a.score),
+    list: () => freeList().map(g => { if (kind === '진휼' || kind === '시주') return { g, score: stat(g, 'c'), right: `+${rootOf(S.player) === '덕화' ? baepumGain(g) : loyGain(g)} · ${kind === '시주' ? '군량' : '금'} ${fmt(loyCost(c, kind, loyGain(g), loyGain(g)))}` }; if (kind === '서원') return { g, score: stat(g, 'p') + stat(g, 'a'), right: '' }; const r = devGainWhy(g, kind, c); return { g, score: r.v, right: `<b>+${r.v}</b>`, extra: r.why.length > 1 ? `<span class="hot">${r.why.slice(1).join(' · ')}</span>` : '' }; }).sort((a, b) => b.score - a.score),
     plan: devPlan(kind),
     run: n => kind === '진휼' ? cmdRelief(UI.city, n) : kind === '시주' ? cmdCharity(UI.city, n) : kind === '서원' ? cmdAcademy(UI.city, n) : cmdDevelop(UI.city, n, kind)
   });
@@ -8283,8 +8283,8 @@ function openTrain() {
   const c = C(UI.city);
   openMulti({
     title: `${UI.city} · 훈련`, verb: '훈련을 맡긴다',
-    list: () => freeList().map(g => ({ g, score: stat(g, 't') + (hasTr(g, '조련가') ? 40 : 0), right: `+${Math.max(1, Math.round(4 * abf(stat(g, 't')) * (hasFac(c, '훈련장') ? 1.3 : 1)))} · 통솔 경험`, extra: hasTr(g, '조련가') ? '<span class="hot">조련가 +50%</span>' : `통솔 ${stat(g, 't')}` })).sort((a, b) => b.score - a.score),
-    plan: sel => { let gold = c.gold, tr = c.train; const step = n => { const cost = trainCost(c); if (gold < cost) return `금 부족 (${cost} 필요)`; gold -= cost; let v = 4 * abf(stat(G(n), 't')) * (hasFac(c, '훈련장') ? 1.3 : 1); if (tr > 100) v *= 100 / tr; tr += Math.max(1, Math.round(v)); return null; }; for (const n of sel) { const e = step(n); if (e) return { ok: false, info: e, blocked: () => e }; } return { ok: true, info: `훈련 ${c.train} → 약 ${tr} · 남는 금 ${fmt(gold)}`, blocked: n => { const s0 = [gold, tr]; const e = step(n); [gold, tr] = s0; return e; } }; },
+    list: () => freeList().map(g => ({ g, score: stat(g, 't') + (hasTr(g, '조련가') ? 40 : 0), right: `+${Math.max(1, Math.round(4 * abf(stat(g, 't')) * (hasFac(c, '훈련장') ? 1.3 : 1) * (rootOf(c.owner) === '강병' ? 1.25 : 1)))} · 통솔 경험`, extra: hasTr(g, '조련가') ? '<span class="hot">조련가 +50%</span>' : `통솔 ${stat(g, 't')}` })).sort((a, b) => b.score - a.score),
+    plan: sel => { let gold = c.gold, tr = c.train; const step = n => { const cost = trainCost(c); if (gold < cost) return `금 부족 (${cost} 필요)`; gold -= cost; let v = 4 * abf(stat(G(n), 't')) * (hasFac(c, '훈련장') ? 1.3 : 1) * (rootOf(c.owner) === '강병' ? 1.25 : 1); if (tr > 100) v *= 100 / tr; tr += Math.max(1, Math.round(v)); return null; }; for (const n of sel) { const e = step(n); if (e) return { ok: false, info: e, blocked: () => e }; } return { ok: true, info: `훈련 ${c.train} → 약 ${tr} · 남는 금 ${fmt(gold)}`, blocked: n => { const s0 = [gold, tr]; const e = step(n); [gold, tr] = s0; return e; } }; },
     run: n => cmdTrain(UI.city, n)
   });
 }
@@ -8293,7 +8293,7 @@ function openDraft() {
   const c = C(UI.city); UI.f = { amt: UI.f && UI.f.amt || 1000, keep: true };
   openMulti({
     title: `${UI.city} · 징병`, verb: '징병을 맡긴다',
-    head: () => `<div class="kv">한 명당 모을 병사</div><div class="grid4">${[1000, 2000, 3000, 5000].map(a => btn(fmt(a) + `<small>금${draftCost(c, a)}</small>`, 'amtM', a, { p: UI.f.amt === a, s: 1 })).join('')}</div><div class="dim sm">인구 ${fmt(c.pop)} · 한 번에 인구의 3%, 도시는 인구의 50%, 세력 전체는 인구의 20%까지 · 세력 병력 ${fmt(facTroops(S.player))} / 한도 ${fmt(facTroopCap(S.player))}</div>`,
+    head: () => `<div class="kv">한 명당 모을 병사</div><div class="grid4">${[1000, 2000, 3000, 5000].map(a => btn(fmt(a) + `<small>금 ${draftCost(c, a)}</small>`, 'amtM', a, { p: UI.f.amt === a, s: 1 })).join('')}</div><div class="dim sm">인구 ${fmt(c.pop)} · 한 번에 인구의 3%, 도시는 인구의 50%, 세력 전체는 인구의 20%까지 · 세력 병력 ${fmt(facTroops(S.player))} / 한도 ${fmt(facTroopCap(S.player))}</div>`,
     list: () => freeList().map(g => ({ g, score: stat(g, 't') + (hasTr(g, '모병가') ? 50 : 0), right: `통${stat(g, 't')}`, extra: hasTr(g, '모병가') ? '<span class="hot">모병가: 비용 −30%, 한도 +30%</span>' : '' })).sort((a, b) => b.score - a.score),
     plan: sel => {
       let gold = c.gold, pop = c.pop, troops = c.troops;
@@ -8795,7 +8795,7 @@ function openTutor() {
 // 용병
 function openMerc() {
   const c = C(UI.city); UI.f = { amt: 2000, g: null };
-  openSheet(`${UI.city} · 용병`, () => `<div class="dim sm">인구와 상관없이 금으로 병사를 삽니다. 징병의 ${ECO.mercMul}배 가격이고, 훈련도가 낮으며(20), 유지비가 두 배입니다. 주둔 한도(${fmt(garrisonCap(c))})를 넘길 수는 없습니다.</div><div class="kv">병력 ${fmt(c.troops)} · 금 ${fmt(c.gold)}</div><div class="grid4">${[1000, 2000, 5000, 10000].map(a => btn(`${fmt(a)}<small>금${fmt(mercCost(c, a))}</small>`, 'mcA', a, { p: UI.f.amt === a, s: 1, dis: c.gold < mercCost(c, a) })).join('')}</div>${freeList().map((g, i) => genRow(g, `매${stat(g, 'c')}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`,
+  openSheet(`${UI.city} · 용병`, () => `<div class="dim sm">인구와 상관없이 금으로 병사를 삽니다. 징병의 ${ECO.mercMul}배 가격이고, 훈련도가 낮으며(${rootOf(S.player) === '상략' ? 40 : 20}), 유지비가 ${rootOf(S.player) === '상략' ? '1.5배(고용비는 ×0.8)' : '두 배'}입니다. 주둔 한도(${fmt(garrisonCap(c))})를 넘길 수는 없습니다.</div><div class="kv">병력 ${fmt(c.troops)} · 금 ${fmt(c.gold)}</div><div class="grid4">${[1000, 2000, 5000, 10000].map(a => btn(`${fmt(a)}<small>금 ${fmt(mercCost(c, a))}</small>`, 'mcA', a, { p: UI.f.amt === a, s: 1, dis: c.gold < mercCost(c, a), why: `금 ${fmt(mercCost(c, a) - c.gold)} 부족` })).join('')}</div>${freeList().map((g, i) => genRow(g, `매${stat(g, 'c')}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`,
     () => btn(UI.f.g ? `${UI.f.g}에게 용병 ${fmt(UI.f.amt)}명을 맡긴다` : '장수를 고르세요', 'mcGo', '', { p: 1, dis: !UI.f.g }));
 }
 ACT.mcA = v => { UI.f.amt = +v; renderSheet(); };
@@ -8807,8 +8807,8 @@ ACT.mcGo = () => done(cmdMerc(UI.city, UI.f.g, UI.f.amt));
   ACT.cmd = v => {
     cmd(v); const top = UI.sheets[UI.sheets.length - 1]; if (!top || (v !== '군사' && v !== '인사')) return; const b = top.body;
     const own = C(UI.city).owner === S.player;
-    const add = v === '군사' ? ['용병', '금으로 병사를 삽니다 (징병의 3배, 유지비 2배)', '징병'] : ['교습', '주목 장수만 · 금 500 + 능력치²×0.6 · 경험 150 (3개월에 한 번)', '수련'];
-    top.body = () => b().replace(`data-v="${add[2]}"`, `data-v="${add[0]}"${own ? '' : ' disabled'}><span class="grow"><b>${add[0]}</b><small>${add[1]}</small></span><span class="rt">&gt;</span></button><button type="button" class="row" data-a="sub" data-v="${add[2]}"`);
+    const add = v === '군사' ? ['용병', '금으로 병사를 삽니다 (징병의 ' + ECO.mercMul + '배, 유지비 ' + (rootOf(S.player) === '상략' ? '1.5배' : '2배') + ')', '징병'] : ['교습', '주목 장수만 · 금 500 + 능력치²×0.6 · 경험 150 (3개월에 한 번)', '수련'];
+    top.body = () => b().replace(`data-v="${add[2]}"`, `data-v="${add[0]}"${own ? '' : ' disabled'}><span class="grow"><b>${add[0]}</b><small>${add[1]}</small>${own ? '' : '<small class="why warn">아군 도시에서만</small>'}</span><span class="rt">&gt;</span></button><button type="button" class="row" data-a="sub" data-v="${add[2]}"`);
     renderSheet();
   };
 }
@@ -9114,9 +9114,9 @@ ACT.dpT = v => {
     const gold = UI.f.g ? C(G(UI.f.g).loc).gold : 99999;
     const tg = t === '공동공격' ? `<div class="kv">함께 칠 세력</div><div class="grid3">${Object.values(S.fac).filter(f => f.alive && f.id !== S.player && f.id !== v).map(f => btn(fname(f.id), 'dpTg', f.id, { p: UI.f.target === f.id, s: 1 })).join('')}</div>` : (t === '매입' || t === '할양') ? `<div class="kv">${t === '매입' ? '사들일' : '넘겨받을'} 도시 (우리와 맞닿은 곳, 수도 제외)</div><div class="grid3">${cities.map(c => btn(`${c.n}<small>값 ${fmt(cityPrice(c))}</small>`, 'dpTg', c.n, { p: UI.f.target === c.n, s: 1 })).join('') || '<p class="dim">맞닿은 도시가 없습니다.</p>'}</div>` : '';
     const desc = { 불가침: '정한 기간 동안 서로 공격하지 않습니다. 깨면 모든 세력의 신뢰를 잃습니다.', 조공: '우리가 훨씬 강할 때(전력 2배 이상) 매달 금을 받습니다. 거절하면 적대가 크게 오릅니다.', 매입: '금으로 도시를 삽니다. 값을 높게 부를수록 성공하기 쉽습니다. 같은 세력에 3개월에 한 번.', 할양: '전력이 3배 넘게 앞설 때 도시를 넘기라고 요구합니다. 거절하면 적대가 크게 오릅니다.', 혼인: '동맹이 끝나지 않고 이어지며, 공격받으면 원군을 보낼 가능성이 높아집니다.', 동맹: '2년 동맹. 우리 도시가 공격받으면 맞닿은 동맹 도시에서 원군이 올 수 있습니다.' }[t] || '';
-    return `<div class="dim sm">${relText(v) || '조약 없음'} · 적대 ${hos(S.player, v)} · 전력비 ${(power2(S.player) / Math.max(1, power2(v))).toFixed(1)}배</div><div class="grid4">${types.map(x => btn(x, 'dpType', x, { p: t === x, s: 1 })).join('')}</div>${desc ? `<div class="dim sm">${desc}</div>` : ''}${tg}
+    return `<div class="dim sm">${relText(v) || '조약 없음'} · 적대 ${hos(S.player, v)} · 전력비 ${(power2(S.player) / Math.max(1, power2(v))).toFixed(1)}배</div><div class="grid4">${types.map(x => btn(x, 'dpType', x, { p: t === x, s: 1 })).join('')}</div>${desc ? `<div class="dim sm">${desc}</div>` : ''}${rootCostK(S.player) > 1 && (t === '매입' || t === '조공') ? `<div class="dim sm warn">${rootOf(S.player) || '이'} 노선은 ${t === '매입' ? `매입에 같은 성공률로 금이 ${rootCostK(S.player)}배 듭니다` : `조공 수령액이 1/${rootCostK(S.player)}로 줄어듭니다`} (상략만 면제).</div>` : ''}${tg}
     ${golds.length > 1 ? `<div class="kv">${t === '불가침' ? '기간' : t === '동맹' ? '예물 금 (성사됐을 때만)' : t === '매입' ? '제시할 값' : '보낼 금'}</div><div class="grid3">${golds.map(g => btn(t === '불가침' ? `${g}개월` : g ? `금 ${fmt(g)}` : '없음', 'dpGold', g, { p: UI.f.gold === g, dis: t !== '불가침' && gold < g })).join('')}</div>` : ''}
-    ${UI.f.g ? advLine(diploChance(G(UI.f.g), v, t, UI.f.gold, UI.f.target), `dp|${UI.f.g}|${v}|${t}`) : ''}<div class="kv">사신 · ${advHead()}</div>${senderRows('dip', { tf: v }, g => advEst(diploChance(g, v, t, UI.f.gold, UI.f.target), `dp|${g.n}|${v}|${t}`).t, g => `매력 ${stat(g, 'c')}${hasSk(g, '변설') ? ' · 변설' : ''}${hasTr(g, '외교가') ? ' · 외교가' : ''}`)}`;
+    ${UI.f.g ? advLine(diploChance(G(UI.f.g), v, t, UI.f.gold, UI.f.target), `dp|${UI.f.g}|${v}|${t}`) : ''}<div class="kv">사신</div>${senderRows('dip', { tf: v }, g => advEst(diploChance(g, v, t, UI.f.gold, UI.f.target), `dp|${g.n}|${v}|${t}`).t, g => `매력 ${stat(g, 'c')}${hasSk(g, '변설') ? ' · 변설' : ''}${hasTr(g, '외교가') ? ' · 외교가' : ''}`)}`;
   }, () => btn(sendLabel('dip', { tf: UI.f.tf }, '사신으로 보낸다'), 'dpGo', '', { p: 1, dis: !UI.f.g || ((UI.f.type === '공동공격' || UI.f.type === '매입' || UI.f.type === '할양') && !UI.f.target) }));
 };
 // 동맹 원군: 수비 선택 전에
@@ -9137,7 +9137,7 @@ ACT.dpT = v => {
 // 계략: 매수 대상 표시
 {
   const base = openScheme;
-  openScheme = function (type) { base(type); if (type !== '매수' && type !== '첩보망') return; const top = UI.sheets[UI.sheets.length - 1]; const b = top.body; top.body = () => (type === '매수' ? '<div class="dim sm">태수가 있는 적 도시만 고를 수 있습니다. 태수 충성이 낮을수록(조사 60% 이상이면 보임), 탐욕스러울수록 잘 넘어오고, 청렴하면 넘어오지 않습니다. 값은 도시 값의 절반입니다.</div>' : '<div class="dim sm">고른 도시의 세력 전체에 첩보망을 심습니다.</div>') + b().replace(/data-a="scT" data-v="([^"]+)">([\s\S]*?)<small>/g, (m, cn) => { const c = C(cn); if (type !== '매수' || !c) return m; const g = c.gov && G(c.gov); return m + `${g ? `태수 ${g.n} · 충성 ${kn(g.n) >= 60 ? g.loy : '?'} · 값 ${fmt(Math.round(cityPrice(c) * 0.5 / 100) * 100)} · ` : '태수 없음 · '}`; }); renderSheet(); };
+  openScheme = function (type) { base(type); if (type !== '매수' && type !== '첩보망') return; const top = UI.sheets[UI.sheets.length - 1]; const b = top.body; top.body = () => (type === '매수' ? '<div class="dim sm">태수가 있는 적 도시만 고를 수 있습니다. 태수 충성이 낮을수록(조사 60% 이상이면 보임), 탐욕스러울수록 잘 넘어오고, 청렴하면 넘어오지 않습니다. 값은 도시 값의 ' + buyPct(S.player) + '%이고, 성공률에 +15가 붙습니다.</div>' : '<div class="dim sm">고른 도시의 세력 전체에 첩보망을 심습니다.</div>') + b().replace(/data-a="scT" data-v="([^"]+)">([\s\S]*?)<small>([^<]*)<\/small>/g, (m, cn, mid, sm) => { const c = C(cn); if (type !== '매수' || !c) return m; const g = c.gov && G(c.gov); const rest = sm.split(' · ').filter(x => !/^태수 /.test(x)); const info = g ? [`태수 ${g.n}`, `충성 ${kn(g.n) >= 60 ? g.loy : '?'}`, `값 ${fmt(Math.round(cityPrice(c) * 0.15 * rootCostK(S.player) / 100) * 100)}`] : ['<span class="warn">태수 없음 — 매수할 수 없음</span>']; return `data-a="scT" data-v="${cn}"${g ? '' : ' disabled'}>${mid}<small>${rest.slice(0, 1).concat(info, rest.slice(1)).join(' · ')}</small>`; }); renderSheet(); };
 }
 { const f = ACT.sub; ACT.sub = v => (['교란', '매수', '첩보망'].includes(v) ? () => openScheme(v) : () => f(v))(); }
 
@@ -9230,7 +9230,7 @@ function openTutor() {
 // 훈련 화면: 통솔 경험 표시
 {
   const base = openTrain;
-  openTrain = function () { base(); const top = UI.sheets[UI.sheets.length - 1]; if (!top) return; const b = top.body; top.body = () => '<div class="dim sm">훈련은 통솔을 키우는 일입니다. 통솔이 높을수록 훈련도가 많이 오르고(통솔 90이면 +4, 70이면 +2), 맡은 장수는 통솔 경험을 쌓습니다. 훈련도는 매달 1 이상 떨어집니다.</div>' + b(); renderSheet(); };
+  openTrain = function () { base(); const top = UI.sheets[UI.sheets.length - 1]; if (!top) return; const b = top.body; top.body = () => '<div class="dim sm">훈련은 통솔을 키우는 일입니다. 통솔이 높을수록 훈련도가 많이 오르고(통솔 90이면 +4, 70이면 +2), 맡은 장수는 통솔 경험을 쌓습니다. 훈련도는 매달 ' + (rootOf(S.player) === '강병' ? '0.5(강병)' : '1') + ' 이상 떨어집니다.</div>' + b(); renderSheet(); };
 }
 // 등용: 한 번이라도 사람을 보낸 장수를 위로 (관심 인물 묶음 아래, 그 밖 목록 맨 위)
 { const f = recruitCands; recruitCands = function () { const r = f(); const t = S.recTried || {}; const up = a => a.filter(g => t[g.n]).sort((x, y) => t[y.n] - t[x.n]).concat(a.filter(g => !t[g.n])); return { ron: up(r.ron), en: up(r.en) }; }; }
@@ -9800,8 +9800,8 @@ ACT.giftChoose = v => { UI.f.gift = v; closeSheet(); renderSheet(); };
 { const f = renderSheet; renderSheet = function () { const r = f.apply(this, arguments); try { const sh = document.querySelector('#sheet'); const wb = sh && sh.querySelector('[data-a="watchT"]'); if (wb && !wb.dataset.moved) { const head = sh.querySelector('.shb .pn'); if (head) { wb.dataset.moved = 1; wb.classList.add('s'); wb.style.flex = 'none'; head.appendChild(wb); } } } catch (e) { } return r; }; }
 // 화면 열 때 여러 겹의 덧붙임이 저마다 다시 그리던 것을 마지막에 한 번만 그리기
 { let batch = 0; const rs = renderSheet; renderSheet = function () { if (batch) { UI._pend = true; return; } return rs.apply(this, arguments); };
-  ['openAppoint', 'openReward', 'openRecruit', 'openCraft', 'openGradeUp', 'openDevMulti', 'openFacility', 'openArms', 'openMentor', 'openDrill', 'openStudy'].forEach(n => { try { const f = eval(n); if (typeof f !== 'function') return; const w = function () { batch++; let r; try { r = f.apply(this, arguments); } finally { batch--; if (!batch && UI._pend) { UI._pend = false; rs(); } } return r; }; eval(n + ' = w'); } catch (e) { } });
-  ['recT'].forEach(a => { const f = ACT[a]; if (!f) return; ACT[a] = function () { batch++; let r; try { r = f.apply(this, arguments); } finally { batch--; if (!batch && UI._pend) { UI._pend = false; rs(); } } return r; }; }); }
+  ['openAppoint', 'openReward', 'openRecruit', 'openCraft', 'openGradeUp', 'openDevMulti', 'openFacility', 'openArms', 'openMentor', 'openDrill', 'openStudy'].forEach(n => { try { const f = eval(n); if (typeof f !== 'function') return; const w = function () { batch++; let r; try { r = f.apply(this, arguments); } finally { batch--; if (!batch && UI._pend) { UI._pend = false; (document.body.classList.contains('s7L') ? renderSheet : rs)(); } } return r; }; eval(n + ' = w'); } catch (e) { } });
+  ['recT'].forEach(a => { const f = ACT[a]; if (!f) return; ACT[a] = function () { batch++; let r; try { r = f.apply(this, arguments); } finally { batch--; if (!batch && UI._pend) { UI._pend = false; (document.body.classList.contains('s7L') ? renderSheet : rs)(); } } return r; }; }); }
 
 // 수도 내정 화면: 중앙 지원 설정
 { const f = openDevMulti; openDevMulti = function (kind) { f.apply(this, arguments); const top = UI.sheets[UI.sheets.length - 1]; const b = top.body; top.body = () => { let h = b(); const c = C(UI.city); if (c.n === capitalOf(S.player)) { const cfg = cenCfg(S.player); h = `<div class="pn"><b>중앙 지원 (수도가 필요한 도시를 도움)</b><small>남는 금(예비금 6개월치${gradeOf(c) >= 5 && gradeOf(c) < 7 && cfg.saveCap !== false ? '·수도 승급 저축' : ''} 제외)의 절반까지 매달 나눔 · 판단은 재무 장관</small><div class="grid3">${btn(`지원 ${cfg.on ? '켜짐' : '꺼짐'}`, 'cenT', 'on', { p: cfg.on, s: 1 })}${[1, 2, 3, 4, 5, 6].map(i => btn(`${i}. ${CEN_NAME[i]}`, 'cenT', String(i), { p: cfg.lv[i], s: 1, dis: !cfg.on })).join('')}${gradeOf(c) >= 5 && gradeOf(c) < 7 ? btn(`수도 승급 저축 ${cfg.saveCap !== false ? '켜짐' : '꺼짐'}`, 'cenT', 'save', { p: cfg.saveCap !== false, s: 1 }) : ''}</div></div>` + h; } return h; }; renderSheet(); }; }
@@ -9921,7 +9921,7 @@ function b2Render() { const st = UI.b2; const W = B2.W * B2.TW + 8, H = B2.H * B
     if (hl) s += `<rect x="${px}" y="${py}" width="${B2.TW}" height="${B2.TH}" fill="${hl}"/>`; s += `</g>`; }
   st.units.filter(u => u.alive).sort((a, b) => a.y - b.y).forEach(u => { const [px, py] = b2Pos(u.x, u.y); const sel = st.sel === u.id; s += `<g id="b2u${u.id}" class="b2u${u.done ? ' done' : ''}" data-a="b2Tap" data-v="${u.x},${u.y}" transform="translate(${px},${py + 6})" style="transition:transform .16s linear">${sel ? `<ellipse cx="0" cy="0" rx="17" ry="5" fill="none" stroke="#fff" stroke-width="1.5"/>` : ''}${b2UnitSVG(u)}</g>`; });
   const info = st.sel != null ? st.units.find(u => u.id === st.sel) : null;
-  return `<div class="b2top"><b>새 전투 화면 시험</b><span>${st.turn}턴 · ${st.msg || ''}</span></div><div class="b2wrap"><svg class="b2svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${s}</svg></div>
+  return `<div class="b2top"><b>전투</b><span>${st.turn}턴 · ${st.msg || ''}</span></div><div class="b2wrap"><svg class="b2svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${s}</svg></div>
     <div class="b2bar">${info ? `<span class="b2face">${face(info.gen, 34)}</span><span class="grow"><b>${info.gen}</b> <small>${info.arm} · 병력 ${fmt(info.troops)} · 사기 ${Math.round(info.mor)}</small></span>` : '<span class="grow dim sm">아군 부대를 눌러 이동할 곳을 고르세요</span>'}${btn('턴 끝', 'b2End', '', { s: 1, p: 1 })}${btn('나가기', 'b2Quit', '', { s: 1 })}</div>`; }
 function b2Draw() { const el = document.querySelector('#b2root'); if (el) el.innerHTML = b2Render(); }
 function b2Open() { const st = UI.b2 = { map: b2Map(S.y * 100 + S.m), units: [], turn: 1, msg: '' }; const arms = ['보병', '궁병', '기병', '보병', '공성']; const mine = gensOf(S.player).filter(g => !isRuler(g)).sort((a, b) => stat(b, 'w') - stat(a, 'w')).slice(0, 5); const en = Object.values(S.gen).filter(g => g.st === '현역' && g.fac && g.fac !== S.player).sort((a, b) => stat(b, 'w') - stat(a, 'w')).slice(0, 5);
@@ -10233,10 +10233,10 @@ setInterval(() => { try { if (UI.scr === 'battle' && B && !B.over && !B.deploy &
 // ===== 화면 v47: 국책·후계 · 사람 사건 · 군단 성과표 · 성향 표시 =====
 function openPolicy() { UI.polSel = (S.fac[S.player].pol || []).slice(); openSheet('국책 · 후계', () => { const F = S.fac[S.player]; const sel = UI.polSel; const locked = F.polY === S.y && (F.pol || []).length;
     let h = `<div class="dim sm">분야가 다른 두 가지를 고릅니다. 같은 분야의 두 국책은 서로 반대라 함께 고를 수 없습니다. 1년에 한 번 바꿀 수 있습니다${locked ? ' — 올해는 이미 정했습니다' : ''}.</div>`;
-    Object.entries(NPOL).forEach(([cat, ps]) => { h += `<div class="kv">${cat}</div>` + ps.map(p => `<button type="button" class="row ${sel.includes(p) ? 'sel' : ''}" data-a="npolT" data-v="${p}"${locked ? ' disabled' : ''}><span class="grow"><b>${p}</b><small>${POL_DESC[p]}</small></span></button>`).join(''); });
+    Object.entries(NPOL).forEach(([cat, ps]) => { h += `<div class="kv">${cat}</div>` + ps.map(p => `<button type="button" class="row ${sel.includes(p) ? 'sel' : ''}" data-a="npolT" data-v="${p}"${locked ? ' disabled' : ''}><span class="grow"><b>${p}${rootOf(S.player) ? (RT_POL[p] === rootOf(S.player) ? ' ★' : ' · 효과 60%') : ''}</b><small>${POL_DESC[p]}</small></span></button>`).join(''); });
     const ruler = G(F.ruler); const cands = gensOf(S.player).filter(g => !isRuler(g)).sort((a, b) => ((RELS.some(r => r.종류 === '부자' && r.장수[0] === F.ruler && r.장수[1] === b.n) ? 1000 : 0) + stat(b, 'c') + stat(b, 't')) - ((RELS.some(r => r.종류 === '부자' && r.장수[0] === F.ruler && r.장수[1] === a.n) ? 1000 : 0) + stat(a, 'c') + stat(a, 't'))).slice(0, 6);
     h += `<div class="kv">후계자 ${F.heir ? '— ' + F.heir : '(정하지 않음)'}</div><div class="dim sm">미리 정해 두면 군주가 죽어도 혼란(장수 이탈·분열)이 절반으로 줄어듭니다. 친자식이면 더 줄어듭니다.</div>` + cands.map(g => `<button type="button" class="row ${F.heir === g.n ? 'sel' : ''}" data-a="heirT" data-v="${g.n}">${face(g.n, 30)}<span class="grow"><b>${g.n}</b><small>${axisLabel(axisOf(g.n))} · 통${stat(g, 't')} 매${stat(g, 'c')}${RELS.some(r => r.종류 === '부자' && r.장수[0] === F.ruler && r.장수[1] === g.n) ? ' · 친자식' : ''}</small></span></button>`).join('');
-    return h; }, () => btn('확정', 'polGo', '', { p: 1, dis: !(UI.polSel.length === 2) || (S.fac[S.player].polY === S.y && (S.fac[S.player].pol || []).length) })); }
+    return h; }, () => btn('확정', 'polGo', '', { p: 1, dis: !(UI.polSel.length === 2) || (S.fac[S.player].polY === S.y && (S.fac[S.player].pol || []).length), why: (S.fac[S.player].polY === S.y && (S.fac[S.player].pol || []).length) ? '올해는 이미 정했습니다' : '분야가 다른 두 가지를 고르세요' })); }
 ACT.npolT = v => { const sel = UI.polSel; const i = sel.indexOf(v); if (i >= 0) sel.splice(i, 1); else { const cat = Object.keys(NPOL).find(c => NPOL[c].includes(v)); const same = sel.findIndex(p => NPOL[cat].includes(p)); if (same >= 0) sel.splice(same, 1); if (sel.length >= 2) sel.shift(); sel.push(v); } renderSheet(); };
 ACT.polGo = () => { const F = S.fac[S.player]; F.pol = UI.polSel.slice(); F.polY = S.y; toast(`올해 국책: ${F.pol.join(' · ')}`, true); closeAll(); render(); };
 ACT.heirT = v => { const F = S.fac[S.player]; F.heir = F.heir === v ? null : v; renderSheet(); };
@@ -10580,14 +10580,14 @@ function opsSummary(c) { const pol = c.autoPolicy || '균형'; const cap = c.n =
     const i = h.indexOf('data-a="keepT"'); if (i >= 0) { const s0 = h.lastIndexOf('<div class="grid2">', i); const e0 = h.indexOf('</div>', i); if (s0 >= 0 && e0 > i) h = h.slice(0, s0) + h.slice(e0 + 6); }
     return `<button type="button" class="opsbar" data-a="opsOpen"><span><b>운영 설정</b> ${esc(opsSummary(c))}</span><span>›</span></button>` + h; }; renderSheet(); }; }
 ACT.opsOpen = () => { openSheet(`${UI.city} 운영 설정`, () => { const c = C(UI.city); const pol = c.autoPolicy || '균형'; const cap = c.n === capitalOf(S.player); let h = '';
-    h += `<div class="kv">도시 맡기기</div><div class="dim sm">켜면 태수가 매달 남는 금으로 내정·민심·토벌을 알아서 합니다. 직접 명령한 장수는 건드리지 않습니다.</div><div class="grid2">${btn(`도시 맡기기: ${c.autoKeep ? '켜짐' : '꺼짐'}`, 'keepT', '', { p: c.autoKeep, s: 1 })}${btn(`방침: ${pol}`, 'polT', '', { s: 1, dis: !c.autoKeep })}${btn(`군사도 맡기기: ${c.autoMil ? '켜짐' : '꺼짐'}`, 'milT', '', { p: c.autoMil, s: 1, dis: !c.autoKeep })}${btn(`태수 고정: ${c.govLock ? '켜짐' : '꺼짐'}`, 'govLockT', '', { p: c.govLock, s: 1 })}</div>`;
+    h += `<div class="kv">도시 맡기기</div><div class="dim sm">켜면 태수가 매달 남는 금으로 내정·민충·토벌을 알아서 합니다. 직접 명령한 장수는 건드리지 않습니다.</div><div class="grid2">${btn(`도시 맡기기: ${c.autoKeep ? '켜짐' : '꺼짐'}`, 'keepT', '', { p: c.autoKeep, s: 1 })}${btn(`방침: ${pol}`, 'polT', '', { s: 1, dis: !c.autoKeep })}${btn(`군사도 맡기기: ${c.autoMil ? '켜짐' : '꺼짐'}`, 'milT', '', { p: c.autoMil, s: 1, dis: !c.autoKeep })}${btn(`태수 고정: ${c.govLock ? '켜짐' : '꺼짐'}`, 'govLockT', '', { p: c.govLock, s: 1 })}</div>`;
     h += `<div class="dim sm">방침 — 균형: 내정·성벽을 고르게 / 내정: 개발·상업·치수 먼저 / 군비: 성벽·군비 먼저. 군사도 맡기기: 징병·훈련까지. 태수 고정: 자동 인사로 태수를 바꾸지 않음.</div>`;
     h += `<div class="dim sm">맡겼을 때 한 달 순서: ① 산적 25 이상이면 토벌 ② 민충 60 미만이면 진휼·시주 ③ (군사도 맡기기) 징병·훈련 ④ 군량이 모자라면 치수·개발 ⑤ 금이 모자라면 상업 ⑥ 떨어진 내정 회복 ⑦ 도시 승급 준비 ⑧ 성벽 ⑨ 목표까지 내정.</div>`;
     if (cap) { const cfg = cenCfg(S.player); h += `<div class="kv">중앙 지원 (수도가 다른 도시를 도움)</div><div class="dim sm">남는 금(예비금 6개월치 제외)의 절반까지 매달 나눔 · 판단은 재무 장관</div><div class="grid3">${btn(`지원 ${cfg.on ? '켜짐' : '꺼짐'}`, 'cenT', 'on', { p: cfg.on, s: 1 })}${[1, 2, 3, 4, 5, 6].map(i => btn(`${i}. ${CEN_NAME[i]}`, 'cenT', String(i), { p: cfg.lv[i], s: 1, dis: !cfg.on })).join('')}${gradeOf(c) >= 5 && gradeOf(c) < 7 ? btn(`수도 승급 저축 ${cfg.saveCap !== false ? '켜짐' : '꺼짐'}`, 'cenT', 'save', { p: cfg.saveCap !== false, s: 1 }) : ''}</div>`; }
     return h; }, () => btn('닫기', 'close', '', { p: 1 })); };
 
 // ===== 내정 화면 정리: 장수 목록을 위로 — 운영 설정은 도시 화면으로, 탭은 한 줄, 정렬·필터는 접기, 일괄 단추는 아래로 =====
-const DEV_GROUPS = [['내정', ['개발', '상업', '치수', '성벽']], ['민심', ['시주', '진휼', '세율']], ['도시', ['서원', '시설', '승급', '공방', '매매']]];
+const DEV_GROUPS = [['내정', ['개발', '상업', '치수', '성벽']], ['민충', ['시주', '진휼', '세율']], ['도시', ['서원', '시설', '승급', '공방', '매매']]];
 ACT.msTog = () => { UI.msOpen = !UI.msOpen; renderSheet(); };
 function tidyDev() { const r = null; try { const sh = document.querySelector('#sheet'); if (!sh) return r; const tabs = [...sh.querySelectorAll('.shb > .grid4 [data-a="devTabM"]')]; if (!tabs.length) return r;
     const body = sh.querySelector('.shb'); const ops = body.querySelector(':scope > .opsbar'); if (ops) ops.remove();
@@ -10854,13 +10854,13 @@ function adminEff(fid) { if (!REFORM || !fid || !S.fac[fid]) return 1; const n =
 // 3) 수도와의 거리: 수도에서 3칸 넘는 만큼 −5%씩(최저 50%). 태수 정치가 높으면 손실을 줄임(정치 100이면 절반)
 function capDist(c) { const cap = c.owner && capitalOf(c.owner); if (!cap) return 0; return cap === c.n ? 0 : Math.min(20, hops(cap, c.n)); }
 function distEff(c) { if (!REFORM || !c.owner) return 1; const d = capDist(c); const loss = 0.05 * Math.max(0, d - 3); const gv = c.gov && G(c.gov); const cut = gv ? Math.max(0, (stat(gv, 'p') - 40) / 120) : 0; return Math.max(0.5, 1 - loss * (1 - cut)); }
-// 4) 정복지: 빼앗은 도시는 3년에 걸쳐 효율이 60% → 100%로, 옛 주군이 살아 있고 맞닿아 있으면 민심이 낮을 때 되돌아갈 수 있음
+// 4) 정복지: 빼앗은 도시는 3년에 걸쳐 효율이 60% → 100%로, 옛 주군이 살아 있고 맞닿아 있으면 민충이 낮을 때 되돌아갈 수 있음
 function conqEff(c) { if (!REFORM || !c.conq) return 1; const t = S.y * 12 + S.m - c.conq.t; if (t >= 36) return 1; return 0.6 + 0.4 * t / 36; }
 function cityEff(c) { return adminEff(c.owner) * distEff(c) * conqEff(c); }
 { const f = cityGold; cityGold = function (c, mul) { return Math.round(f.apply(this, arguments) * (c && c.owner ? cityEff(c) : 1)); }; }
 { const f = cityFood; cityFood = function (c, mul) { return Math.round(f.apply(this, arguments) * (c && c.owner ? Math.sqrt(cityEff(c)) : 1)); }; }
 { const f = autoBattle; autoBattle = function (att, fromCn, toCn) { const c = C(toCn); const own = c && c.owner; const r = f.apply(this, arguments); try { if (REFORM && c && own && c.owner === att && own !== att) { c.conq = { from: own, t: S.y * 12 + S.m }; c.loy = Math.min(c.loy, 50); } } catch (e) { } return r; }; }
-// 5) 백성도 군량을 먹음: 매달 인구 400명당 1. 모자라면 기근(인구 −1%, 민심 −3). 수도에서 먼 도시의 병사는 보급 손실(4칸 넘는 만큼 5%씩 더 먹음)
+// 5) 백성도 군량을 먹음: 매달 인구 400명당 1. 모자라면 기근(인구 −1%, 민충 −3). 수도에서 먼 도시의 병사는 보급 손실(4칸 넘는 만큼 5%씩 더 먹음)
 function civFood(c) { return Math.ceil((c.pop || 0) / 400); }
 { const f = monthlyUpdate; monthlyUpdate = function () { const r = f.apply(this, arguments); if (!REFORM) return r; try { const mo = S.y * 12 + S.m; Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시') return; const need = civFood(c) + Math.round(Math.ceil(c.troops / ECO.troopFood) * 0.05 * Math.max(0, capDist(c) - 4)); if (c.food >= need) c.food -= need; else { c.food = 0; c.pop = Math.round(c.pop * 0.99); c.loy = Math.max(0, c.loy - 3); c.famine = (c.famine || 0) + 1; }
       if (c.conq) { const t = mo - c.conq.t; if (t >= 36) delete c.conq; else { const old = S.fac[c.conq.from]; if (old && old.alive && ADJ[c.n].some(n => S.city[n] && S.city[n].owner === c.conq.from) && c.loy < 45 && Math.random() < (45 - c.loy) / 300) { const was = c.owner; c.owner = c.conq.from; c.troops = Math.round(c.troops * 0.5); gensIn(c.n).forEach(g => { if (g.fac === was) { g.loc = capitalOf(was) || g.loc; } }); if (was === S.player) news(`${c.n}의 백성이 옛 주군 ${fname(c.conq.from)}에게 돌아섰다.`); else world(`${c.n}이(가) 옛 주군 ${fname(c.conq.from)}에게 돌아갔다.`, 3, [c.n]); delete c.conq; } } } }); } catch (e) { } return r; }; }
@@ -10927,7 +10927,7 @@ function cabOptimize(fid) { cabClean(fid); const slots = cabSlots(fid); const F 
   const M = CAB_ORDER.map(p => top.map(g => cabScore(g, p) * CAB_W[p])); const asg = hungarianMax(M); const pairs = CAB_ORDER.map((p, i) => ({ p, g: asg[i] >= 0 ? top[asg[i]] : null, v: asg[i] >= 0 ? M[i][asg[i]] : 0 })).filter(x => x.g && x.v > 0).sort((a, b) => b.v - a.v).slice(0, slots);
   const cab = cabOf(fid); Object.keys(cab).forEach(p => delete cab[p]); pairs.forEach(x => { cab[x.p] = x.g.n; if (x.g.loc !== cap) { if (fid === S.player) cmdTransfer([x.g.n], cap); else x.g.loc = cap; } }); return { set: Object.fromEntries(pairs.map(x => [x.p, x.g.n])), slots }; }
 cabAuto = function (fid) { cabOptimize(fid); };
-const CAB_AX = [['내정', ['총리', '건설']], ['재정', ['재무']], ['군사', ['국방']], ['인사', ['인사']], ['민심', ['민생']], ['외교·정보', ['외교', '정보']]];
+const CAB_AX = [['내정', ['총리', '건설']], ['재정', ['재무']], ['군사', ['국방']], ['인사', ['인사']], ['민충', ['민생']], ['외교·정보', ['외교', '정보']]];
 function cabRadar(fid) { const vals = CAB_AX.map(([n, ps]) => { const v = ps.map(p => cabEff(fid, p) || 0); return { n, v: Math.min(1, (v.reduce((a, b) => a + b, 0) / ps.length) / 1.2), empty: ps.filter(p => !cabMember(fid, p)) }; });
   const W = 260, H = 230, cx = 130, cy = 118, R = 86; const pt = (i, r) => { const a = -Math.PI / 2 + i * Math.PI / 3; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; };
   let g = ''; [0.25, 0.5, 0.75, 1].forEach(k => { g += `<polygon points="${CAB_AX.map((_, i) => pt(i, R * k).join(',')).join(' ')}" fill="none" stroke="#C7D2E0" stroke-width="${k === 1 ? 1 : 0.6}"/>`; }); CAB_AX.forEach((_, i) => { const [x, y] = pt(i, R); g += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#C7D2E0" stroke-width="0.6"/>`; });
@@ -12573,16 +12573,16 @@ function trMonthly() {
 function openWorldTrade() {
   const fid = S.player; const nats = Object.keys(TR_NAT); UI.f = { nat: nats.find(k => trNatOpen(fid, k)) || nats[0] };
   openSheet(`${UI.city} · 교역`, () => {
-    const tools = `<div class="grid3">${btn('상거래<small>사고 팔기</small>', 'trMode', '상거래')}${btn('시세표<small>도시별 판매가</small>', 'trMode', '시세표')}${btn('수송<small>육로·연안 항로</small>', 'trMode', '수송', { dis: !trCityN(UI.city) })}</div>`;
+    const tools = `<div class="kv">해외 교역</div><div class="grid3">${btn('상거래<small>사고 팔기</small>', 'trMode', '상거래')}${btn('시세표<small>도시별 판매가</small>', 'trMode', '시세표')}${btn('수송<small>육로·연안 항로</small>', 'trMode', '수송', { dis: !trCityN(UI.city), why: '화물이 있는 도시에서만' })}</div>`;
     const k = UI.f.nat, N = TR_NAT[k], rel = trRel(fid, k), why = trLockWhy(fid, k); const root = trRoot(fid); const hubs = trHubs(fid, k);
     const tabs = `<div class="grid${trClamp(nats.length, 2, 4)}">${nats.map(n => btn(`${TR_NAT[n].n}<small>${trNatOpen(fid, n) ? `교역도 ${trRel(fid, n)} · ×${trAmp(fid, n).toFixed(1)}` : '잠김'}</small>`, 'trNat', n, { p: n === k, s: 1 })).join('')}</div>`;
     const steps = [[TR6B.studyRel.개성, `개성 ${N.trait}`, '개성'], [TR6B.studyRel.병종, `병종 ${N.unit.n}`, '병종'], [60, '인물 3명', '인물'], [80, '인물 2명', '인물'], [100, '전설 인물', '인물']].filter(x => trOpen(fid, x[2])).map(([t, d, br]) => `<div class="${rel >= t ? '' : 'dim'} sm">${rel >= t ? '✓' : '○'} 교역도 ${t} · ${d}</div>`).join('');
     const found = Object.values(S.gen).filter(g => g.nat === k && g.st !== '미등장').map(g => `${g.n}(${g.st === '현역' ? fname(g.fac) : g.st})`).join(', ');
     const info = `<div class="dim sm">거점 ${hubs.length ? hubs.join('·') : '없음(수도를 1곳으로 침)'} → 증폭 ×${trAmp(fid, k).toFixed(1)} (거점: ${TR_HUB[k].join('·')})</div><div class="dim sm">${root ? `${root} 노선 · ` : ''}한도 금 ${fmt(trLimit(fid, k))} (쓴 금 ${fmt(trStat(fid).spent)}) · 물가 ×${trPriceMul(fid).toFixed(2)}</div>`;
-    return `${tabs}<div class="pn"><b>${N.n}</b> · 교역도 ${rel}/100${trBar(rel)}<small>특산품 ${Object.keys(N.goods).join('·')} · 원하는 중국 상품 ${N.want}${N.food ? ' · 군량도 사 줌' : ''} · 특수 병종 ${N.unit.n}(${N.unit.f})${trUnits(fid).includes(N.unit.n) ? ' 해금' : ''}</small></div>${info}
-    ${why ? `<div class="warn sm">${why}</div>` : ''}${steps ? `<div class="kv">단계</div>${steps}` : ''}${found ? `<div class="dim sm">발견된 인물: ${found}</div>` : ''}
-    ${trStoreHtml(UI.city)}${tools}${typeof trFxHtml === 'function' ? trFxHtml(fid) : ''}
-    <div class="grid2">${btn('학습<small>2~3개월 사절</small>', 'trMode', '학습', { dis: !!why || rel < TR6B.studyRel.개성 || !(trOpen(fid, '개성') || trOpen(fid, '병종')) })}${btn(`친교<small>금 ${fmt(Math.round(TR6B.banq * trPriceMul(fid)))} · 교역도↑</small>`, 'trMode', '친교', { dis: !!why })}</div>`;
+    return `${tabs}<div class="pn"><b>${N.n}</b> · 교역도 ${rel}/100${trBar(rel)}<small>특산품 ${Object.keys(N.goods).join('·')} · 원하는 중국 상품 ${N.want}${N.food ? ' · 군량 수출 가능' : ''} · 특수 병종 ${N.unit.n}(${N.unit.f})${trUnits(fid).includes(N.unit.n) ? ' 해금' : ''}</small></div>${info}
+    ${why ? `<div class="warn sm">${why}</div>` : ''}${steps ? `<div class="kv">단계</div>${steps}` : ''}${root && !trOpen(fid, '인물') ? `<div class="dim sm">${trClosedMsg(fid, '인물')} (개성 학습도 같음)</div>` : ''}${found ? `<div class="dim sm">발견된 인물: ${found}</div>` : ''}
+    ${trStoreHtml(UI.city)}${tools}
+    <div class="grid2">${btn('학습<small>2~3개월 사절</small>', 'trMode', '학습', { dis: !!why || rel < trStudyNeed(fid) || !(trOpen(fid, '개성') || trOpen(fid, '병종')), why: why || (!(trOpen(fid, '개성') || trOpen(fid, '병종')) ? `${trRootName(fid)} 노선은 학습할 품목이 없음` : rel < trStudyNeed(fid) ? `교역도 ${trStudyNeed(fid)} 필요` : '') })}${btn(`친교<small>금 ${fmt(Math.round(TR6B.banq * trPriceMul(fid)))} · 교역도↑</small>`, 'trMode', '친교', { dis: !!why, why })}</div>`;
   });
 }
 function openTrMarket() {
@@ -12596,20 +12596,22 @@ function openTrMarket() {
     const head = `<div class="kv">${UI.f.g} · 금 ${fmt(c.gold)} · 군량 ${fmt(c.food)} · 창고 ${trCityN(cn)}/${trCityCap(cn)}${N ? ` · 교역도 ${trRel(fid, nat)} (이번 거래 +${UI.f.gain.v}/${TR6B.gainBox})` : ''}</div><div class="pn sm">이번 달 교역 한도 금 <b>${fmt(trLimit(fid, nat))}</b> · 남은 금 ${fmt(trLeft(fid, nat))} · 쓸 수 있는 금 ${fmt(trAvail(fid, cn))} (이 도시 금 + 다른 도시 잉여금에서 자동 인출) · 물가 ×${m.toFixed(2)}</div>`;
     if (!N || !trNatOpen(fid, nat)) { if (arb) { rows.push(`<div class="kv">중국 상품 · ${cn}에서 산다</div>`); Object.keys(TR_CN).forEach(g => rows.push(`<div class="pn"><b>${g}</b> 창고 ${cg[g] || 0}<small>매입 ${pm(trPBuyCN(cn, g))}금/개 · 되팔기 ${trPrice(cn, g)}금/개</small><div class="grid4">${qb('buyCN', g, [10, 50])}${qb('sellCN', g, [10, 'all'])}</div></div>`)); } sellRows(); return head + rows.join(''); }
     if (!arb && !mat && !sup) rows.push(`<div class="warn sm">${trRootName(fid)} 노선은 외국 상거래가 닫혀 있습니다. 창고 물건만 팔 수 있습니다.</div>`);
+    if (!arb && (mat || sup)) rows.push('<div class="dim sm">중국 상품 매입·외국 판매(차익 거래)는 상략 노선만 열려 있습니다.</div>');
     if (arb) { rows.push(`<div class="kv">중국 상품 · ${cn}에서 사서 ${N.n}에 판다</div>`); Object.keys(TR_CN).forEach(g => rows.push(`<div class="pn"><b>${g}</b> 창고 ${cg[g] || 0}${N.want === g ? ' · <span class="fcs">원함</span>' : ''}<small>매입 ${pm(trPBuyCN(cn, g))}금/개 · ${N.n} 매도 ${trPSellTo(nat, g)}금/개</small><div class="grid4">${qb('buyCN', g, [10, 50])}${qb('sellTo', g, [10, 'all'])}</div></div>`)); }
-    if (arb || mat) { rows.push(`<div class="kv">${N.n} 특산품 · ${N.n}에서 사서 ${arb ? '중국 도시 저자에 판다 (멀리 큰 도시로 옮기면 비싸다 — 시세표)' : '창고에 둔다 (강병 물자: 구매만)'}</div>`); Object.keys(N.goods).forEach(g => rows.push(`<div class="pn"><b>${g}</b> 창고 ${cg[g] || 0} <small class="dim">${TR_CAT_N[TR_CAT[g]]}</small><small>${N.n} 매입 ${pm(trPBuyFor(nat, g))}금/개 · ${cn} 저자 ${trPrice(cn, g)}금/개</small><div class="grid4">${qb('buyFor', g, [10, 50])}${qb('sellCN', g, [10, 'all'])}</div></div>`)); }
+    if (arb || mat) { rows.push(`<div class="kv">${N.n} 특산품 · ${N.n}에서 사서 ${arb ? '중국 도시 저자에 판다 (멀리 큰 도시로 옮기면 비싸다 — 시세표)' : '창고에 둔다 (물자는 군비·훈련에 쓰고, 남는 건 중국 저자에 팔 수 있다)'}</div>`); Object.keys(N.goods).forEach(g => rows.push(`<div class="pn"><b>${g}</b> 창고 ${cg[g] || 0} <small class="dim">${TR_CAT_N[TR_CAT[g]]}</small><small>${N.n} 매입 ${pm(trPBuyFor(nat, g))}금/개 · ${cn} 저자 ${trPrice(cn, g)}금/개</small><div class="grid4">${qb('buyFor', g, [10, 50])}${qb('sellCN', g, [10, 'all'])}</div></div>`)); }
     if (arb) { const other = Object.keys(cg).filter(g => !TR_CN[g] && !N.goods[g] && cg[g] > 0); if (other.length) rows.push(`<div class="kv">다른 나라 특산품 · 중계무역: ${N.n} 상인이 비싸게 사 준다</div>${other.map(g => `<div class="pn"><b>${g}</b> 창고 ${cg[g]}<small>${N.n} 매도 ${trPSellTo(nat, g)}금/개 · ${cn} 저자 ${trPrice(cn, g)}금/개</small><div class="grid4">${qb('sellTo', g, [10, 'all'])}${qb('sellCN', g, [10, 'all'])}</div></div>`).join('')}`); }
-    if (N.food && sup) rows.push(`<div class="kv">군량 · ${N.n}이(가) 사 간다 (100당 금 ${trPFood(nat)}, 1,000은 남김)</div><div class="grid3">${qb('food', '군량', [1000, 3000, 10000])}</div>`);
+    if (N.food && sup) rows.push(`<div class="kv">군량 수출 · ${N.n}이(가) 사 간다 (100당 금 ${trPFood(nat)}, 1,000은 남김)</div><div class="grid3">${qb('food', '군량', [1000, 3000, 10000])}</div>`);
     if (!arb) sellRows();
     return `${head}<div class="dim sm">시세는 매달 ±10% 움직이고, 많이 팔면 값이 떨어지고 많이 사면 값이 오릅니다. 왼쪽 두 칸은 사기, 오른쪽 두 칸은 팔기.</div>${rows.join('')}`;
   }, () => UI.f.ses ? btn('거래 마침', 'trEnd', '', { p: 1 }) : btn(UI.f.g ? `${UI.f.g}에게 거래를 맡긴다` : '장수를 고르세요', 'trSes', '', { p: 1, dis: !UI.f.g }));
 }
+function trStudyNeed(fid) { const ks = ['개성', '병종'].filter(k => trOpen(fid, k)); return ks.length ? Math.min(...ks.map(k => TR6B.studyRel[k])) : 0; } // 열린 학습 품목 중 가장 낮은 교역도
 function openTrStudy() {
   const nat = UI.f.nat; const fid = S.player; const o1 = trOpen(fid, '개성'), o2 = trOpen(fid, '병종'); UI.f = { nat, g: null, mode: '학습', kind: o1 ? '개성' : '병종' };
   openSheet(`${TR_NAT[nat].n} · 학습`, () => {
     const N = TR_NAT[nat], rel = trRel(fid, nat), have = trUnits(fid).includes(N.unit.n); const m = trPriceMul(fid);
-    const tabs = `<div class="grid2">${btn(`개성 ${N.trait}<small>교역도 ${TR6B.studyRel.개성} · 금 ${fmt(Math.round(TR6B.study.개성 * m))} · ${TR6B.studyMo.개성}개월${o1 ? '' : ''}</small>`, 'trKind', '개성', { p: UI.f.kind === '개성', s: 1, dis: !o1 || rel < TR6B.studyRel.개성 })}${btn(`병종 ${N.unit.n}<small>교역도 ${TR6B.studyRel.병종} · 금 ${fmt(Math.round(TR6B.study.병종 * m))} · ${TR6B.studyMo.병종}개월${have ? ' · 해금됨' : ''}${o2 ? '' : ''}</small>`, 'trKind', '병종', { p: UI.f.kind === '병종', s: 1, dis: !o2 || rel < TR6B.studyRel.병종 || have })}</div>`;
-    const d = UI.f.kind === '개성' ? `${TRAITS[N.trait][1]} · 돌아온 장수가 익히고 능력 하나가 +2 (세력당 5번까지, 전투 반영은 범위 밖).` : `${N.unit.n}(${N.unit.f}) · 세력 단위로 해금됩니다 (출진 정예 반영은 6c).`;
+    const tabs = `<div class="grid2">${btn(`개성 ${N.trait}<small>교역도 ${TR6B.studyRel.개성} · 금 ${fmt(Math.round(TR6B.study.개성 * m))} · ${TR6B.studyMo.개성}개월</small>`, 'trKind', '개성', { p: UI.f.kind === '개성', s: 1, dis: !o1 || rel < TR6B.studyRel.개성, why: !o1 ? trClosedMsg(fid, '개성') : rel < TR6B.studyRel.개성 ? `교역도 ${TR6B.studyRel.개성} 필요` : '' })}${btn(`병종 ${N.unit.n}<small>교역도 ${TR6B.studyRel.병종} · 금 ${fmt(Math.round(TR6B.study.병종 * m))} · ${TR6B.studyMo.병종}개월${have ? ' · 해금됨' : ''}</small>`, 'trKind', '병종', { p: UI.f.kind === '병종', s: 1, dis: !o2 || rel < TR6B.studyRel.병종 || have, why: !o2 ? trClosedMsg(fid, '병종') : have ? '이미 해금됨' : rel < TR6B.studyRel.병종 ? `교역도 ${TR6B.studyRel.병종} 필요` : '' })}</div>`;
+    const d = UI.f.kind === '개성' ? `${TRAITS[N.trait][1]} · 돌아온 장수가 익힙니다. 능력 하나 +${TR6C.traitAdd}는 세력당 ${TR6C.traitMax}번까지(지금 ${trFx(fid).traits}/${TR6C.traitMax})${trFx(fid).traits >= TR6C.traitMax ? ' — 이미 다 받아 개성만 얻습니다' : ''}.` : `${N.unit.n}(${N.unit.f}) · 세력 단위로 해금됩니다. 해금하면 전선 도시 훈련이 월 +${TR6C.unitTrain}씩 늘지만, 병종 편성에는 아직 쓰이지 않습니다.`;
     return `${tabs}<div class="dim sm">${d} 떠날 때 교역도 +4×증폭, 돌아올 때 +8×증폭.</div><div class="kv">보낼 장수 (군주 제외)</div>${trGenList(UI.f.g)}`;
   }, () => btn(UI.f.g ? `${UI.f.g}을(를) 보낸다` : '장수를 고르세요', 'trStudyGo', '', { p: 1, dis: !UI.f.g }));
 }
@@ -12684,8 +12686,8 @@ const RT_ROOTS = ['경륜', '강병', '상략', '덕화'];
 const RT_DESC = {
   경륜: '인재로 큰다 — 설득·등용·이간·내통 온전, 국책 구현령·공신 우대',
   강병: '전투로 큰다 — 훈련·병종·물자, 국책 정예주의·총동원령',
-  상략: '금으로 큰다 — 이간·매수·매입·용병, 전 품목 교역(효과 60%)',
-  덕화: '민심으로 큰다 — 투항·진휼·시주 ×1.2, 국책 덕치·법치·둔전제'
+  상략: '금으로 큰다 — 동맹 이간·매수·매입·용병, 교역도에 따라 차익·용병부터 단계별로 열리는 교역',
+  덕화: '민충으로 큰다 — 진휼·시주 민충 +20%, 이웃 성 민심 투항, 국책 덕치·법치·둔전제'
 };
 // 이름 있는 군주 지정표(세력 id). 없는 세력·신생 세력은 능력 점수로 자동
 const RT_ASSIGN = { 조조: '경륜', 원소: '경륜', 유표: '경륜', 유우: '경륜', 공융: '경륜', 왕랑: '경륜',
@@ -12704,10 +12706,12 @@ function rtOppAllied(a, b) { return allied(a, b) || hasPact(a, b); }
 // 국책 가중: 소속 노선 1.0, 그 외 0.6, 노선 없음 1.0
 function polW(fid, p) { const r = rootOf(fid); return !r || RT_POL[p] === r ? 1 : 0.6; }
 // 비용 가중(매수·매입·조공): 상략 1.0, 그 외 1.4
+function buyPct(fid) { return Math.round(15 * rootCostK(fid)); } // 매수 가격 = 도시 값의 15% × 노선 가중(상략 1.0, 그 외 1.4)
 function rootCostK(fid) { const r = rootOf(fid); return !r || r === '상략' ? 1 : 1.4; }
 // 성공률 가중(등용 적 현역·이간·내통): 경륜 1.0, 그 외 0.7
 function rootRateK(fid) { const r = rootOf(fid); return !r || r === '경륜' ? 1 : 0.7; }
 function rtStat(fid, tag) { S.rootStat = S.rootStat || {}; const s = S.rootStat[fid] = S.rootStat[fid] || {}; s[tag] = (s[tag] || 0) + 1; }
+function rtOwnLabel(r) { return (RT_OWNM[r] || []).slice(0, 2).join('·'); } // 노선별 '자기 방법'의 사용자 표기(전투·귀순·매수·매입·투항)
 function rtOwnCount(fid) { const s = (S.rootStat || {})[fid] || {}; const r = rootOf(fid); const own = r ? RT_OWNM[r].reduce((u, k) => u + (s[k] || 0), 0) : 0; const all = Object.entries(s).reduce((u, [k, v]) => u + (k === '빈 땅' ? 0 : v), 0); return { own, all }; }
 
 // ---- 노선 자동 선택: 군주 능력 점수를 시나리오 생존 군주 평균·표준편차로 표준화, 덕화 +0.4 ----
@@ -12883,7 +12887,7 @@ function maesuAI(f) {
   const c = C(cn); const t0 = c ? c.troops : 0, tr0 = c ? c.train : 0; const r = f.apply(this, arguments);
   if (r && r.ok && c) { const got = c.troops - t0; const R = rtSt();
     if (rootOf(c.owner) === '상략') c.train = Math.round((tr0 * t0 + 40 * got) / Math.max(1, c.troops));
-    R.mercs.push({ cn, amt: got, until: rtMo() + 12 }); if (c.mercRenew > rtMo()) { delete c.mercRenew; r.msg += ' (재계약 50%)'; } r.msg += ' · 계약 12개월'; }
+    R.mercs.push({ cn, amt: got, until: rtMo() + 12 }); if (c.mercRenew > rtMo()) { delete c.mercRenew; r.msg += ' (재계약 50%)'; } r.msg += ' · 계약 12개월'; if (rootOf(c.owner) === '상략') r.msg = r.msg.replace('유지비 2배', '유지비 1.5배'); }
   return r; }; }
 function mercExpire() {
   const R = rtSt(); const mo = rtMo();
@@ -12910,7 +12914,7 @@ function tuhangStep() {
   Object.values(S.city).forEach(c => {
     if (!c.owner || !rtIsCity(c) || rootOf(c.owner) !== '덕화' || c.loy < 80) return;
     ADJ[c.n].forEach(n => { const t = S.city[n]; if (!t || !t.owner || t.owner === c.owner || !rtIsCity(t) || rtOppAllied(c.owner, t.owner) || t.loy >= c.loy) return;
-      if ((hit[n] || 0) >= 2) return; const d = Math.min(0.8, 2 - (hit[n] || 0)); hit[n] = (hit[n] || 0) + d; t.loy = Math.max(0, t.loy - d);
+      if ((hit[n] || 0) >= 2) return; const bp = baepumBp(R, mo); const d = Math.min(0.8, 2 - (hit[n] || 0), BAEPUM.tot - (bp.b[n] || 0) - (bp.t[n] || 0)); if (d <= 0) return; hit[n] = (hit[n] || 0) + d; bp.t[n] = (bp.t[n] || 0) + d; t.loy = Math.max(0, t.loy - d);
       const mv = Math.round((t.pop || 0) * 0.003); if (mv > 0) { t.pop -= mv; c.pop = (c.pop || 0) + mv; } });
   });
   Object.values(S.city).forEach(c => { if (!c.owner || !rtIsCity(c)) { R.low[c.n] = 0; return; } R.low[c.n] = c.loy < 30 ? (R.low[c.n] || 0) + 1 : 0; });
@@ -12935,7 +12939,7 @@ function tuhangStep() {
 function tuhangInfo(f) { // 덕화 플레이어 정보: 인접 적 도시 민충과 투항까지 남은 개월
   const R = rtSt(); const out = [];
   Object.values(S.city).forEach(n => { if (!n.owner || n.owner === f || !rtIsCity(n)) return; if (!ADJ[n.n].some(a => S.city[a] && S.city[a].owner === f)) return;
-    const low = R.low[n.n] || 0; out.push({ n: n.n, owner: n.owner, loy: Math.round(n.loy), low, left: n.loy < 30 ? Math.max(0, 4 - low) : null, cap: capitalOf(n.owner) === n.n, exempt: (R.exempt[n.n] || 0) > rtMo() }); });
+    const low = R.low[n.n] || 0; out.push({ n: n.n, owner: n.owner, loy: Math.round(n.loy), low, left: n.loy < 30 ? Math.max(0, 4 - low) : null, cap: capitalOf(n.owner) === n.n, exempt: (R.exempt[n.n] || 0) > rtMo(), allied: rtOppAllied(f, n.owner), garrison: n.troops >= 0.6 * garrisonCap(n), full: (R.tlog[f] || []).filter(t => rtMo() - t < 12).length >= 2 }); });
   return out.sort((a, b) => a.loy - b.loy);
 }
 // ---- 덕화 점령지 흡수·인구 징병 (§21-4) ----
@@ -12969,6 +12973,29 @@ function tuhangInfo(f) { // 덕화 플레이어 정보: 인접 적 도시 민충
   } } catch (e) { }
   return r; }; }
 { const f = cmdLoy; cmdLoy = function (cn, gn, kind) { const c = C(cn); const l0 = c ? c.loy : 0; const r = f.apply(this, arguments); if (r && r.ok && c && rootOf(c.owner) === '덕화' && c.loy > l0) { const extra = Math.min(100 - c.loy, Math.round((c.loy - l0) * 0.2)); if (extra > 0) { c.loy += extra; r.msg += ` 덕화 +${extra}.`; } } return r; }; }
+// ---- 덕화 베풂 파급 (v1.2): 진휼·시주가 인접 적 도시 민충을 깎는다 ----
+var BAEPUM = { on: true, k: 0.1, per: 2, mon: 3, tot: 4, min: 70 };
+function baepumBp(R, mo) { if (!R.bp || R.bp.mo !== mo) R.bp = { mo, b: {}, t: {} }; return R.bp; }
+function baepumTargets(c) { if (!c || !c.owner || !rtIsCity(c)) return []; return ADJ[c.n].map(C).filter(t => t && t.owner && t.owner !== c.owner && rtIsCity(t) && !rtOppAllied(c.owner, t.owner)); }
+function baepumGain(g) { return Math.round(loyGain(g) * 1.2); }
+function baepumDrop(v) { return Math.min(BAEPUM.per, Math.round(v * BAEPUM.k * 10) / 10); }
+function baepumRipple(c, g, r) {
+  if (!BAEPUM.on || c.loy < BAEPUM.min) return 0; const tg = baepumTargets(c); if (!tg.length) return 0;
+  const R = rtSt(); const bp = baepumBp(R, rtMo()); const d0 = baepumDrop(baepumGain(g)); let n = 0, sum = 0;
+  tg.forEach(t => { const d = Math.min(d0, BAEPUM.mon - (bp.b[t.n] || 0), BAEPUM.tot - (bp.b[t.n] || 0) - (bp.t[t.n] || 0)); if (d <= 0) return; const b4 = t.loy; t.loy = Math.max(0, t.loy - d); bp.b[t.n] = (bp.b[t.n] || 0) + d; n++; sum += b4 - t.loy; });
+  if (r && n) r.msg += ` 베풂이 번져 이웃 적 도시 ${n}곳 민충 −${Math.round(sum / n * 10) / 10}.`; else if (r) r.msg += ' (이웃 적 도시는 이달 베풂 파급 한도에 닿았다.)';
+  return n; }
+{ const f = cmdLoy; cmdLoy = function (cn, gn, kind) {
+  const c = C(cn), g = G(gn); const dh = BAEPUM.on && c && g && c.owner && rootOf(c.owner) === '덕화';
+  if (dh && c.loy >= 100 && baepumTargets(c).length) {
+    const full = loyGain(g); const cost = loyCost(c, kind, full, full);
+    if (kind === '시주') { if (c.food < cost) return { ok: false, msg: `군량이 부족합니다 (${fmt(cost)} 필요).` }; c.food -= cost; } else if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${fmt(cost)} 필요).` };
+    g.acted = true; addExp(g, 'c', 10);
+    const r = { ok: true, msg: `${g.n}이(가) ${kind === '시주' ? '군량을 나눠' : '금으로 백성을 구휼해'} 민충은 이미 최대(100) — 베풂만 이웃으로 번진다. ${kind === '시주' ? '군량' : '금'} ${fmt(cost)}.` };
+    baepumRipple(c, g, r); return r; }
+  const r = f.apply(this, arguments);
+  if (dh && r && r.ok) baepumRipple(c, g, r);
+  return r; }; }
 
 // ---- 국책 가중(비소속 0.6): 곱셈 효과는 래퍼로, 월 누적 효과는 월 뒤 보정으로 ----
 { const f = devCost; devCost = function (c, kind) { const v = f.apply(this, arguments); return c && c.owner && hasPol(c.owner, '둔전제') && polW(c.owner, '둔전제') < 1 && (kind === '개발' || kind === '치수') && typeof v === 'number' ? Math.round(v / 0.8 * 0.88) : v; }; }
@@ -13031,7 +13058,7 @@ ACT.rtGo = () => { const F = S.fac[S.player]; if (!F || !UI.rtSel) return; F.roo
 { const f = openEventQueueOrReport; openEventQueueOrReport = function () { if (S && S.fac && S.fac[S.player] && S.fac[S.player].alive && !S.fac[S.player].root) return openRootPick(); return f.apply(this, arguments); }; }
 // (노선 명령 메뉴는 없앴다: 설득·이간·투항은 계략 메뉴, 훈련은 군사 메뉴 — v107 S9 블록)
 ACT.rootMenu = () => { if (!rootOf(S.player)) return openRootPick(); if (S7.land) { S7.info = 'root'; S7.card = false; closeAll(); return render(); } openSheet(`${rootOf(S.player)} 노선`, () => s7Info('root').replace(/<button[^>]*class="x"[^>]*>[^<]*<\/button>/, '')); };
-ACT.rtSub = v => { const m = { 설득: openSway, '동맹 이간': openIdan, 민심: openTuhangInfo, 훈련: () => ACT.sub('훈련'), 등용: () => ACT.sub('등용'), 이간: () => openScheme('이간'), 내통: () => openScheme('내통'), 매수: () => openScheme('매수'), 매입: () => openDiplo(), 용병: () => openMerc(), 진휼: () => openDev('진휼'), 시주: () => openDev('시주') }; (m[v] || (() => { }))(); };
+ACT.rtSub = v => { const m = { 설득: openSway, '동맹 이간': openIdan }; (m[v] || (() => { }))(); };
 function openSway() {
   UI.f = { g: null, t: null };
   openSheet(`${UI.city} · 설득`, () => {
@@ -13039,7 +13066,7 @@ function openSway() {
     const tg = swayTargets(f).filter(t => t.near.includes(c.n));
     const gs = freeGens(c.n, f).filter(g => !isRuler(g) && !g.away);
     let h = '<div class="dim sm">인접 적 도시의 태수를 설득해 포섭도를 쌓습니다(월 −3). 100이 되면 매달 귀순 판정: 확률 (100−충성)/40, 충성 95↑·의리 12↑·군주/수도·반대파·군주와의 관계가 있으면 막힙니다. 귀순하면 병력 50~80%가 따라오고 태수 충성 75.</div>';
-    if (!tg.length) return h + '<div class="dim">이 도시에 인접한 설득 가능한 적 태수가 없습니다.</div>';
+    if (!tg.length) return h + '<div class="dim">이 도시에 인접한 설득 가능한 적 태수가 없습니다. (동맹·불가침 상대, 수도, 군주는 제외)</div>';
     h += '<div class="kv">대상</div>' + tg.map(t => { const v = Math.round(swayVal(f, t.g.n)); const why = swayBlocks(f, t.g); return `<button type="button" class="row ${UI.f.t === t.g.n ? 'sel' : ''}" data-a="swT" data-v="${t.g.n}"><span class="grow"><b>${t.g.n}</b><small>${t.c.n} (${fname(t.c.owner)}) · 충성 ${kn(t.g.n) >= 60 ? t.g.loy : '?'} · 포섭도 ${v}/100${why.length ? ' · 막힘: ' + why.join(', ') : ''}</small></span></button>`; }).join('');
     h += '<div class="kv">보낼 장수</div>' + (gs.length ? gs.sort((a, b) => stat(b, 'c') - stat(a, 'c')).map(g => `<button type="button" class="row ${UI.f.g === g.n ? 'sel' : ''}" data-a="swG" data-v="${g.n}"><span class="grow"><b>${g.n}</b><small>매${stat(g, 'c')} 지${stat(g, 'i')}${UI.f.t && G(UI.f.t) ? ` · 예상 +${Math.round(swayGain(g, G(UI.f.t)))}` : ''}</small></span></button>`).join('') : '<div class="dim">행동할 장수가 없습니다.</div>');
     return h;
@@ -13057,24 +13084,28 @@ function openIdan() {
     h += '<div class="kv">대상 쌍</div>' + pairs.map(([a, b]) => { const pk = a < b ? a + '|' + b : b + '|' + a; const cd = (R.idCd[pk] || 0) > mo; const key = a + '|' + b; return `<button type="button" class="row ${UI.f.pair === key ? 'sel' : ''}" data-a="idT" data-v="${key}"${cd ? ' disabled' : ''}><span class="grow"><b>${fname(a)} ↔ ${fname(b)}</b><small>${allied(a, b) ? '동맹' : '불가침'}${marriedTo(a, b) ? ' · 혼인(−25)' : ''} · 적대 ${hos(a, b)}${cd ? ` · ${R.idCd[pk] - mo}개월 뒤` : ''}${UI.f.g && G(UI.f.g) ? ` · 성공률 ${idanChance(G(UI.f.g), a, b)}%` : ''}</small></span></button>`; }).join('');
     h += '<div class="kv">보낼 장수</div>' + (gs.length ? gs.sort((a, b) => stat(b, 'i') - stat(a, 'i')).map(g => `<button type="button" class="row ${UI.f.g === g.n ? 'sel' : ''}" data-a="idG" data-v="${g.n}"><span class="grow"><b>${g.n}</b><small>지${stat(g, 'i')}</small></span></button>`).join('') : '<div class="dim">행동할 장수가 없습니다.</div>');
     return h;
-  }, () => btn(UI.f.g && UI.f.pair ? `${UI.f.g}이(가) 이간한다` : '쌍과 장수를 고르세요', 'idGo', '', { p: 1, dis: !(UI.f.g && UI.f.pair) }));
+  }, () => btn(UI.f.g && UI.f.pair ? `${UI.f.g}이(가) 이간한다` : '쌍과 장수를 고르세요', 'idGo', '', { p: 1, dis: !(UI.f.g && UI.f.pair) || (rtSt().idFac[S.player] || 0) > rtMo(), why: (rtSt().idFac[S.player] || 0) > rtMo() ? `${rtSt().idFac[S.player] - rtMo()}개월 뒤 가능 (우리 세력 쿨다운)` : '' }));
 }
 ACT.idT = v => { UI.f.pair = v; renderSheet(); }; ACT.idG = v => { UI.f.g = v; renderSheet(); };
 ACT.idGo = () => { const [a, b] = UI.f.pair.split('|'); const r = cmdIdan(UI.city, UI.f.g, a, b); toast(r.msg, r.ok); closeAll(); render(); };
-function openTuhangInfo() {
-  openSheet('민심 — 투항 전망', () => { const list = tuhangInfo(S.player); const mine = citiesOf(S.player).filter(c => rtIsCity(c) && c.loy >= 80).map(c => c.n);
-    let h = `<div class="dim sm">민충 80 이상인 우리 도시(${mine.length ? mine.join('·') : '없음'})가 이웃 적 도시 민충을 매달 −0.8(최대 −2)·인구 0.3%를 끌어옵니다. 적 도시 민충이 30 아래로 4개월 이어지고 인접한 우리 도시 민충이 70 이상이면 매달 (30−민충)/60 확률로 투항합니다. 수도·수비 든든한 곳(주둔 한도 60%↑)은 투항하지 않고, 12개월에 2곳까지입니다.</div>`;
-    if (!list.length) return h + '<div class="dim">인접한 적 도시가 없습니다.</div>';
-    return h + list.map(x => `<div class="urow"><span class="grow"><b>${x.n}</b> <small>${fname(x.owner)} · 민충 ${x.loy}${x.cap ? ' · 수도(투항 없음)' : x.exempt ? ' · 판정 면제 중' : x.left === null ? ' · 민충 30 이상' : x.left > 0 ? ` · 투항 판정까지 ${x.left}개월` : ` · 매달 판정 중 (${Math.round((30 - x.loy) / 60 * 100)}%)`}</small></span></div>`).join(''); }, () => btn('닫기', 'close', '', { p: 1 }));
+function tuhangHtml() { // 덕화 노선 상세 시트(openRootDetail)에 들어가는 민심 투항 전망
+  if (rootOf(S.player) !== '덕화') return '';
+  let list; try { list = tuhangInfo(S.player); } catch (e) { return ''; }
+  const mine = citiesOf(S.player).filter(c => rtIsCity(c) && c.loy >= 80).map(c => c.n);
+  let h = `<div class="r"><b>민심 투항</b>민충 80 이상인 우리 도시(${mine.length ? mine.join('·') : '없음'})가 이웃 적 도시 민충을 매달 −0.8(최대 −2), 인구 0.3%를 끌어옵니다. 적 도시 민충이 30 아래로 4개월 이어지고 인접한 우리 도시 민충이 70 이상이면 매달 (30−민충)/60 확률로 투항합니다. 투항하지 않는 곳: 수도, 동맹·불가침 상대, 주둔 60% 이상, 12개월에 2곳을 넘길 때.</div>`;
+  if (!list.length) return h + '<div class="r">인접한 적 도시가 없습니다.</div>';
+  return h + list.map(x => { const rs = []; if (x.cap) rs.push('수도'); if (x.exempt) rs.push('판정 면제 중'); if (x.allied) rs.push('동맹·불가침'); if (x.loy >= 30) rs.push('민충 높음'); if (x.garrison) rs.push('수비 든든'); if (x.full) rs.push('12개월 2곳 제한');
+    const st = rs.length ? `투항 대상 아님(${rs.join('·')})` : x.left > 0 ? `투항까지 ${x.left}개월` : `투항까지 0개월(매달 판정 ${Math.round((30 - x.loy) / 60 * 100)}%)`;
+    return `<div class="r"><b>${x.n}</b>${fname(x.owner)} · 민충 ${x.loy} · ${st}</div>`; }).join('');
 }
 // 메인 화면: 명령 묶음 맨 위에 노선 버튼
-{ const f = vMain; vMain = function () { let h = f.apply(this, arguments); try { const r = rootOf(S.player); const cnt = rtOwnCount(S.player); const b = btn(`${r ? r + ' 노선' : '노선 선택'}<small>${r ? `자기 방법 ${cnt.own}/${cnt.all} · ${(S.fac[S.player].pol || []).map(p => p + (RT_POL[p] === r ? '★' : '')).join('·') || '국책 없음'}` : '새 게임에서 정함'}</small>`, 'rootMenu', '', {}); h = h.replace(/<div class="grid3">(?=<button[^>]*data-a="cmd" data-v="군사")/, b + '<div class="grid3">'); } catch (e) { } return h; }; }
+{ const f = vMain; vMain = function () { let h = f.apply(this, arguments); try { const r = rootOf(S.player); const cnt = rtOwnCount(S.player); const b = btn(`${r ? r + ' 노선' : '노선 선택'}<small>${r ? `얻은 성(${rtOwnLabel(r)}) ${cnt.own}/${cnt.all} · ${(S.fac[S.player].pol || []).map(p => p + (RT_POL[p] === r ? '★' : '')).join('·') || '국책 없음'}` : '새 게임에서 정함'}</small>`, 'rootMenu', '', {}); h = h.replace(/<div class="grid3">(?=<button[^>]*data-a="cmd" data-v="군사")/, b + '<div class="grid3">'); } catch (e) { } return h; }; }
 // 계략·인사 메뉴 행에 ★/가중 표시, 매수 안내문의 값 표시
 // (v1.8: 계략·인사 행의 ★/가중 표시 삭제 — 노선 효과는 상단 노선 칩의 상세 시트) 매수 안내문의 값 표시
-{ const f = openScheme; openScheme = function (type) { f.apply(this, arguments); if (type !== '매수') return; try { const top = UI.sheets[UI.sheets.length - 1]; const b = top.body; const k = rootCostK(S.player); top.body = () => b().replace('값은 도시 값의 절반입니다.', `값은 도시 값의 15%, 성공률 +15.`).replace(/값 ([\d,]+) · /g, (m, p) => `값 ${fmt(Math.round(Number(p.replace(/,/g, '')) * 0.3 * k / 100) * 100)} · `); renderSheet(); } catch (e) { } }; }
+// (v1.8 2/2: 매수 안내문·값은 9140 openScheme 에서 buyPct/rootCostK 로 직접 계산 — 덧씌움 삭제)
 { const f = openMerc; openMerc = function () { f.apply(this, arguments); try { const top = UI.sheets[UI.sheets.length - 1]; const b = top.body; const c = C(UI.city); const r = rootOf(S.player); top.body = () => b().replace('주둔 한도', `12개월 계약(같은 달 재계약 50%${c.mercRenew > rtMo() ? ' 할인 중' : ''}).${r === '상략' ? '' : ''} 주둔 한도`); renderSheet(); } catch (e) { } }; }
 // 월 보고 한 줄
-{ const f = showBanner; showBanner = function () { f.apply(this, arguments); try { const r = rootOf(S.player); if (!r) return; const cnt = rtOwnCount(S.player); const b = $('#banner'); const x = b && b.querySelector && b.querySelector('.bnx'); const line = `${r}책 · 자기 방법으로 얻은 성 ${cnt.own} / 전체 ${cnt.all}`; if (x) x.innerHTML += '<br>' + line; else { const bn = b && b.querySelector && b.querySelector('.bn'); if (bn) bn.innerHTML += `<div class="bnx">${line}</div>`; } } catch (e) { } }; }
+{ const f = showBanner; showBanner = function () { f.apply(this, arguments); try { const r = rootOf(S.player); if (!r) return; const cnt = rtOwnCount(S.player); const b = $('#banner'); const x = b && b.querySelector && b.querySelector('.bnx'); const line = `${r} 노선 · 얻은 성(${rtOwnLabel(r)}) ${cnt.own} / 전체 ${cnt.all}`; if (x) x.innerHTML += '<br>' + line; else { const bn = b && b.querySelector && b.querySelector('.bn'); if (bn) bn.innerHTML += `<div class="bnx">${line}</div>`; } } catch (e) { } }; }
 </script>
 <!-- v107 S7 UI v1.4 — 가로 메인 화면·현대풍 지도·노선/국책 칩 (원본: tools/s7_ui.html, 넣기: node tools/s7_build.js) -->
 <style>
@@ -13128,6 +13159,8 @@ html body.s7L #s7panel>.b.p{background:linear-gradient(180deg,#f0cd7c,#c9a24a)!i
 .s7tt{font-size:13px;color:#ffd75e;margin:8px 2px 4px;display:flex;justify-content:space-between}
 .s7tt i{font-style:normal;color:#aab2cf}
 .s7note{font-size:13px;color:#aab2cf;padding:6px 2px}
+.row.k-info .rt{color:#8fa0d8}.row.k-exec .rt{color:#ffd75e}
+.b small.why{display:block;font-size:11px;font-weight:400;opacity:.85;margin-top:2px}
 body.s7R{position:fixed;top:0;margin:0;transform-origin:top left;transform:rotate(90deg);overflow:hidden}
 html:has(body.s7R){overflow:hidden}
 body.s7R.s7L #app{height:100%}
@@ -13273,7 +13306,7 @@ function s7Static(sk) { if (S7ST[sk]) return S7ST[sk]; const t0 = performance.no
 // ---------- 지도 DOM (한 번 만들어 render 마다 자리만 옮긴다) ----------
 function s7El() { if (S7.el) return S7.el;
   const el = document.createElement('div'); el.className = 's7map';
-  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="전략 지도"><defs id="s7defs"></defs><rect id="s7bg" x="0" y="0" width="100%" height="100%"/><g id="s7world"><g id="s7A"></g><g id="s7T"></g><g id="s7B"></g><g id="s7Bd"></g><g id="s7C"></g><g id="s7sel"></g><g id="s7F"></g></g><rect x="0" y="0" width="100%" height="100%" fill="url(#s7vig)" pointer-events="none"/><g id="s7scr"></g></svg><div class="s7zoom"><button type="button" data-a="s7z" data-v="1.3" aria-label="확대">+</button><button type="button" data-a="s7z" data-v="0.77" aria-label="축소">−</button></div>`;
+  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="전략 지도"><defs id="s7defs"></defs><rect id="s7bg" x="0" y="0" width="100%" height="100%"/><g id="s7world"><g id="s7A"></g><g id="s7T"></g><g id="s7B"></g><g id="s7Bd"></g><g id="s7C"></g><g id="s7sel"></g><g id="s7F"></g></g><rect x="0" y="0" width="100%" height="100%" fill="url(#s7vig)" pointer-events="none"/><g id="s7scr"></g></svg><div class="s7zoom"><button type="button" data-a="s7z" data-v="1.3" aria-label="확대">+</button><button type="button" data-a="s7z" data-v="0.77" aria-label="축소">−</button><button type="button" class="home" data-a="s7home" aria-label="내 도시로">내 도시로</button></div>`;
   const pts = new Map(); let moved = 0, pinch0 = null;
   const svgR = () => el.getBoundingClientRect(); const loc = e => { const r = svgR(); return S7.rot ? [e.clientY - r.top, r.right - e.clientX] : [e.clientX - r.left, e.clientY - r.top]; }; // 세로 강제 회전(body 90도)이면 화면 좌표를 지도 안 좌표로 바꾼다
   el.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; try { el.setPointerCapture(e.pointerId); } catch (x) { } pts.set(e.pointerId, loc(e)); moved = 0;
@@ -13285,7 +13318,7 @@ function s7El() { if (S7.el) return S7.el;
   const up = e => { if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null;
     if (moved < 6 && pts.size === 0 && S7.cam) { const [px, py] = loc(e); let best = null, bd = 22;
       for (const c of s7Data().cs) { const [sx, sy] = s7ToS(c.x, c.y), d = Math.hypot(sx - px, sy - py); if (d < bd) { bd = d; best = c; } }
-      if (best && S.city[best.n]) { S7.focus = best.n; S7.card = true; S7.info = null; if (UI.city !== best.n) ACT.city(best.n); else render(); } } };
+      if (best && S7.land && UI.sheets.length) { s19MapPick(best.n); } else if (best && S.city[best.n]) { S7.focus = best.n; S7.card = true; S7.info = null; if (UI.city !== best.n) ACT.city(best.n); else render(); } } };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   el.addEventListener('wheel', e => { if (!S7.cam) return; e.preventDefault(); const [wx, wy] = loc(e); s7ZoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, wx, wy); }, { passive: false });
   return (S7.el = el); }
@@ -13300,7 +13333,7 @@ ACT.s7z = v => { s7ZoomAt(+v || 1, S7.W / 2, S7.H / 2); };
 function s7Cam() { const el = S7.el; if (!el || !el.isConnected || !S) return; S7.W = el.offsetWidth; S7.H = el.offsetHeight; if (!S7.W || !S7.H) return;
   if (!S7.cam) { const c = s7Data().by[UI.city] || { x: 500, y: 500 }; S7.cam = { x: c.x, y: c.y, k: S7.land ? 0.72 : 0.55 }; }
   s7Clamp(); const c = S7.cam; el.querySelector('#s7world').setAttribute('transform', `translate(${(S7.W / 2 - c.x * c.k).toFixed(2)},${(S7.H / 2 - c.y * c.k).toFixed(2)}) scale(${c.k.toFixed(4)})`); s7Draw(); }
-function s7Focus(n) { const c = s7Data().by[n]; if (!c) return; if (!S7.cam || !S7.W) { S7.cam = null; return; } const [sx, sy] = s7ToS(c.x, c.y); if (sx < S7.W * 0.12 || sx > S7.W * 0.88 || sy < S7.H * 0.12 || sy > S7.H * 0.88) { S7.cam.x = c.x; S7.cam.y = c.y; } }
+function s7Focus(n) { const c = s7Data().by[n]; if (!c) return; if (!S7.cam || !S7.W) { S7.cam = null; return; } const [sx, sy] = s7ToS(c.x, c.y); const L = S7.land ? 100 : S7.W * 0.12, R = S7.land ? S7.W - 280 : S7.W * 0.88, T = S7.land ? 60 : S7.H * 0.12, B = S7.land ? S7.H - 12 : S7.H * 0.88; if (sx < L || sx > R || sy < T || sy > B) { S7.cam.x = c.x; S7.cam.y = c.y; if (S7.land) s19Shift(); } }
 // 주인·세력색·계절이 바뀌었을 때만 층을 다시 채운다
 function s7Update() { const el = S7.el, sk = seasonKey(), { cs } = s7Data();
   const nf = Object.keys(S.fac).length; if (S7.nf !== nf) { S7.nf = nf; if (typeof fixFacCols === 'function') { const cols = Object.values(S.fac).map(F => F.col); if (new Set(cols).size < cols.length) fixFacCols(); } }
@@ -13359,15 +13392,9 @@ function s7Mount() { const slot = document.querySelector('#app .s7slot'); if (!s
 vMap = function () { return '<div class="s7slot"></div>'; };
 { const f = afterRender; afterRender = function () { if (UI.scr === 'main') { try { s7Mount(); } catch (e) { console.error('s7Mount', e); } return; } return f.apply(this, arguments); }; }
 // ---------- 노선·국책 설명 (전용 장치는 RT_DESC, 교역 품목은 TR_ROOT_BR·TR_BR_N 상수를 읽는다 — 수치를 여기 적지 않는다) ----------
-const S7_ROOT = {
-  경륜: { h: '경륜 — 인재로 얻는다', how: '적 태수를 설득해 성째 넘겨받는다.', good: '귀순한 태수는 오래 남는다.', bad: '설득할 장수가 없으면 막힌다.', fit: '지력·정치 높은 군주' },
-  강병: { h: '강병 — 정예로 돌파한다', how: '훈련·장비를 올린 정예로 성을 친다.', good: '전투가 가장 강하다. 훈련도가 오래 유지된다.', bad: '손실·유지비가 크고 흡수가 느리다.', fit: '무력·통솔 높은 군주' },
-  상략: { h: '상략 — 금으로 산다', how: '매수·매입·조공으로 성과 사람을 사고 동맹을 갈라놓는다.', good: '금만 있으면 가장 빠르다.', bad: '금 의존. 사 온 장수는 충성이 낮다.', fit: '매력 높은 군주, 항구 보유' },
-  덕화: { h: '덕화 — 백성이 찾아온다', how: '민심으로 이웃 성을 투항시킨다.', good: '점령지 흡수가 가장 빠르다.', bad: '느리고 정면 전투에 약하다.', fit: '정치·통솔 균형' } };
 function s7Info(kind) { const r = rootOf(S.player), x = `<button type="button" class="x" data-a="s7info" data-v="" aria-label="닫기">✕</button>`;
   if (kind === 'root') { if (!r) return `<div class="s7info">${x}<h3>노선 없음</h3>${btn('노선 선택', 'rootMenu', '', { s: 1 })}</div>`;
-    const Q = S7_ROOT[r] || {}; const br = r === '상략' ? `전 품목 (교역도별) · 효과 ×${typeof TR_SANG_FX !== 'undefined' ? TR_SANG_FX : 0.6}` : (typeof TR_ROOT_BR !== 'undefined' && TR_ROOT_BR[r] ? TR_ROOT_BR[r].map(b => (typeof TR_BR_N !== 'undefined' && TR_BR_N[b]) || b).join('·') + ' 전용' : '미정');
-    return `<div class="s7info">${x}<h3>${r} 노선</h3><div class="tag">${Q.h || ''}</div><div class="r"><b>방법</b>${Q.how || ''}</div><div class="r"><b>전용</b>${typeof RT_DESC !== 'undefined' ? RT_DESC[r] : ''}</div><div class="r"><b>교역</b>${br}</div><div class="r good"><b>강점</b>${Q.good || ''}</div><div class="r bad"><b>약점</b>${Q.bad || ''}</div><div class="r"><b>군주</b>${Q.fit || ''}</div></div>`; }
+    return `<div class="s7info">${x}<h3>${r} 노선</h3><div class="r">상단의 노선 칩을 눌러 자세한 설명을 봅니다.</div></div>`; } // 노선이 있으면 ACT.s7info 가 openRootDetail 로 가로채므로 사실상 노선 없음 안내만 쓰인다
   const ps = polOf(S.player);
   return `<div class="s7info">${x}<h3>올해 국책</h3><div class="tag">매년 1월 변경 · ★ 소속 노선 100%, 그 외 60%</div>` + (ps.length ? ps.map(p => { const pr = typeof RT_POL !== 'undefined' ? RT_POL[p] : null, own = !r || pr === r, [g, b] = String(POL_DESC[p] || '').split(' / ');
     return `<div class="r"><b>${p}${pr === r ? ' ★' : ''}${own ? '' : ' · 60%'}</b></div><div class="r good"><b>효익</b>${g || ''}</div><div class="r bad"><b>대가</b>${b || ''}</div>`; }).join('') : '<div class="r">올해 고른 국책이 없습니다.</div>') + btn('국책 고르기', 's7pol', '', { s: 1 }) + '</div>'; }
@@ -13376,7 +13403,6 @@ ACT.s7tab = v => { S7.tab = v; S7.info = null; S7.card = false; render(); };
 ACT.s7card = () => { S7.card = false; render(); };
 ACT.s7cmd = v => ACT.cmd(v);
 ACT.s7pol = () => openPolicy();
-ACT.s7trade = () => ACT.cmd('내정'); // 군량 매매는 내정 '매매' 탭 (교역 커맨드와 무관)
 // ---------- 명령 분류 탭 (결정 C): 군사·인사·계략은 ACT.cmd 가 여는 메뉴 시트를 그대로 받아 패널에 펼친다 (래퍼들이 붙인 행 포함) ----------
 function s7Capture(v) { const n = UI.sheets.length, os = openSheet, rs = renderSheet; let got = null;
   openSheet = function (title, body, foot, o) { UI.sheets.push({ title, body, foot, ...(o || {}) }); }; renderSheet = function () { };
@@ -13389,25 +13415,23 @@ function s7OpsHtml() { const c = C(UI.city); if (!c || c.owner !== S.player || k
   return h; }
 const S7_TABS = ['군사', '내정', '인사', '외교', '계략', '교역', '정보'];
 const S7_ICON = { 군사: '<path d="M4 20L16 8M14 4h6v6M4 4l6 6M20 20l-4-4M3 17l4 4"/>', 내정: '<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>', 인사: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>', 외교: '<path d="M5 4h11l3 3v13H5zM9 9h7M9 13h7M9 17h4"/>', 계략: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', 교역: '<path d="M12 3v18M5 7h14M5 7l-3 7h6zM19 7l-3 7h6z"/>', 정보: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>' };
-function s7Row(t, d, a, v, dis) { return `<button type="button" class="row" data-a="${a}" data-v="${esc(v == null ? '' : v)}"${dis ? ' disabled' : ''}><span class="grow"><b>${t}</b>${d ? `<small>${d}</small>` : ''}</span><span class="rt">&gt;</span></button>`; }
+function s7Row(t, d, a, v, dis, kind) { const K = { go: '&gt;', info: 'ⓘ', exec: '▶' }, k = K[kind] ? kind : 'go'; // go=시트·화면 이동, info=읽기 전용, exec=누르면 바로 실행
+  return `<button type="button" class="row k-${k}" data-a="${a}" data-v="${esc(v == null ? '' : v)}"${dis ? ' disabled' : ''}><span class="grow"><b>${t}</b>${d ? `<small>${d}</small>` : ''}</span><span class="rt">${K[k]}</span></button>`; }
 function s7TabBody(tab, c, own) { const note = '<div class="s7note">아군 도시를 눌러 고르세요.</div>';
-  if (tab === '군사' || tab === '인사' || tab === '계략' || tab === '교역') { if ((tab === '군사' || tab === '교역') && !own) return note; const sh = s7Capture(tab); let b = ''; try { b = sh ? sh.body() : ''; } catch (e) { b = ''; } return `<div class="col">${b}</div>`; }
-  if (tab === '내정') { if (!own) return note; return s7Row('내정', '개발·상업·성벽·군량 매매', 's7cmd', '내정') + s7OpsHtml() + s7Row('국책·후계', `올해 ${polOf(S.player).join('·') || '없음'}`, 's7pol'); }
-  if (tab === '외교') { const r = rootOf(S.player); let h = s7Row('외교', '친선·동맹·휴전', 's7cmd', '외교');
-    try { const cnt = rtOwnCount(S.player); h += s7Row(r ? r + ' 노선' : '노선 선택', r ? `자기 방법 성 ${cnt.own}/${cnt.all}` : '새 게임에서 정함', 'rootMenu'); } catch (e) { } return h; }
-  return ['장수', '도시', '세력', '목표', '도감', '기록'].map(x => s7Row(x, '', 'info', x)).join(''); }
+  if (tab === '군사' || tab === '인사' || tab === '계략' || tab === '교역') { if ((tab === '군사' || tab === '교역') && !own) return note; const sh = s7Capture(tab); let b = ''; try { b = sh ? sh.body() : ''; } catch (e) { b = ''; } return `<div class="col">${own ? '' : note}${b}</div>`; }
+  if (tab === '내정') { if (!own) return note; return s7Row('내정', '개발·상업·치수·시설·시주·진휼·세율 등', 's7cmd', '내정') + s7OpsHtml() + s7Row('국책·후계', `올해 ${polOf(S.player).join('·') || '없음'}`, 's7pol'); }
+  if (tab === '외교') return s7Row('외교', '동맹·불가침·조공·매입·할양·선물', 's7cmd', '외교');
+  return ['장수', '도시', '세력', '목표', '도감', '기록'].map(x => s7Row(x, '', 'info', x, false, 'info')).join(''); }
 function s7Panel() { if (S7.info) return s7Info(S7.info);
-  const c = C(UI.city), own = c.owner === S.player, cs = citiesOf(S.player), gs = gensOf(S.player), q = curQuest();
+  const c = C(UI.city), own = c.owner === S.player, cs = citiesOf(S.player), gs = gensOf(S.player);
   return `${S7.card ? `<div class="s7cch"><span>${esc(c.n)} 정보</span><button type="button" class="x" data-a="s7card" aria-label="닫기">✕</button></div>${cityCard2(c)}` : ''}`
-    + (q ? `<button type="button" class="quest" data-a="info" data-v="목표">목표: ${q[0]}</button>` : '')
     + `<div class="s7tt">${S7.tab} · ${esc(c.n)}${own ? '' : '<i>아군 도시 아님</i>'}</div>${s7TabBody(S7.tab, c, own)}`; }
 function s7Main() { const F = S.fac[S.player], cs = citiesOf(S.player), gs = gensOf(S.player), sal = gs.reduce((a, g) => a + salary(g), 0), disc = gs.filter(g => (g.disc || 0) >= 50).length, env = (S.envoys || []).filter(e => G(e.g) && G(e.g).fac === S.player).length, r = rootOf(S.player), ps = polOf(S.player), sk = seasonKey(), pr = s7Price();
   const tg = cs.reduce((s, c) => s + stockOf(c, 'gold'), 0), tf = cs.reduce((s, c) => s + stockOf(c, 'food'), 0), tt = cs.reduce((s, c) => s + c.troops, 0);
-  const tint = MAP_BASE.seasons[sk] ? MAP_BASE.seasons[sk].tint : '#ccc';
-  const top = `<div id="s7top"><span class="dt"><i class="fc" style="background:${F.col}"></i>${S.y}년 ${S.m}월 · ${fname(S.player)}</span><span class="st"><i>금</i><b>${fmt(tg)}</b><u>녹봉 ${fmt(sal)}</u></span><span class="st"><i>군량</i><b>${fmt(tf)}</b></span><span class="st"><i>병력</i><b>${fmt(tt)}</b></span><span class="st nm"><u>도시 ${cs.length} · 장수 ${gs.length}</u></span>${disc ? `<span class="st"><u class="warn">불만 ${disc}</u></span>` : ''}${S.coal ? '<span class="st"><u class="warn">연합견제</u></span>' : ''}${S.missions.length ? `<span class="st nm"><u>정찰 ${S.missions.length}</u></span>` : ''}${env ? `<span class="st nm"><u>파견 ${env}</u></span>` : ''}<span class="st pr"><i>물가</i><b>${Math.round(pr * 100)}%</b></span><span class="sp"></span>`
+  const top = `<div id="s7top"><span class="dt"><i class="fc" style="background:${F.col}"></i>${S.y}년 ${S.m}월 · ${fname(S.player)}</span><span class="st"><i>금</i><b>${fmt(tg)}</b><u>녹봉 ${fmt(sal)}</u></span><span class="st"><i>군량</i><b>${fmt(tf)}</b></span><span class="st"><i>병력</i><b>${fmt(tt)}</b></span>${disc ? `<span class="st"><u class="warn">불만 ${disc}</u></span>` : ''}${S.coal ? '<span class="st"><u class="warn">연합견제</u></span>' : ''}${S.missions.length ? `<span class="st nm"><u>정찰 ${S.missions.length}</u></span>` : ''}${env ? `<span class="st nm"><u>파견 ${env}</u></span>` : ''}<span class="st pr"><i>물가</i><b>${Math.round(pr * 100)}%</b></span><span class="sp"></span>`
     + (r ? `<button type="button" class="chip root" data-a="s7info" data-v="root" title="눌러서 설명 보기">${r} 노선</button>` : `<button type="button" class="chip root" data-a="rootMenu">노선 선택</button>`)
     + `<button type="button" class="chip pol" data-a="s7info" data-v="pol" title="눌러서 설명 보기"><i>국책</i>${ps.length ? ps.map(p => { const o = typeof RT_POL !== 'undefined' && r && RT_POL[p] === r; return `<b class="${o ? 'own' : ''}">${p}${o ? '★' : ''}</b>`; }).join('·') : '<b>없음</b>'}</button>`
-    + `<span class="chip sea"><span class="sw" style="background:${tint}"></span>${SEASON_KO[sk] || ''}</span>${btn('ⓘ', 's16help', '', { s: 1, aria: '설명 보기' })}${btn('☰ 메뉴', 'sys', '', { s: 1, aria: '메뉴 (저장·타이틀)' })}</div>`;
+    + `${btn('ⓘ', 's16help', '', { s: 1, aria: '설명 보기' })}${btn('☰ 메뉴', 'sys', '', { s: 1, aria: '메뉴 (저장·타이틀)' })}</div>`;
   const rail = `<nav id="s7rail">${S7_TABS.map(t => `<button type="button" class="${t === S7.tab ? 'on' : ''}" data-a="s7tab" data-v="${t}"><svg viewBox="0 0 24 24">${S7_ICON[t]}</svg>${t}</button>`).join('')}</nav>`;
   return `<div class="scr main s7m">${top}${rail}<div id="s7mapw">${vMap()}</div><aside id="s7panel"><div id="s7ps">${s7Panel()}</div>${btn('이번 달 끝내기', 'endMonth', '', { p: 1 })}</aside></div>`; }
 // 세로 배치는 그대로 두고, 지운 덧씌움 4개(물가·운영 설정·부도 지정·계절 표식)를 문자열로 흡수
@@ -13536,16 +13560,6 @@ function trFxMonthly() {
 }
 { const f = monthlyUpdate; monthlyUpdate = function () { const r = f.apply(this, arguments); try { trFxMonthly(); } catch (e) { console.warn('tr6c', e); } return r; }; }
 
-// ---------- 화면: 교역 창 아래 품목 단추 ----------
-function trFxHtml(fid) {
-  const P = trPriceMul(fid), tier = trLuxTier(fid), o = trFx(fid);
-  const it = [['drill', `연수<small>경륜 · 금 ${fmt(Math.round(TR6C.drill * P))} · 능력 +1</small>`], ['mat', `물자 보급<small>강병 · 금 ${fmt(Math.round(TR6C.mat * P))} · 전선 군비 +${TR6C.matArm}</small>`], ['arb', `차익 위탁<small>상략 · 약 금 ${fmt(Math.round(trArbX(fid) * P))}어치</small>`],
-    ['lux', `고가품 ${tier ? tier + '등급' : '잠김'}<small>교역도 ${TR6C.lux.join('/')} · 누구나</small>`], ['wel', `민생<small>덕화 · 금 ${fmt(Math.round(TR6C.wel * P))}+군량 ${fmt(TR6C.welFood)}</small>`], ['armz', `군량 군비화<small>덕화 · 군량 ${fmt(TR6C.armzFood)}+금 ${fmt(Math.round(TR6C.armzGold * P))}</small>`]];
-  const n = trUnits(fid).length, pt = trFxCities(fid).reduce((s, c) => s + trPopTier(c), 0);
-  const pas = [n && trOpen(fid, '병종') ? `특수 병종 ${n}개: 전선 도시 훈련 월 +${(TR6C.unitTrain * n).toFixed(2)} (상한 ${TR6C.unitCapBase + TR6C.unitCapPer * n})` : '', pt ? `덕화 인구 구간 ${pt}: 해당 도시 수입 +${Math.round(TR6C.popInc * 100)}%·민충 월 +${TR6C.popLoy}·인재 발견 (구간마다)` : '', o.traits ? `개성 학습 능력 보너스 ${o.traits}/${TR6C.traitMax}` : ''].filter(Boolean);
-  return `<div class="kv">품목 효과 (노선으로 열림 · 교역 한도에서 지불)</div><div class="grid3">${it.map(([k, l]) => btn(l, 'trFx', k, { dis: !!trFxWhy(fid, k), s: 1 })).join('')}</div>${pas.length ? `<div class="dim sm">${pas.join(' · ')}</div>` : ''}`;
-}
-ACT.trFx = v => { const r = trFxDo(S.player, v); toast(r.msg, r.ok); if (r.ok) news(r.msg); renderSheet(); };
 </script>
 <script>
 // ===== v107 6d: 덕화 초기 보호 — 인구 증가 가산 · 침략 시 의용병 =====
@@ -13598,7 +13612,7 @@ function volunteerCall(c, att, tag, thr) {
 // 미확정(가안): 아래 두 상수. 교역 수치 시뮬은 하지 않았다.
 const TR_UNLOCK = { 차익: 0, 용병: 0, 민생: 20, 보급: 20, 인물: 40, 개성: 40, 병종: 60, 물자: 60 }; // 상략의 단계별 개방: 5개국 중 최고 교역도가 이 값 이상이면 그 품목이 열린다 (1단계 차익·용병 → 2단계 민생·보급 → 3단계 인물·개성 → 4단계 병종·물자)
 const TR_SANG_FX = 0.6; // 상략이 전문 노선의 품목을 열었을 때 효과 비율(전문 노선은 1.0)
-Object.assign(TR_BR_N, { 인물: '인물 발견', 개성: '개성 학습', 병종: '병종 학습', 물자: '물자 구매', 차익: '차익 거래', 용병: '용병', 민생: '민생', 보급: '군량 판매' });
+Object.assign(TR_BR_N, { 인물: '인물 발견', 개성: '개성 학습', 병종: '병종 학습', 물자: '물자 구매', 차익: '차익 거래', 용병: '용병', 민생: '민생', 보급: '군량 수출' });
 function trOwn(fid, kind) { const r = trRoot(fid); if (!r || !TR_ROOT_BR[r]) return true; return TR_ROOT_BR[r].includes(kind); } // 자기 전용 품목인가 (노선 없으면 전부)
 function trWho(kind) { return Object.keys(TR_ROOT_BR).find(r => TR_ROOT_BR[r].includes(kind)) || ''; }
 function trClosedMsg(fid, kind) { return `${TR_BR_N[kind] || kind}: ` + (trRoot(fid) === '상략' ? `교역도 ${TR_UNLOCK[kind]} 이상에서 열림` : `${trWho(kind)} 노선 전용`); }
@@ -13614,33 +13628,33 @@ function trFxHtml(fid) {
   const items = ks.map(k => [k, L[k][0], `전용 · ${L[k][1]}`]).concat([['lux', tier ? `고가품 ${tier}등급` : '고가품', tier ? '공통' : `공통 · 교역도 ${TR6C.lux[0]}↑`]]);
   const n = trUnits(fid).length, pt = trFxCities(fid).reduce((s, c) => s + trPopTier(c), 0);
   const pas = [n && trOpen(fid, '병종') ? `병종 ${n}개 · 전선 훈련 월 +${(TR6C.unitTrain * n * trBranchFx(fid, '병종')).toFixed(2)}` : '', pt ? `덕화 인구 구간 ${pt} · 수입 +${Math.round(TR6C.popInc * 100)}%` : '', o.traits ? `개성 학습 ${o.traits}/${TR6C.traitMax}` : ''].filter(Boolean);
-  return `<div class="kv">품목 행동</div><div class="grid3">${items.map(([k, l, d]) => btn(`${l}<small>${d}</small>`, 'trFx', k, { dis: !!trFxWhy(fid, k), s: 1 })).join('')}</div>${pas.length ? `<div class="dim sm">${pas.join(' · ')}</div>` : ''}`;
+  return `<div class="kv">교역 효과</div><div class="grid3">${items.map(([k, l, d]) => btn(`${l}<small>${d}</small>`, 'trFx', k, { dis: !!trFxWhy(fid, k), why: trFxWhy(fid, k), s: 1 })).join('')}</div>${pas.length ? `<div class="dim sm">${pas.join(' · ')}</div>` : ''}`;
 }
 ACT.trFx = v => { const r = trFxDo(S.player, v); toast(r.msg, r.ok); if (r.ok) news(r.msg); if (UI.sheets.length) renderSheet(); render(); };
 // ---------- 교역 커맨드 (ACT.cmd('교역')) ----------
 function trNextUnlock(fid) { if (trRoot(fid) !== '상략') return ''; const rel = trRelMax(fid), nx = Object.keys(TR_UNLOCK).filter(k => TR_UNLOCK[k] > rel); if (!nx.length) return ''; const m = Math.min(...nx.map(k => TR_UNLOCK[k])); return `다음 개방 교역도 ${m}: ${nx.filter(k => TR_UNLOCK[k] === m).map(k => TR_BR_N[k]).join('·')}`; }
 function tradeCmdHtml() { const fid = S.player, r = trRoot(fid), c = C(UI.city), own = !!(c && c.owner === fid && kindOf(c.n) === '도시');
   let h = '';
-  h += s7Row('세계 교역', '상거래·학습·친교', 'trOpen', '', !own) + (own ? trFxHtml(fid) : '<div class="s7note">아군 도시를 눌러 고르세요.</div>');
+  h += s7Row('해외 교역', '상거래·시세표·수송·학습·친교', 'trOpen', '', !own) + (own ? trFxHtml(fid) : '<div class="s7note">아군 도시를 눌러 고르세요.</div>');
+  if (r) h += `<div class="dim sm">${r} 노선 · 열린 품목: ${Object.keys(TR_UNLOCK).filter(k => trOpen(fid, k)).map(k => TR_BR_N[k] || k).join('·')}${r === '상략' ? '' : ' · 나머지는 해당 노선 전용'}</div>`;
   const nx = trNextUnlock(fid); if (nx) h += `<div class="dim sm">${nx}</div>`;
-  return h + s7Row('군량 매매', '내정 · 매매 탭', 's7trade'); }
+  return h; }
 function openTradeCmd() { openSheet(`${UI.city} · 교역`, tradeCmdHtml); }
 // ---------- 노선 전용 기능을 기존 커맨드로 흡수 (뿌리 메뉴 폐지): 설득·이간·투항 → 계략, 훈련 → 군사 ----------
 function s7PlotRows() { const r = rootOf(S.player); if (!r) return ''; const c = C(UI.city), own = !!(c && c.owner === S.player);
-  return [['설득', '경륜', '적 태수 귀순', '설득', !own], ['동맹 이간', '상략', `금 ${fmt(Math.round(400 * priceIdx()))} · 동맹 깨기`, '동맹 이간', !own], ['민심 투항', '덕화', '이웃 성 민심·투항 전망', '민심', false]]
-    .map(([n, who, d, k, dis]) => who === r ? s7Row(n, d, 'rtSub', k, dis) : '').join(''); }
+  return [['설득', '경륜', '적 태수 귀순', '설득', !own], ['동맹 이간', '상략', `금 ${fmt(Math.round(400 * priceIdx()))} · 동맹 깨기`, '동맹 이간', !own]]
+    .map(([n, who, d, k, dis]) => who === r ? s7Row(n, dis ? '아군 도시에서만 · ' + d : d, 'rtSub', k, dis) : '').join('') + s7PlotNote(r); }
+function s7PlotNote(r) { const o = [['설득', '경륜'], ['동맹 이간', '상략']].filter(x => x[1] !== r).map(x => `${x[0]}(${x[1]})`).join('·'), kr = rootRateK(S.player), kc = rootCostK(S.player);
+  return `<div class="dim sm">${o}은 해당 노선 전용입니다.${kr < 1 ? ` 이 노선은 이간·내통 성공률 ×${kr}` : ''}${kc > 1 ? `${kr < 1 ? ',' : ' 이 노선은'} 매수 가격 ×${kc}` : ''}${kr < 1 || kc > 1 ? '.' : ''}</div>`; }
 { const f = ACT.cmd; ACT.cmd = v => { if (v === '교역') return openTradeCmd(); const t0 = UI.sheets[UI.sheets.length - 1]; f(v); if (v !== '군사' && v !== '인사' && v !== '계략') return;
     try { const top = UI.sheets[UI.sheets.length - 1]; if (!top || top === t0) return; const b = top.body; top.body = () => b() + (v === '계략' ? s7PlotRows() : ''); renderSheet(); } catch (e) { } }; }
-// ---------- 첫 1회 안내: LS 키 sg_seen_<id>, 설정에서 다시 보기 ----------
-const TIPS = { main: '지도에서 도시를 누르면 정보, 왼쪽 탭에서 명령을 고릅니다.', t_내정: '내정은 눌린 도시에만 적용됩니다. 군량 매매는 내정의 매매 탭.', t_계략: '내 노선으로 쓸 수 있는 계략만 보입니다. 노선 효과는 상단 노선 칩을 누르세요.', t_교역: '열린 품목만 보입니다. 노선별 차이는 상단 노선 칩을 누르면 설명합니다.', route: '노선은 새 게임에서 한 번 정하고 끝까지 갑니다.', rootInfo: '상단의 노선 칩을 누르면 이득·손해·전용 기능을 자세히 봅니다.', pol: '국책은 매년 1월에 바꿉니다. 소속 노선 국책 100%, 그 외 60%.' };
+// ---------- 첫 1회 안내: LS 키 sg_seen_<id> ----------
+const TIPS = { main: '지도에서 도시를 누르면 정보, 왼쪽 탭에서 명령을 고릅니다.', route: '노선은 새 게임에서 한 번 정하고 끝까지 갑니다.', rootInfo: '상단의 노선 칩을 누르면 이득·손해·전용 기능을 자세히 봅니다.', pol: '국책은 매년 1월에 바꿉니다. 소속 노선 국책 100%, 그 외 60%.' };
 const TIP_MEM = {};
 function tip(id, msg) { const k = 'sg_seen_' + id; try { if (TIP_MEM[id] || LS.getItem(k)) return false; LS.setItem(k, '1'); } catch (e) { } TIP_MEM[id] = 1; toast(msg || TIPS[id] || ''); try { const t = $('#toast'); clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 5200); } catch (e) { } return true; }
-ACT.tipReset = () => { Object.keys(TIPS).forEach(k => { delete TIP_MEM[k]; try { LS.removeItem('sg_seen_' + k); } catch (e) { } }); toast('안내를 다시 봅니다.'); };
-{ const f = ACT.s7tab; ACT.s7tab = v => { f(v); if (TIPS['t_' + v]) setTimeout(() => tip('t_' + v), 200); }; }
 { const f = render; render = function () { const r = f.apply(this, arguments); try { if (UI.scr === 'main' && S7.land && !UI.sheets.length) setTimeout(() => { if (!UI.sheets.length) tip('main'); }, 700); } catch (e) { } return r; }; }
 { const f = openRootPick; openRootPick = function () { f.apply(this, arguments); setTimeout(() => tip('route'), 200); }; }
 { const f = openPolicy; openPolicy = function () { f.apply(this, arguments); setTimeout(() => tip('pol'), 200); }; }
-{ const f = ACT.sys; ACT.sys = function () { f.apply(this, arguments); const top = UI.sheets[UI.sheets.length - 1]; if (top && typeof top.body === 'function') { const b0 = top.body; top.body = () => b0() + `<div class="col" style="margin-top:8px">${btn('안내 다시 보기', 'tipReset', '', { s: 1 })}</div>`; renderSheet(); } }; }
 </script>
 <!-- /v107 S9 -->
 <!-- v107 v1.6 가로 고정 보강·설명 접기·장수 한 줄 -->
@@ -13761,7 +13775,7 @@ const RT18_TERM = {
   '도시값': '인구·개발·상업·병력·성벽으로 매긴 도시의 평가액. 매수·매입 가격의 기준.',
   '교역도': '외국 5방면과 맺은 친밀도(0~100). 높을수록 교역 품목이 열린다.',
   '국책': '매년 1월에 고르는 정책 카드. 소속 노선이면 효과 100%, 아니면 60%.',
-  '민충': '도시 백성의 충성도(0~100). 장수 개인의 충성과 별개.',
+  '민충': '도시 백성의 충성도(0~100), 흔히 민심이라 부르는 수치. 장수 개인의 충성과 별개.',
   '민심 투항': '덕화 전용. 이웃 적 도시의 민충이 오래 낮으면 그 도시가 스스로 덕화로 들어온다.',
   '점령지 흡수': '새로 빼앗은 도시의 내정 효율이 정상으로 돌아오는 데 걸리는 기간.',
   '의용병': '덕화 도시가 침략당할 때 백성이 자발적으로 수비에 합류하는 병력.',
@@ -13784,16 +13798,17 @@ function rt18Detail(r) {
     g.push(`등용: 적 현역 장수 +${RC_ROOT.gyeongryun}%p (타 노선 ${RC_ROOT.act.비경륜}%p), 재야·포로·합류·항복 장수는 +${RC_ROOT.gyeongryunOff}%p.`);
     g.push('이간·내통이 성공하면 포섭도도 함께 오른다(+10/+15 안팎).');
     g.push('국책 구현령은 등용 성공 +15%p, 공신 우대는 장수 충성 +3 (타 노선 국책이면 +9%p·+2).');
-    g.push(`교역(${brs}): 인물 발견, 개성 학습(능력 +${TR6C.traitAdd}, 최대 ${TR6C.traitMax}회), 연수(능력 +1, 월 ${TR6C.drillMo}회).`);
-    w.push('계략 > 설득·이간·내통', '인사 > 등용', '교역 > 인물 발견·개성 학습·연수');
+    g.push(`교역(${brs}): 인물 발견, 개성 학습(능력 +${TR6C.traitAdd}, 최대 ${TR6C.traitMax}회까지 능력이 오름), 교역 효과 '연수'(능력 +1, 월 ${TR6C.drillMo}회).`);
+    w.push('계략 > 설득·이간·내통', '인사 > 등용', '교역 > 해외 교역(인물 발견·개성 학습)·교역 효과(연수)');
   } else if (r === '강병') {
     intro = '전투로 큰다 — 훈련과 장비를 올린 정예로 성을 친다.';
     g.push('국책 정예주의: 훈련 매월 +2, 전투력 +8%. 총동원령: 징병비 −30% (타 노선 국책이면 60%).');
     g.push('훈련: 훈련 명령 효과 ×1.25, 훈련도가 매달 줄어드는 양이 절반(1→0.5). 모병 비용은 그대로.');
     g.push(`교역 병종 학습: 해금 1개마다 전선 도시 훈련 월 +${TR6C.unitTrain}.`);
-    g.push(`교역 물자 구매: 전선 도시 군비 +${TR6C.matArm}·훈련 +${TR6C.matTrain} (월 ${TR6C.matMo}회).`);
-    b.push('이간·내통·설득·매수·동맹 이간처럼 전용 계략과 AI 행동이 없다.');
-    w.push('군사 > 훈련', '교역 > 병종 학습·물자 구매');
+    g.push(`교역 효과 '물자': 전선 도시 군비 +${TR6C.matArm}·훈련 +${TR6C.matTrain} (월 ${TR6C.matMo}회).`);
+    b.push('노선 전용 계략(설득·동맹 이간)이 없다. 이간·내통·매수는 위의 불이익을 안고 쓴다.');
+    b.push('국책 정예주의는 인구 80%까지만 징병하고, 총동원령은 전방 신병이 많아 훈련도가 매달 더 깎인다.');
+    w.push('군사 > 훈련', '교역 > 해외 교역(병종 학습)·교역 효과(물자)');
   } else if (r === '상략') {
     intro = '금으로 산다 — 매수·매입·조공으로 성과 사람을 사고 동맹을 갈라놓는다.';
     g.push(`매수 가격 ×1.0: 도시값 ${fm(E.도시값)} 도시를 ${fm(price(1))}에 산다 (타 노선 ${fm(price(off.cost))}).`);
@@ -13805,27 +13820,28 @@ function rt18Detail(r) {
     g.push('교역: 교역도가 오르면 품목이 단계로 열린다 — ' + Object.keys(st).map(Number).sort((a, c) => a - c).map(k => `${k}↑ ${st[k].join('·')}`).join(' / ') + '.');
     g.push('국책 상업 진흥: 금 수입 +15%, 보물 제작비 −30%.');
     b.push(`다른 노선 전문 품목은 효과 ×${TR_SANG_FX} (물자 군비 +${TR6C.matArm}→+${Math.round(TR6C.matArm * TR_SANG_FX)} 등).`);
-    w.push('계략 > 매수·동맹 이간', '외교 > 매입·조공', '군사 > 용병', '교역 > 차익 거래·용병 + 단계별 전 품목');
+    w.push('계략 > 매수·동맹 이간', '외교 > 매입·조공', '군사 > 용병', '교역 > 해외 교역(상거래의 차익 거래)·교역 효과(차익) — 교역도가 오르면 품목이 단계로 열림');
     gen = true;
   } else {
-    intro = '민심으로 큰다 — 백성이 이웃 성을 투항시킨다.';
+    intro = '민충으로 큰다 — 백성이 이웃 성을 투항시킨다.';
     g.push(`징병 한도: 전 도시 인구의 ${pct(ECO.draftShare)}% → ${pct(Math.min(0.6, ECO.draftShare + 0.10))}%, 민충 70↑이면 징병 훈련 가산.`);
     g.push('진휼·시주로 오르는 민충 +20% (증가 6이면 7).');
     g.push('점령지 흡수 36 → 18개월 (시작 효율 60% → 70%).');
-    g.push('의용병: 침략당하면 인구 10만·민충 80인 도시에 약 12,000명(훈련 40)이 합류, 횟수 제한 없음.');
+    g.push(`의용병: 침략당하면 인구 10만·민충 80인 도시에 약 12,000명(훈련 40)이 합류(침략 소집은 횟수 제한 없음). 이웃 병력이 ${VOL.thrR}배 이상이면 미리 소집(규모 ×${VOL.thrK})하는데, 도시마다 ${VOL.cool}개월에 한 번이다.`);
     g.push(`인구 구간 수입: 구간마다 도시 수입 +${pct(TR6C.popInc)}% (최대 +${pct(TR6C.popInc) * 3}%).`);
     g.push('민심 투항: 이웃 적 도시 민충이 30 미만으로 4개월 이어지고 우리 쪽 이웃 도시 민충이 70↑이면 매달 (30−민충)/60 확률로 투항.');
-    g.push(`교역(${brs}): 민생(인구 +1%, 민충 +4), 군량 판매·군량 군비화.`);
+    g.push(`교역(${brs}): 교역 효과 '민생'(인구 +1%, 민충 +4)·'군비화', 상거래의 군량 수출.`);
     b.push('투항은 확률과 조건이 많아 확장 수단으로는 확정력이 낮다.');
-    w.push('계략 > 민심(투항 전망)', '내정 > 진휼·시주', '군사 > 징병', '교역 > 민생·군량 판매');
+    w.push('이 시트의 민심 투항(투항 전망)', '내정 > 진휼·시주', '군사 > 징병', '교역 > 교역 효과(민생·군비화)·해외 교역의 상거래(군량 수출)');
   }
   if (r !== '경륜') { const ty = { 상략: '탐욕 6↑', 덕화: '의리 14↑', 강병: '무력 80↑' }[r]; g.push(`등용: 적 현역 장수 ${RC_ROOT.act.비경륜}%p (노선 유형 인재 — ${ty} — 면 +${RC_ROOT.act.자기유형}%p로 상쇄), 재야·포로·합류·항복 장수는 유형 인재일 때 +${RC_ROOT.typeOff}%p.` + (r === '덕화' ? ` 덕화는 인재의 의리 감점을 ${RC_ROOT.uiCap}까지만 받는다.` : '')); }
   g.push(`국책 효과 100%: ${pol.join('·')} (다른 노선 국책은 60%).`);
   if (K.rate < 1) b.unshift(`성공률 ×${K.rate}: ${rateTxt(K.rate)} (경륜 ${rateTxt(1)}).`);
   if (K.cost > 1) b.unshift(`비용 ×${K.cost}: 매수 가격 ${fm(price(K.cost))} (상략 ${fm(price(1))}), 매입은 같은 성공률에 금 ${K.cost}배, 조공 월 수령 ${E.조공} → ${fm(E.조공 / K.cost)}.`);
   if (r !== '상략') b.push(`교역도 증가 속도 ×0.35 (상략 ×0.7), 열리는 교역 품목은 ${brs} 2개뿐.`);
-  const ex = { 경륜: '설득', 상략: '동맹 이간·용병 우대', 덕화: '민심 투항·진휼 증폭' };
+  const ex = { 경륜: '설득', 상략: '동맹 이간', 덕화: '민심 투항' }, ex2 = { 경륜: '등용 우대', 강병: '훈련 효과 ×1.25', 상략: '용병 우대(고용비 ×0.8)', 덕화: '진휼·시주 민충 +20%' };
   b.push('다른 노선 전용 기능은 쓸 수 없다: ' + own.map(o => ex[o]).filter(Boolean).join(' / ') + '.');
+  b.push('다른 노선의 우대도 받지 못한다(진휼·용병 등 명령 자체는 쓸 수 있다): ' + own.map(o => ex2[o]).filter(Boolean).join(' / ') + '.');
   const text = [intro].concat(g, b, w).join(' ').replace(/동맹 이간/g, '');
   const terms = Object.keys(RT18_TERM).filter(k => k === '이간' ? /이간/.test(text) : [intro].concat(g, b, w).join(' ').indexOf(k) >= 0);
   return { intro, g, b, w, terms };
@@ -13837,7 +13853,7 @@ function openRootDetail(v) {
     return `<div class="s18"><div class="tabs">${RT_ROOTS.map(o => `<button type="button" class="b s${o === r ? ' p' : ''}${o === me ? ' me' : ''}" data-a="rtView" data-v="${o}">${o}</button>`).join('')}</div>`
       + (r === me ? '' : `<div class="note">비교용 설명입니다. 내 노선은 ${me || '아직 없음'}입니다.</div>`)
       + `<h4>${r} 노선</h4><div class="note">${D.intro}</div>`
-      + `<h4 class="g">이득</h4>${li(D.g)}<h4 class="l">손해</h4>${li(D.b)}<h4>어디서 쓰나</h4>${li(D.w)}`
+      + `<h4 class="g">이득</h4>${li(D.g)}<h4 class="l">손해</h4>${li(D.b)}<h4>어디서 쓰나</h4>${li(D.w)}` + (r === me && r === '덕화' ? '<h4>민심 투항 전망</h4>' + tuhangHtml().replace(/<div class="r">/g, '<div class="li">') : '')
       + (D.terms.length ? `<h4>용어</h4>` + D.terms.map(k => `<div class="tm"><b>${k}</b> ${RT18_TERM[k]}</div>`).join('') : '') + '</div>';
   }, () => btn('닫기', 'close', '', { p: 1 }));
 }
@@ -13847,6 +13863,98 @@ ACT.rtView = v => { UI.rtView = v; renderSheet(); };
 { const f = ACT.rtGo; ACT.rtGo = function () { const had = rootOf(S.player); f.apply(this, arguments); if (!had && rootOf(S.player)) setTimeout(() => tip('rootInfo'), 900); }; }
 </script>
 <!-- /v107 v1.8 -->
+<!-- v108 v1.9 가로 레이어·두 엄지·도크 (목업: docs/mockup_v108_ux/index.html). 전부 body.s7L 한정 -->
+<style>
+/* 지도를 화면 전체 바탕으로, 상단바·레일·패널·도크는 같은 '뜬 카드' */
+body.s7L .scr.s7m{display:block;position:relative;overflow:hidden}
+body.s7L #s7mapw{position:absolute;inset:0;z-index:0;background:#0f1428}
+body.s7L #s7mapw .s7map svg{filter:saturate(.8) contrast(.93)}
+body.s7L #s7top,body.s7L #s7rail,body.s7L #s7ps,html body.s7L #sheet .sh{background:rgba(21,28,56,.78)!important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.38)}
+body.s7L #s7top{position:absolute;z-index:2;left:92px;right:8px;top:8px;height:40px;padding:0 4px 0 14px;gap:10px}
+body.s7L #s7top .chip{height:32px}
+body.s7L #s7top .dt{flex:none;overflow:visible}
+body.s7L #s7top .b.s{height:36px;min-height:36px;width:auto;min-width:40px;border-radius:10px;padding:0 8px}
+body.s7L #s7rail{position:absolute;z-index:2;left:8px;top:8px;bottom:8px;width:76px;padding:2px 4px}
+body.s7L #s7rail button{flex:1;min-height:44px;margin:1px 0;border:0;border-radius:10px;font-size:14px;color:#ece8dc}
+body.s7L #s7rail button.on{background:rgba(255,215,94,.14);color:#ffd75e;box-shadow:inset 0 0 0 1px rgba(255,215,94,.55)}
+body.s7L #s7panel{position:absolute;z-index:2;right:8px;top:56px;bottom:8px;width:262px;background:none;border:0;gap:8px;pointer-events:none}
+body.s7L #s7panel>*{pointer-events:auto}
+body.s7L #s7ps{flex:1 1 0;padding:6px 8px}
+html body.s7L #s7panel>.b.p{flex:0 0 48px;height:48px;min-height:48px;margin:0;border-radius:14px;font-size:15px}
+body.s7L #s7ps .row,body.s7L #s7ps .row:has(>.fc){min-height:44px}
+body.s7L #s7ps .b,body.s7L #s7ps .opsbar{min-height:44px}
+/* 지도 버튼: 왼쪽 아래(왼손) */
+.s7zoom .home{display:none}
+body.s7L .s7zoom{left:92px;right:auto;bottom:8px;flex-direction:row;gap:6px}
+body.s7L .s7zoom button{width:48px;height:48px;border-radius:12px;font-size:20px;background:rgba(21,28,56,.78);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);box-shadow:0 6px 18px rgba(0,0,0,.38)}
+body.s7L .s7zoom button.home{display:block;width:auto;padding:0 12px;font-size:14px}
+body.s7L:has(#sheet.on) .s7zoom,body.s7L:has(#sheet.on) #s7panel{visibility:hidden;pointer-events:none}
+/* 도크: 시트를 아래 중앙 카드로. 바깥은 지도로 터치 통과 */
+body.s7L #sheet.on{display:block;position:fixed;inset:0;background:none;pointer-events:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.s7L #sheet .sh{position:absolute;left:92px;right:8px;bottom:8px;top:auto;width:auto;max-width:none;height:220px;max-height:calc(100% - 60px);overflow:hidden;pointer-events:auto;display:flex;flex-direction:column}
+body.s7L #sheet .sh.one{height:244px}
+html body.s7L #sheet .sh .shh{background:none!important;border-bottom:1px solid rgba(255,255,255,.08)!important;height:36px;min-height:0;padding:0 8px 0 14px;font-size:14px;flex:none}
+html body.s7L #sheet .sh .shf{background:none!important;border:0}
+body.s7L #sheet .sh .shb{background:none}
+body.s7L #sheet .sh.dk{display:grid;grid-template-columns:56px minmax(0,1fr);grid-template-rows:36px minmax(0,1fr) auto}
+body.s7L #sheet .sh.dk.two{grid-template-columns:56px minmax(0,1fr) minmax(0,1fr) 52px;grid-template-rows:36px minmax(0,1fr)}
+body.s7L #sheet .dk>.shh{grid-column:1/-1;grid-row:1}
+body.s7L #sheet .dk>.dks{grid-column:1;grid-row:2/-1}
+body.s7L #sheet .dk.one>.shb{grid-column:2;grid-row:2}
+body.s7L #sheet .dk.one>.shf{grid-column:2;grid-row:3}
+body.s7L #sheet .dk.two>.dkL{grid-column:2;grid-row:2}
+body.s7L #sheet .dk.two>.dkRw{grid-column:3;grid-row:2;display:flex;flex-direction:column;min-height:0;border-left:1px solid rgba(255,255,255,.08)}
+body.s7L #sheet .dkRw>.shb{flex:1 1 0;min-height:0}
+body.s7L #sheet .dkRw>.shf{flex:none}
+body.s7L #sheet .dk.two>.dks2{grid-column:4;grid-row:2}
+body.s7L #sheet .dkl{overflow-y:auto;min-height:0;padding:6px 8px;scrollbar-width:none}
+body.s7L #sheet .dkl::-webkit-scrollbar{display:none}
+body.s7L #sheet .dks,body.s7L #sheet .dks2{display:flex;flex-direction:column;gap:4px;padding:4px 4px 6px 8px;min-height:0}
+body.s7L #sheet .dks2{padding:4px 8px 4px 4px}
+body.s7L #sheet .dkctl{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:0 0 4px}
+body.s7L #sheet .dkctl>*{margin:0}
+body.s7L #sheet .dkctl>.tfrow{flex:1 1 0;display:flex;align-items:center;justify-content:space-between;padding:0;min-height:0}
+body.s7L #sheet .dkctl>.bulk{flex:1 0 100%}
+body.s7L #sheet .dka{flex:none;width:100%;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(11,16,34,.7);color:#ece8dc;font-size:16px;cursor:pointer;padding:0}
+body.s7L #sheet .dka:disabled{color:#5b617a;opacity:.4;cursor:default}
+body.s7L #sheet .dks .b{margin-top:auto;width:100%;height:48px;min-height:48px;padding:0;border-radius:12px;font-size:14px}
+body.s7L #sheet .dkhint{font-size:13px;font-weight:400;color:#aab2cf;white-space:nowrap}
+body.s7L #sheet .dk .row,body.s7L #sheet .dk .row:has(>.fc){min-height:44px}
+body.s7L #sheet .dk .shb .b,body.s7L #sheet .dk .shf .b{min-height:44px}
+body.s7L #sheet .dk .shf>.b{min-height:48px}
+</style>
+<script>
+// ===== v1.9: 가로 도크 (설계: docs/변화_UI_저장_음악.md v1.9). 시트 로직은 그대로, renderSheet 뒤에 DOM 만 좌우로 나눈다 =====
+const S19 = { top: null, l: 0, r: 0 };
+// 지도의 '내 도시로' : 선택 도시가 아군이면 그 도시, 아니면 수도. 카드에 가리지 않는 가운데로 맞춘다
+function s19Shift() { const c = S7.cam; if (!c || !S7.land) return; c.x += 89 / c.k; c.y -= 24 / c.k; s7Req(); }
+ACT.s7home = () => { if (!S7.cam) return; const cc = C(UI.city), n = cc && cc.owner === S.player ? UI.city : capitalOf(S.player), d = n && s7Data().by[n]; if (!d) return; S7.cam.x = d.x; S7.cam.y = d.y; s19Shift(); };
+// 시트가 열린 채 지도의 도시를 누르면: 시트 안에 그 도시를 값으로 가진 행(대상 목록)이 있으면 그 행을 누른 것과 같다
+function s19MapPick(n) { try { const el = [...document.querySelectorAll('#sheet .sh [data-a][data-v]')].find(e => e.dataset.v === n && !e.disabled); if (el) el.click(); } catch (e) { } }
+function s19Arrows(list, up, dn) { const upd = () => { up.disabled = list.scrollTop <= 1; dn.disabled = list.scrollTop + list.clientHeight >= list.scrollHeight - 1; };
+  const go = d => () => list.scrollBy({ top: d * Math.max(66, Math.round(list.clientHeight * 0.85)), behavior: 'smooth' });
+  up.onclick = go(-1); dn.onclick = go(1); list.addEventListener('scroll', upd, { passive: true }); upd(); requestAnimationFrame(upd); setTimeout(upd, 150); }
+function s19Dock() { const sh = document.querySelector('#sheet .sh'); if (!sh || !document.body.classList.contains('s7L') || sh.classList.contains('dk')) return;
+  const shh = sh.querySelector('.shh'), shb = sh.querySelector('.shb'), shf = sh.querySelector('.shf'); if (!shh || !shb) return;
+  const mk = (t, c) => { const d = document.createElement(t); d.className = c; return d; };
+  const faces = [...shb.querySelectorAll('.row:has(>.fc)')], P = faces.length ? faces[0].parentElement : null;
+  const split = !!(faces.length && shf && faces.every(f => f.parentElement === P));
+  const closeB = shh.querySelector('[data-a="close"]');
+  const strip = mk('div', 'dks'), up = mk('button', 'dka'), dn = mk('button', 'dka'); up.type = dn.type = 'button'; up.textContent = '▲'; dn.textContent = '▼'; up.setAttribute('aria-label', '위로'); dn.setAttribute('aria-label', '아래로');
+  strip.append(up, dn); if (closeB) strip.append(closeB);
+  sh.classList.add('dk', split ? 'two' : 'one'); sh.insertBefore(strip, shb);
+  const same = S19.top === (UI.sheets[UI.sheets.length - 1] || null);
+  if (split) { const L = mk('div', 'dkl dkL'); const ctl = mk('div', 'dkctl'); [...shb.children].filter(e => e.matches('.mstog,.msbar,.tfrow')).forEach(e => ctl.append(e)); const bk = shf.querySelector('.bulk'); if (bk) ctl.append(bk); if (ctl.children.length) L.append(ctl); if (P === shb) faces.forEach(f => L.append(f)); else L.append(P); const rw = mk('div', 'dkRw'); sh.insertBefore(L, shb); sh.insertBefore(rw, shb); rw.append(shb, shf); shb.classList.add('dkl', 'dkR');
+    const s2 = mk('div', 'dks2'), u2 = mk('button', 'dka'), d2 = mk('button', 'dka'); u2.type = d2.type = 'button'; u2.textContent = '▲'; d2.textContent = '▼'; u2.setAttribute('aria-label', '위로'); d2.setAttribute('aria-label', '아래로'); s2.append(u2, d2); sh.insertBefore(s2, rw);
+    if (same) { L.scrollTop = S19.l; shb.scrollTop = S19.r; }
+    s19Arrows(L, up, dn); s19Arrows(shb, u2, d2); }
+  else { shb.classList.add('dkl'); s19Arrows(shb, up, dn); }
+  if ([...sh.querySelectorAll('[data-a][data-v]')].some(e => S.city[e.dataset.v] && e.closest('.shb, .dkl'))) { const h = mk('span', 'dkhint'); h.textContent = '지도의 도시를 눌러도 고를 수 있음'; shh.append(h); }
+  const fl = sh.querySelector('.flash'); if (fl && fl.scrollIntoView) fl.scrollIntoView({ block: 'center' }); }
+{ const f = renderSheet; renderSheet = function () { let o = null; try { const L = document.querySelector('#sheet .dkL'), R = document.querySelector('#sheet .sh.dk .shb'); S19.l = L ? L.scrollTop : 0; S19.r = R ? R.scrollTop : 0; } catch (e) { }
+  const r = f.apply(this, arguments); try { s19Dock(); S19.top = UI.sheets[UI.sheets.length - 1] || null; } catch (e) { console.error('s19Dock', e); } return r; }; }
+</script>
+<!-- /v108 v1.9 -->
 <script>
 // ===== 전투 v4 (조조전식) 규칙 핵심 v2 — 조조전 EXE 공식(docs/formulas.md)·원본 표(JOJO_RULES)를 그대로, HP만 병력으로 바꿈 =====
 // 병력 환산: 조조전 피해(HP 기준) ÷ 300 × √(공격 부대 병력 × 대상 최대 병력).  같은 크기끼리면 "조조전 HP 300짜리 부대가 받는 비율"과 같음

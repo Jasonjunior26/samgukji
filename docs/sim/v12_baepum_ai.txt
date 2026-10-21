@@ -1,0 +1,6 @@
+[ai 시드1 베풂켬] {"calls":28,"calls100":0,"ripple":37,"avgDrop":0.47,"maxDrop":1.2999999999999972,"maxB":1.9000000000000001,"maxBT":1.9000000000000001,"capBreak":0,"투항":0,"투항덕화":0,"err":0,"nb0":1,"loy0":60,"loyMid":[66,73.9,77,80.9],"dhCities":5} errs=0
+[ai 시드1 베풂끔] {"calls":37,"calls100":0,"ripple":0,"avgDrop":0,"maxDrop":0,"maxB":0,"maxBT":0,"capBreak":0,"투항":0,"투항덕화":0,"err":0,"nb0":1,"loy0":60,"loyMid":[66,68.5,79.8,76.2],"dhCities":4} errs=0
+[ai 시드2 베풂켬] {"calls":54,"calls100":0,"ripple":51,"avgDrop":0.35,"maxDrop":1.2999999999999972,"maxB":2.2,"maxBT":2.2,"capBreak":0,"투항":0,"투항덕화":0,"err":0,"nb0":1,"loy0":60,"loyMid":[62.9,73.3,81.8,82.2],"dhCities":6} errs=0
+[ai 시드2 베풂끔] {"calls":42,"calls100":0,"ripple":0,"avgDrop":0,"maxDrop":0,"maxB":0,"maxBT":0,"capBreak":0,"투항":0,"투항덕화":0,"err":0,"nb0":1,"loy0":60,"loyMid":[62.7,68.8,77.4,75.1],"dhCities":4} errs=0
+[ai 시드3 베풂켬] {"calls":58,"calls100":0,"ripple":46,"avgDrop":0.33,"maxDrop":0.5999999999999943,"maxB":1.4000000000000001,"maxBT":2.2,"capBreak":0,"투항":0,"투항덕화":0,"err":0,"nb0":1,"loy0":60,"loyMid":[62.6,70.9,75.8,80],"dhCities":4} errs=0
+[ai 시드3 베풂끔] {"calls":50,"calls100":0,"ripple":0,"avgDrop":0,"maxDrop":0,"maxB":0,"maxBT":0,"capBreak":0,"투항":0,"투항덕화":0,"err":0,"nb0":1,"loy0":60,"loyMid":[62.8,69.4,80.2,78.3],"dhCities":4} errs=0

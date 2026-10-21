@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>삼국지 가로 화면 UX 개편안 목업</title>
+<style>
+:root{--bg:#0f1428;--panel:#151c38;--deep:#0b1022;--gold:#ffd75e;--ink:#ece8dc;--dim:#9aa0b8;
+--glass:rgba(21,28,56,.78);--line:rgba(255,255,255,.08);--shadow:0 6px 18px rgba(0,0,0,.38)}
+*{box-sizing:border-box;margin:0}
+body{background:#05070f;color:var(--ink);font:14px/1.4 "Malgun Gothic","Apple SD Gothic Neo",sans-serif;padding:14px 10px 40px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
+.ctl button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font:inherit;min-height:44px;cursor:pointer}
+.ctl button.on{border-color:var(--gold);color:var(--gold)}
+.stagewrap{margin:0 auto;position:relative}
+#stage{width:800px;height:360px;position:relative;overflow:hidden;background:#d9d2bd;transform-origin:0 0;border-radius:6px;box-shadow:0 0 0 1px #223}
+body.bare{padding:0;background:#000}body.bare .ctl,body.bare .notes{display:none}
+#map{position:absolute;inset:0;width:800px;height:360px;filter:saturate(.78) contrast(.92)}
+.glass{position:absolute;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+#top{left:92px;right:8px;top:8px;height:40px;display:flex;align-items:center;gap:14px;padding:0 14px;font-size:13px;white-space:nowrap}
+#top b{color:var(--gold)}#top span{color:var(--dim)}
+#rail{left:8px;top:8px;bottom:8px;width:76px;padding:2px 4px;display:flex;flex-direction:column}
+.tab{flex:1;min-height:48px;margin:1px 0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;border-radius:10px;cursor:pointer}
+.tab.sel{background:rgba(255,215,94,.14);color:var(--gold);box-shadow:inset 0 0 0 1px rgba(255,215,94,.55)}
+#panel{right:8px;top:56px;bottom:64px;width:262px;padding:6px 8px;display:flex;flex-direction:column}
+#panel h4{font-size:13px;color:var(--dim);font-weight:normal;padding:2px 6px 4px}
+.row{display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:0 10px;margin:2px 0;border-radius:10px;border:1px solid var(--line);background:rgba(11,16,34,.55);cursor:pointer;font-size:14px}
+.row small{color:var(--dim);font-size:13px}
+.row.hot{border-color:rgba(255,215,94,.6)}
+.btn{border:1px solid var(--line);background:rgba(11,16,34,.7);color:var(--ink);border-radius:12px;min-height:44px;min-width:44px;font:inherit;font-size:14px;cursor:pointer}
+.ok{background:var(--gold);color:#241c00;font-weight:bold;border:0}
+#endm{right:8px;bottom:8px;width:262px;height:48px}
+#mapbtn{left:92px;bottom:8px;display:flex;gap:6px;padding:0}
+#mapbtn .btn{width:48px;height:48px;font-size:18px;background:var(--glass);backdrop-filter:blur(10px);box-shadow:var(--shadow)}
+#mapbtn .btn.wide{width:auto;padding:0 12px;font-size:14px}
+#dock{left:92px;right:8px;bottom:8px;height:198px;display:none}
+#dock .half{position:absolute;top:0;bottom:0;padding:8px 10px}
+#dock .l{left:0;width:50%;border-right:1px solid var(--line)}
+#dock .r{right:0;width:50%}
+#dock h4{font-size:13px;color:var(--dim);font-weight:normal;margin-bottom:3px}
+#dock .list{height:94px;overflow:auto}
+#dock .list .row{min-height:44px;margin:0 0 3px}
+#back{position:absolute;left:10px;bottom:8px;width:116px;height:48px}
+.step{display:flex;align-items:center;gap:6px;margin:2px 0}
+.step .btn{width:44px;height:44px;font-size:20px}
+.step .val{flex:1;text-align:center;font-size:18px;color:var(--ink);background:rgba(11,16,34,.6);border-radius:10px;height:44px;line-height:44px;border:1px solid var(--line)}
+.prev{font-size:13px;color:var(--dim);margin:3px 2px;line-height:1.35}.prev b{color:var(--ink);font-weight:normal}
+#go{position:absolute;right:10px;bottom:8px;left:10px;height:48px}
+.hint{position:absolute;left:92px;top:54px;font-size:13px;background:var(--glass);border:1px solid var(--line);border-radius:10px;padding:5px 10px;display:none;backdrop-filter:blur(10px)}
+.city{cursor:pointer}
+.sel-ring{display:none}
+#thumb{position:absolute;inset:0;pointer-events:none;display:none;z-index:9}
+.notes{max-width:800px;margin:18px auto 0;font-size:13px;color:var(--dim)}
+.notes h3{color:var(--ink);font-size:14px;margin-bottom:4px}.notes li{margin:2px 0 2px 18px}
+</style>
+</head>
+<body>
+<div class="ctl">
+ <button data-s="A" class="on">A 메인(내정)</button>
+ <button data-s="B">B 명령 도크(진휼)</button>
+ <button data-s="C">C 다른 예(인사 &gt; 등용)</button>
+ <button id="tz">1.5배 확대</button>
+ <button id="tt">엄지 도달 영역</button>
+</div>
+<div class="stagewrap" id="sw">
+<div id="stage">
+ <svg id="map" viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="360" fill="#e6dcc3"/>
+  <path d="M0 250 Q120 210 200 270 T380 340 L380 360 L0 360Z" fill="#b9cfd6"/>
+  <path d="M640 0 H800 V120 Q740 90 700 50Z" fill="#b9cfd6"/>
+  <path d="M60 40 L250 20 L320 90 L280 170 L130 190 L40 120Z" fill="#8fae94"/>
+  <path d="M250 20 L430 40 L470 120 L400 200 L320 90Z" fill="#c9a07a"/>
+  <path d="M280 170 L400 200 L440 290 L330 320 L230 270 L200 215Z" fill="#c78d8a"/>
+  <path d="M430 40 L640 30 L700 130 L610 210 L470 120Z" fill="#8fa3c4"/>
+  <path d="M440 290 L400 200 L470 120 L610 210 L660 300 L560 340Z" fill="#b6a0c4"/>
+  <path d="M0 200 Q200 190 330 230 T560 270 T800 300" stroke="#8fb4c4" stroke-width="5" fill="none" opacity=".8"/>
+  <g font-size="13" fill="#2a2a2a" text-anchor="middle" font-family="Malgun Gothic,sans-serif">
+   <g class="city" data-c="낙양"><circle cx="330" cy="100" r="9" fill="#fff8e0" stroke="#554" stroke-width="2"/><text x="330" y="86">낙양</text></g>
+   <g class="city" data-c="허창"><circle cx="360" cy="160" r="9" fill="#fff8e0" stroke="#554" stroke-width="2"/><text x="360" y="146">허창</text></g>
+   <g class="city" data-c="업"><circle cx="510" cy="110" r="9" fill="#fff8e0" stroke="#554" stroke-width="2"/><text x="510" y="96">업</text></g>
+   <g class="city" data-c="성도"><circle cx="150" cy="130" r="9" fill="#fff8e0" stroke="#554" stroke-width="2"/><text x="150" y="116">성도</text></g>
+   <g class="city" data-c="건업"><circle cx="560" cy="260" r="9" fill="#fff8e0" stroke="#554" stroke-width="2"/><text x="560" y="286">건업</text></g>
+   <g class="city" data-c="양양"><circle cx="320" cy="250" r="9" fill="#fff8e0" stroke="#554" stroke-width="2"/><text x="320" y="276">양양</text></g>
+  </g>
+  <circle id="ring" cx="360" cy="160" r="17" fill="none" stroke="#ffd75e" stroke-width="3" opacity="0"/>
+ </svg>
+
+ <div class="glass" id="top"><b>건안 5년 3월</b><span>금 12,400</span><span>군량 38,000</span><span>민충 72</span><span>허창</span></div>
+ <div class="glass" id="rail"></div>
+ <div class="glass" id="panel"></div>
+ <button class="btn ok" id="endm" style="position:absolute">이번 달 끝내기</button>
+ <div id="mapbtn" style="position:absolute"><button class="btn" title="확대">＋</button><button class="btn" title="축소">－</button><button class="btn wide">내 도시로</button></div>
+ <div class="hint" id="hint">지도의 도시를 직접 눌러 대상을 고를 수 있음</div>
+ <div class="glass" id="dock"></div>
+ <svg id="thumb" viewBox="0 0 800 360">
+  <defs><clipPath id="cl"><circle cx="0" cy="360" r="220"/></clipPath><clipPath id="cr"><circle cx="800" cy="360" r="220"/></clipPath></defs>
+  <rect width="800" height="360" fill="rgba(200,60,60,.22)"/>
+  <circle cx="0" cy="360" r="220" fill="rgba(60,200,140,.30)" stroke="#3fe0a0" stroke-width="2"/>
+  <circle cx="800" cy="360" r="220" fill="rgba(60,200,140,.30)" stroke="#3fe0a0" stroke-width="2"/>
+  <g font-size="13" fill="#fff" font-family="Malgun Gothic,sans-serif"><text x="8" y="196">왼손 편함</text><text x="722" y="196">오른손 편함</text><text x="360" y="196">바깥 = 멂</text></g>
+ </svg>
+</div>
+</div>
+
+<div class="notes">
+<h3>현재안 대비 변경점</h3>
+<ul>
+<li>레일 폭 56→76px. 탭 7개는 레일을 화면 전체 높이(여백 8px 제외 344px)에 균등 배분해 개당 약 48px(터치 영역은 간격 없이 맞닿음). 요구한 52px 이상은 360px 높이에서 7개(364px)가 물리적으로 불가 — 해결 선택지: 탭 6개+정보를 상단바로, 또는 48px 유지.</li>
+<li>지도 전체 배경, 상단바·레일·패널은 여백 8px·모서리 14px·반투명 blur 카드. 두꺼운 테두리 제거, 1px 8% 밝은 선. 지도 채도·대비 낮춤. 금색은 선택 상태·확정 버튼에만.</li>
+<li>지도 확대/축소/내 도시로는 왼쪽 아래(왼손). 이번 달 끝내기는 오른쪽 아래 유지. 이전/다음 도시 버튼 없음.</li>
+<li>명령 후 선택: 오른쪽 시트(min(520px,65vw)) 대신 아래 중앙 가로 도크. 왼쪽 절반=고르기(장수·대상), 오른쪽 절반=정하기·실행(스테퍼·미리보기·확정). 닫기·뒤로는 도크 왼쪽 아래 큰 버튼. 지도 도시 직접 선택 가능(B·C에서 도시를 눌러 보세요).</li>
+<li>'목표: …' 퀘스트 버튼을 명령 패널에서 삭제, 정보 탭의 '목표'로 이동.</li>
+<li>엄지 도달 영역 오버레이 토글 추가(반경 220px 가정, 실측 아님). 터치 대상 44px 이상, 글자 13px 이상.</li>
+</ul></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const tabs=['내정','군사','인사','외교','계략','교역','정보'];
+let scr='A';
+const rail=$('#rail');
+function drawRail(sel){rail.innerHTML=tabs.map(t=>`<button class="tab${t===sel?' sel':''}">${t}</button>`).join('')}
+const rowsA=[['개간','금 100'],['상업','금 100'],['치수','금 80'],['진휼','군량 500']];
+function panelA(){$('#panel').innerHTML='<h4>내정 명령</h4>'+rowsA.map(r=>`<div class="row${r[0]==='진휼'?' hot':''}" data-cmd="${r[0]}">${r[0]}<small>${r[1]}</small></div>`).join('');
+ document.querySelectorAll('#panel .row').forEach(e=>e.onclick=()=>{if(e.dataset.cmd==='진휼')show('B')});}
+function dock(html){$('#dock').innerHTML=html+'<button class="btn" id="back">‹ 뒤로</button>';$('#back').onclick=()=>show(scr==='B'?'A':'A')}
+const gen=n=>`<div class="row"><span>${n[0]}</span><small>${n[1]}</small></div>`;
+function show(s){
+ scr=s;document.querySelectorAll('.ctl [data-s]').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+ const d=$('#dock');
+ if(s==='A'){drawRail('내정');panelA();$('#panel').style.display='flex';d.style.display='none';$('#hint').style.display='none';$('#ring').setAttribute('opacity',0);$('#mapbtn').style.display='flex';$('#endm').style.display='';$('#mapbtn').style.bottom='8px';return}
+ $('#panel').style.display='none';d.style.display='block';$('#endm').style.display='none';$('#mapbtn').style.display='none';$('#hint').style.display='block';
+ if(s==='B'){drawRail('내정');$('#hint').textContent='지도의 도시를 눌러 진휼 대상 도시를 고를 수 있음';
+  dock(`<div class="half l"><h4>고르기 · 시행 장수</h4><div class="list">${gen(['관우','정치 78'])}${gen(['순욱','정치 96'])}${gen(['장료','정치 62'])}</div></div>
+  <div class="half r"><h4>정하기 · 진휼 군량</h4><div class="step"><button class="btn">－</button><div class="val">500</div><button class="btn">＋</button></div>
+  <div class="prev">미리보기: 민충 <b>72 → 79</b>, 군량 <b>38,000 → 37,500</b></div><button class="btn ok" id="go">진휼 시행</button></div>`);}
+ if(s==='C'){drawRail('인사');$('#hint').textContent='지도에서 재야 장수가 있는 도시를 눌러도 선택됨';
+  dock(`<div class="half l"><h4>고르기 · 등용할 재야 장수</h4><div class="list">${gen(['서서','지력 90'])}${gen(['방통','지력 97'])}${gen(['황충','무력 92'])}</div></div>
+  <div class="half r"><h4>정하기 · 파견 장수와 예물</h4><div class="step"><button class="btn">‹</button><div class="val" style="font-size:15px">순욱 (매력 93)</div><button class="btn">›</button></div>
+  <div class="prev">예물 금 <b>300</b> · 성공률 <b>약 64%</b><br>소요 <b>1개월</b></div><button class="btn ok" id="go">등용 시도</button></div>`);}
+ document.querySelectorAll('#dock .list .row').forEach(r=>r.onclick=()=>{document.querySelectorAll('#dock .row').forEach(x=>x.classList.remove('hot'));r.classList.add('hot')});
+ document.querySelectorAll('#dock .list .row')[0].classList.add('hot');
+ $('#ring').setAttribute('opacity',1);
+}
+document.querySelectorAll('.city').forEach(c=>c.onclick=()=>{const k=c.querySelector('circle');$('#ring').setAttribute('cx',k.getAttribute('cx'));$('#ring').setAttribute('cy',k.getAttribute('cy'));if(scr!=='A')$('#ring').setAttribute('opacity',1)});
+document.querySelectorAll('.ctl [data-s]').forEach(b=>b.onclick=()=>show(b.dataset.s));
+let z=1;
+function apply(){$('#stage').style.transform=`scale(${z})`;$('#sw').style.width=800*z+'px';$('#sw').style.height=360*z+'px'}
+$('#tz').onclick=e=>{z=z===1?1.5:1;e.target.classList.toggle('on',z>1);e.target.textContent=z>1?'실제 크기':'1.5배 확대';apply()};
+$('#tt').onclick=e=>{const t=$('#thumb');const on=t.style.display!=='block';t.style.display=on?'block':'none';e.target.classList.toggle('on',on)};
+if(location.search.includes('bare'))document.body.classList.add('bare');
+const q=new URLSearchParams(location.search);
+apply();show(q.get('s')||'A');if(q.get('t'))$('#tt').click();
+</script>
+</body>
+</html>
