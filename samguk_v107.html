@@ -7033,7 +7033,7 @@ ACT.genD = v => {
 };
 
 // ===== 시스템 =====
-ACT.sys = () => openSheet('메뉴', () => `<div class="col">${bgmCtl()}${btn('저장하기', 'saveMenu')}${btn(`무명 인재 등장: ${S.opt && S.opt.rand ? '켜짐' : '꺼짐'}`, 'randT')}${btn('신무장 합류시키기', 'cusJoin')}${btn('불러오기', 'loadMenu')}${btn('파일로 내보내기', 'exportSave')}${btn('파일에서 가져오기', 'importMenu')}${btn('타이틀로', 'toTitle')}</div>`);
+ACT.sys = () => openSheet('메뉴', () => `<div class="col"><div class="grid2">${btn('저장하기', 'saveMenu')}${btn('타이틀로', 'toTitle')}</div>${bgmCtl()}${btn(`무명 인재 등장: ${S.opt && S.opt.rand ? '켜짐' : '꺼짐'}`, 'randT')}${btn('신무장 합류시키기', 'cusJoin')}${btn('불러오기', 'loadMenu')}${btn('파일로 내보내기', 'exportSave')}${btn('파일에서 가져오기', 'importMenu')}</div>`);
 ACT.randT = () => { S.opt = S.opt || {}; S.opt.rand = !S.opt.rand; toast(`무명 인재 등장을 ${S.opt.rand ? '켰' : '껐'}습니다.`); renderSheet(); };
 ACT.cusJoin = () => openSheet('신무장 합류시키기', () => { const cs = loadCustoms(); if (!cs.length) return '<p class="dim">만든 신무장이 없습니다. 타이틀 화면의 신무장 만들기에서 만드세요.</p>';
   return cs.map((c, i) => { const inG = !!S.gen[c.n]; return `<div class="urow"><div class="row flat">${faceOf(c, 40)}<span class="grow"><b>${esc(c.n)}</b><small>통${c.t} 무${c.w} 지${c.i} 정${c.p} 매${c.c}</small></span><span class="rt">${inG ? '참여 중' : ''}</span></div>${inG ? '' : `<div class="grid2" style="padding:6px">${btn('우리 세력으로', 'cusAdd', i + '|y', { s: 1 })}${btn(`재야로 (${esc(c.loc)})`, 'cusAdd', i + '|n', { s: 1 })}</div>`}</div>`; }).join(''); });
@@ -13406,7 +13406,7 @@ function s7Main() { const F = S.fac[S.player], cs = citiesOf(S.player), gs = gen
   const top = `<div id="s7top"><span class="dt"><i class="fc" style="background:${F.col}"></i>${S.y}년 ${S.m}월 · ${fname(S.player)}</span><span class="st"><i>금</i><b>${fmt(tg)}</b><u>녹봉 ${fmt(sal)}</u></span><span class="st"><i>군량</i><b>${fmt(tf)}</b></span><span class="st"><i>병력</i><b>${fmt(tt)}</b></span><span class="st nm"><u>도시 ${cs.length} · 장수 ${gs.length}</u></span>${disc ? `<span class="st"><u class="warn">불만 ${disc}</u></span>` : ''}${S.coal ? '<span class="st"><u class="warn">연합견제</u></span>' : ''}${S.missions.length ? `<span class="st nm"><u>정찰 ${S.missions.length}</u></span>` : ''}${env ? `<span class="st nm"><u>파견 ${env}</u></span>` : ''}<span class="st pr"><i>물가</i><b>${Math.round(pr * 100)}%</b></span><span class="sp"></span>`
     + (r ? `<button type="button" class="chip root" data-a="s7info" data-v="root" title="눌러서 설명 보기">${r} 노선</button>` : `<button type="button" class="chip root" data-a="rootMenu">노선 선택</button>`)
     + `<button type="button" class="chip pol" data-a="s7info" data-v="pol" title="눌러서 설명 보기"><i>국책</i>${ps.length ? ps.map(p => { const o = typeof RT_POL !== 'undefined' && r && RT_POL[p] === r; return `<b class="${o ? 'own' : ''}">${p}${o ? '★' : ''}</b>`; }).join('·') : '<b>없음</b>'}</button>`
-    + `<span class="chip sea"><span class="sw" style="background:${tint}"></span>${SEASON_KO[sk] || ''}</span>${btn('ⓘ', 's16help', '', { s: 1, aria: '설명 보기' })}${btn('☰', 'sys', '', { s: 1, aria: '메뉴' })}</div>`;
+    + `<span class="chip sea"><span class="sw" style="background:${tint}"></span>${SEASON_KO[sk] || ''}</span>${btn('ⓘ', 's16help', '', { s: 1, aria: '설명 보기' })}${btn('☰ 메뉴', 'sys', '', { s: 1, aria: '메뉴 (저장·타이틀)' })}</div>`;
   const rail = `<nav id="s7rail">${S7_TABS.map(t => `<button type="button" class="${t === S7.tab ? 'on' : ''}" data-a="s7tab" data-v="${t}"><svg viewBox="0 0 24 24">${S7_ICON[t]}</svg>${t}</button>`).join('')}</nav>`;
   return `<div class="scr main s7m">${top}${rail}<div id="s7mapw">${vMap()}</div><aside id="s7panel"><div id="s7ps">${s7Panel()}</div>${btn('이번 달 끝내기', 'endMonth', '', { p: 1 })}</aside></div>`; }
 // 세로 배치는 그대로 두고, 지운 덧씌움 4개(물가·운영 설정·부도 지정·계절 표식)를 문자열로 흡수
@@ -13658,12 +13658,12 @@ body.s7help .pk::before,body.s7help .ds::before{content:' · '}
 body.s7help .pk:first-child::before,body.s7help .ds:first-child::before{content:none}
 .sx{display:none}
 body.s7L .shh{padding:4px 8px;font-size:14px}
-body.s7L .shh .b.s{min-height:30px;padding:0 10px}
+body.s7L .shh .b.s{min-height:32px;padding:0 10px}
 body.s7L .shh .hb{margin-right:auto;margin-left:8px;min-width:34px;padding:0}
 body.s7L .shb{padding:6px 8px}
 body.s7help #s7top .b.hl{background:#ffd75e;color:#1a1305}
 /* 가로: 장수 카드·행 컴팩트(높이·글자·초상 약 60%, 한 줄) */
-body.s7L :is(.sh,#s7ps) .row:has(>.fc){min-height:30px;padding:2px 8px;gap:6px;margin:0 0 3px;border-radius:7px;font-size:13px}
+body.s7L :is(.sh,#s7ps) .row:has(>.fc){min-height:32px;padding:2px 8px;gap:6px;margin:0 0 3px;border-radius:7px;font-size:13px}
 body.s7L :is(.sh,#s7ps) .row>.fc{border-radius:5px}
 body.s7L :is(.sh,#s7ps) .row>.fc :is(svg,img){width:20px;height:24px}
 body.s7L :is(.sh,#s7ps) .row:has(>.fc)>.grow{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
@@ -13677,9 +13677,34 @@ body.s7L :is(.sh,#s7ps) .row:has(>.fc)>.rt{font-size:11px;flex:none;white-space:
 body.s7L .sh .pn.row2{padding:4px 8px;gap:8px;font-size:13px}
 body.s7L .sh .pn.row2 .fc :is(svg,img){width:34px;height:40px}
 body.s7L .shf{padding:4px 8px 6px}
-body.s7L .shf .b{min-height:30px;padding-top:2px;padding-bottom:2px;font-size:13px}
+body.s7L .shf .b{min-height:32px;padding-top:2px;padding-bottom:2px;font-size:13px}
+/* v1.7: 상단바 ⓘ·메뉴 고정(줄지 않음, 오른쪽 끝에 붙음), 넘치면 s17Fit 가 칩을 숨김 */
+#s7top .s17x{display:none!important}
+#s7top>*{flex-shrink:0}
+#s7top .dt{flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#s7top .sp{flex:1 1 0;min-width:0}
+#s7top .b.s{flex:0 0 auto;position:sticky;right:0;background:#0b1022;box-shadow:-6px 0 6px #0b1022}
+#s7top .b.s[data-a=sys]{width:auto;min-width:58px;padding:0 8px;font-size:13px;border-color:#ffd75e;color:#ffd75e;z-index:3}
+#s7top .b.s[data-a=s16help]{right:64px}
+/* v1.7: 명령 간격 압축 (행 약 36px, 간격 2px, 글자 13px, 터치 32px 이상) */
+body.s7L #s7ps{padding:4px 6px}
+body.s7L #s7ps .row{min-height:36px;padding:2px 8px;margin:0 0 2px;gap:6px;font-size:13px}
+body.s7L #s7ps .row small{font-size:12px;line-height:1.25}
+body.s7L #s7ps .b,body.s7L #s7ps .opsbar{min-height:34px;font-size:13px;padding-top:2px;padding-bottom:2px}
+body.s7L #s7ps .kv,body.s7L #s7ps .s7tt{margin:4px 2px 2px}
+body.s7L #s7ps .col{gap:2px}
+body.s7L :is(#s7ps,.sh) :is(.grid2,.grid3,.grid4,.grid5){gap:2px}
+body.s7L #s7ps .pn:not(.row2){padding:4px 8px;gap:2px}
+body.s7L .sh .row{min-height:36px;padding:2px 8px;margin:0 0 2px;gap:6px;font-size:13px}
+body.s7L .sh .row small{font-size:12px;line-height:1.25}
+body.s7L .sh .col{gap:2px}
+body.s7L .sh .pn:not(.row2){padding:4px 8px;gap:2px}
+body.s7L .sh .b{min-height:34px;font-size:13px}
+body.s7L .sh .shb .b{padding-top:2px;padding-bottom:2px}
+body.s7L .sh .shb .kv{margin:4px 2px 2px}
+body.s7L #s7panel>.b{min-height:38px;height:38px;margin:4px 8px 6px}
 body.s7L .shb .tfrow{padding:2px 0;min-height:0}
-body.s7L .shb .tfrow .b{min-height:30px}
+body.s7L .shb .tfrow .b{min-height:32px}
 body.s7L .shf .grid2,body.s7L .shf .grid3{gap:4px}
 body.s7L .sh .pn.row2 .big{font-size:15px}
 body.s7L .sh .pn.row2 small{font-size:12px}
@@ -13697,7 +13722,12 @@ function s16Trim(root) { if (!root) return; const N0 = t => /\d/.test(t);
     const tx = el.textContent.trim(); if (!tx) return; const kv = el.classList.contains('kv'), N = kv ? N0 : (t => N0(t) && t.length <= 12); // 값 조각: 숫자가 있고 짧은 것(문장은 접음)
     if (el.children.length === 0 && tx.indexOf(' · ') > 0) { const ps = tx.split(' · '); if (ps.some(N) && !ps.every(N)) el.innerHTML = ps.map(p => `<span class="${N(p) ? 'pk' : 'ds'}">${s16Esc(p)}</span>`).join(''); else if (!ps.some(N)) { if (kv) el.innerHTML = ps.map((p, i) => `<span class="${i ? 'ds' : 'pk'}">${s16Esc(p)}</span>`).join(''); else el.classList.add('ds'); } return; }
     if (!kv && !N(tx)) el.classList.add('ds'); }); }
-function s16Sync() { document.body.classList.toggle('s7help', !!S16.help); }
+function s16Sync() { document.body.classList.toggle('s7help', !!S16.help); s17Fit(); }
+// v1.7: 상단바가 넘치면 덜 중요한 칩부터 숨겨 ⓘ·메뉴가 항상 보이게 한다(우선순위 낮은 것부터).
+const S17_HIDE = ['.st.nm', '.st.pr', '.chip.sea', '.chip.pol', '.st>u:not(.warn)', '.chip.root', '.st.fd', '.st.tr'];
+function s17Fit() { const t = document.getElementById('s7top'); if (!t) return; t.querySelectorAll('.s17x').forEach(e => e.classList.remove('s17x'));
+  for (const sel of S17_HIDE) { if (t.scrollWidth <= t.clientWidth + 1) break; t.querySelectorAll(sel).forEach(e => e.classList.add('s17x')); } }
+try { addEventListener('resize', () => setTimeout(s17Fit, 60)); addEventListener('orientationchange', () => setTimeout(s17Fit, 300)); } catch (e) { }
 ACT.s16help = () => { S16.help = !S16.help; try { LS.setItem('sg_help', S16.help ? '1' : '0'); } catch (e) { } s16Sync(); };
 { const f = renderSheet; renderSheet = function () { const r = f.apply(this, arguments); try { if (document.body.classList.contains('s7L')) { const sh = document.querySelector('#sheet .sh'); if (sh) { s16Trim(sh); const h = sh.querySelector('.shh'); if (h && !h.querySelector('.hb')) h.insertBefore(document.createRange().createContextualFragment(btn('ⓘ', 's16help', '', { s: 1, aria: '설명 보기' }).replace('class="b s"', 'class="b s hb"')), h.children[1] || null); setTimeout(() => tip('help'), 300); } } } catch (e) { } return r; }; }
 { const f = render; render = function () { const r = f.apply(this, arguments); try { s16Sync(); if (UI.scr === 'main') s16Trim(document.getElementById('s7ps')); } catch (e) { } return r; }; }
