@@ -1039,7 +1039,7 @@ function aiTurn(fid) {
     units.forEach(u => mem(u).forEach(n => G(n).acted = true));
     attacks++; const prevOwner = best.owner;
     if (best.owner === S.player && best.troops === 0 && !gensIn(best.n, best.owner).length) { best.troops = Math.max(300, Math.round((best.pop || 50000) * 0.01)); best.militia = true; news(`${best.n}에 지키는 병사가 없어 백성 ${fmt(best.troops)}명이 민병으로 나섰다.`); }
-    if (!best.owner || (best.troops === 0 && !gensIn(best.n, best.owner).length)) {
+    if (!best.owner || (best.troops === 0 && !gensIn(best.n, best.owner).length && !(typeof volHold === 'function' && volHold(best, fid)))) { // v107 6d: 덕화 빈 성은 의용병이 나서 전투로
       captureCity(fid, best.n, units.flatMap(mem), units.reduce((s, u) => s + u.troops, 0), c.n); best.food += food;
       if (best.owner === fid) world(`${fname(fid)}이(가) ${prevOwner ? fname(prevOwner) + '의 ' + best.n + '을(를) 빼앗았다 (수비 병력 없음)' : '공백지 ' + best.n + '을(를) 차지했다'}.`, 2, [best.n]);
       continue;
@@ -6851,7 +6851,7 @@ ACT.sortGo = () => {
   const food = sortieFood(tot); c.gold -= cost; c.troops -= tot; c.food -= food;
   us.forEach(u => G(u.gen).acted = true);
   closeAll();
-  if (!t.owner || (t.troops <= 0 && !gensIn(t.n, t.owner).length)) {
+  if (!t.owner || (t.troops <= 0 && !gensIn(t.n, t.owner).length && !(typeof volHold === 'function' && volHold(t, S.player)))) { // v107 6d: 덕화 빈 성은 의용병이 나서 전투로
     const hadOwner = t.owner; captureCity(S.player, t.n, us.map(u => u.gen), tot, UI.city); t.food += food;
     UI.city = t.n; toast(`${t.n}을(를) 차지했다.`); showCaptives(() => render()); return;
   }
@@ -7569,7 +7569,7 @@ ACT.sortGo = () => {
   const food = sortieFood(tot); if (c.food < food) return toast(`군량이 부족합니다. (필요 ${fmt(food)})`, false); c.gold -= cost; c.troops -= tot; c.food -= food;
   us.forEach(u => mem(u).forEach(n => G(n).acted = true));
   closeAll();
-  if (!t.owner || (t.troops <= 0 && !gensIn(t.n, t.owner).length)) { captureCity(S.player, t.n, us.flatMap(mem), tot, UI.city); t.food += food; UI.city = t.n; toast(`${t.n}을(를) 차지했다.`); showCaptives(() => render()); return; }
+  if (!t.owner || (t.troops <= 0 && !gensIn(t.n, t.owner).length && !(typeof volHold === 'function' && volHold(t, S.player)))) { captureCity(S.player, t.n, us.flatMap(mem), tot, UI.city); t.food += food; UI.city = t.n; toast(`${t.n}을(를) 차지했다.`); showCaptives(() => render()); return; }
   if (t.owner) setHos(t.owner, S.player, hos(t.owner, S.player) + 10);
   const dPow = t.troops * (1 + t.def / 150);
   startBattle(S.player, UI.city, t.n, us, food, 'A', defModeFor(t.n, t.troops, t.def, tot), UI.f.policy);
@@ -13495,6 +13495,50 @@ function trFxHtml(fid) {
 ACT.trFx = v => { const r = trFxDo(S.player, v); toast(r.msg, r.ok); if (r.ok) news(r.msg); renderSheet(); };
 </script>
 <script>
+// ===== v107 6d: 덕화 초기 보호 — 인구 증가 가산 · 침략 시 의용병 =====
+// 명세 docs/v107_빌드명세.md 7-6(확정식), 설계 docs/교역_성향_설계.md §14-1, 참조 구현 tools/integrated_sim.js popGrow(197)·volun(226). 기록 docs/변화_내정.md v1.3.
+// 규칙: ① 덕화 소속 도시가 인구 상한 밑이면 매월 원본 회복(monthlyPop 5041, 0.004+민충/100×0.006) 위에 +(상한−인구)×0.015×(0.5+민충/100).
+//       ② 덕화 소속 도시가 침략당할 때마다(횟수 제한 없음) 의용병 V = min(인구×민충/100×0.06, 인구×0.08), 100 단위 내림. 인구 −V, 수비 병력 +V, 훈련도 병력 가중 평균(의용병 40).
+// 발동: volunteerCall(도시, 공격 세력, 전투 객체) 한 함수를 세 곳에서 부른다 — autoBattle 바깥 래퍼(AI끼리·위임, V4·옛 공식 모두), 플레이어 출진/수비 startBattle 래퍼(수비 편성 전), v4EnterReal(보강 — 이미 발동했으면 B.volun 표시로 건너뜀).
+// 상태: 집계 S.vol = {n, sum, max, maxPop, big(인구 25만 이상 도시 건), b20(V 2만 이상 건), rep(자동 전투 격퇴), popSum} — 없어도 되는 작은 필드, 옛 세이브 호환. 같은 전투 중복 방지는 B.volun.
+// 발동 완화(6d 마무리): ⓐ 빈 성(병력 0·장수 없음)도 무혈 점령 대신 의용병이 나서 전투  ⓑ 위협 소집 — 매월, 인접 적 도시 병력이 내 병력의 thrR배 이상이면 규모 ×thrK로 미리 소집(도시별 cool개월에 한 번, 침략 소집도 같은 시계)
+const VOL = { popK: 0.015, k: 0.15, cap: 0.15, train: 40, unit: 100, loyFloor: 50, abs: 20000, thrR: 2, thrK: 0.5, cool: 12 };
+function volStat() { S.vol = S.vol || { n: 0, sum: 0, max: 0, maxPop: 0, big: 0, b20: 0, rep: 0, popSum: 0 }; return S.vol; }
+function volSize(c, sc) { if (!c || !(c.pop > 0)) return 0; const loy = Math.max(VOL.loyFloor, Math.min(100, c.loy || 0)); return Math.floor(Math.min(c.pop * (loy / 100) * VOL.k, c.pop * VOL.cap, VOL.abs) * (sc || 1) / VOL.unit) * VOL.unit; }
+function volEligible(c, att) { return !!(c && c.owner && c.owner !== att && rootOf(c.owner) === '덕화' && c.pop > 0); }
+function volHold(c, att) { return volEligible(c, att) && volSize(c) > 0; } // 빈 성 무혈 점령을 막을지
+// 위협 판정: 인접 도시 중 남(자기·동맹 아님) 소유 최대 병력이 내 병력의 thrR배 이상
+function volThreat(c) { let mx = 0, who = null; (ADJ[c.n] || []).forEach(a => { const x = C(a); if (x && x.owner && x.owner !== c.owner && !allied(c.owner, x.owner) && (x.troops || 0) > mx) { mx = x.troops; who = x.owner; } }); return mx > 0 && mx >= VOL.thrR * Math.max(1, c.troops || 0) ? who : null; }
+// 의용병 소집. tag(전투 객체)에 volun 표시가 있으면 같은 전투라 건너뛴다. tag.units가 이미 있으면(수비 편성이 끝난 뒤의 보강 경로) 성의 병력 대신 성내 예비대 tag.dres에 더한다.
+function volunteerCall(c, att, tag, thr) {
+  try {
+    if (tag && tag.volun) return null;
+    if (!volEligible(c, att)) return null;
+    const V = volSize(c, thr ? VOL.thrK : 1); if (V <= 0) return null;
+    const t0 = Math.max(0, c.troops || 0), tr0 = c.train || 0;
+    const rec = { V, t0, pop: c.pop, loy: c.loy, c: c.n, f: c.owner, att, m: S.y * 12 + S.m };
+    c.pop -= V;
+    if (tag && tag.units) { tag.dres = (tag.dres || 0) + V; rec.res = true; }
+    else { c.train = Math.round((tr0 * t0 + VOL.train * V) / (t0 + V)); c.troops = t0 + V; rec.train = c.train; }
+    if (tag) tag.volun = rec;
+    c.volT = rec.m; if (thr) rec.thr = true;
+    const st = volStat(); st.n++; if (thr) st.thr = (st.thr || 0) + 1; st.sum += V; if (V > st.max) st.max = V; if (rec.pop > st.maxPop) st.maxPop = rec.pop; if (rec.pop >= 250000) st.big++; if (V >= 20000) st.b20++;
+    const msg = `${c.n}의 백성 ${fmt(V)}명이 ` + (thr ? `${fname(att)}의 위협에 맞서 ` : '') + `의용병으로 나섰다` + (rec.res ? ' (성내 예비대)' : `, 수비 ${fmt(t0)} → ${fmt(c.troops)} · 훈련 ${tr0} → ${c.train}`) + '.';
+    if (c.owner === S.player || att === S.player) news(msg); else world(`${fname(c.owner)}의 ${c.n}에 의용병 ${fmt(V)}명이 모였다.`, 1, [c.n]);
+    return rec;
+  } catch (e) { return null; }
+}
+// ① 인구 증가 가산: 원본 monthlyPop 뒤에 얹는다(상한까지)
+{ const f = monthlyPop; monthlyPop = function () { const r = f.apply(this, arguments); try { Object.values(S.city).forEach(c => { if (!c.owner || c.pop == null || rootOf(c.owner) !== '덕화') return; const mx = popMax(c); if (c.pop >= mx) return; const loy = Math.max(0, Math.min(100, c.loy || 0)); const dp = Math.min(mx - c.pop, Math.round((mx - c.pop) * VOL.popK * (0.5 + loy / 100))); if (dp > 0) { c.pop += dp; volStat().popSum += dp; } }); } catch (e) { } return r; }; }
+// ③ 위협 소집(발동 완화 ⓑ): 매월 덕화 도시마다, 마지막 소집 뒤 cool개월이 지났고 위협이 있으면 규모 ×thrK로 소집
+{ const f = monthlyPop; monthlyPop = function () { const r = f.apply(this, arguments); try { const now = S.y * 12 + S.m; Object.values(S.city).forEach(c => { if (!c.owner || rootOf(c.owner) !== '덕화' || !(c.pop > 0)) return; if (c.volT != null && now - c.volT < VOL.cool) return; const who = volThreat(c); if (who) volunteerCall(c, who, null, true); }); } catch (e) { } return r; }; }
+// ② 호출 지점 1: autoBattle 바깥 래퍼 — 전투 전에 수비 병력을 늘린다. 결과가 격퇴(r.win 거짓)면 집계
+{ const f = autoBattle; autoBattle = function (att, fromCn, toCn, units) { let rec = null; try { rec = volunteerCall(C(toCn), att, null); } catch (e) { } const r = f.apply(this, arguments); try { if (rec && r && !r.win) volStat().rep++; } catch (e) { } return r; }; }
+// ② 호출 지점 2: 플레이어 출진/수비 startBattle 래퍼 — 옛 startBattle이 성 병력을 부대로 나누기 전에 늘리고, 만들어진 B에 표시(v4EnterReal 중복 방지)
+{ const f = startBattle; startBattle = function (att, fromCn, toCn, units) { let rec = null; try { rec = volunteerCall(C(toCn), att, null); } catch (e) { } const r = f.apply(this, arguments); try { if (rec && B && !B.volun) B.volun = rec; } catch (e) { } return r; }; }
+// 호출 지점 3은 V4 블록 v4EnterReal 본문 한 줄(volunteerCall(C(a.to), a.att, old) — 보통 B.volun이 있어 건너뜀, 없으면 성내 예비대로 보강)
+</script>
+<script>
 // ===== 전투 v4 (조조전식) 규칙 핵심 v2 — 조조전 EXE 공식(docs/formulas.md)·원본 표(JOJO_RULES)를 그대로, HP만 병력으로 바꿈 =====
 // 병력 환산: 조조전 피해(HP 기준) ÷ 300 × √(공격 부대 병력 × 대상 최대 병력).  같은 크기끼리면 "조조전 HP 300짜리 부대가 받는 비율"과 같음
 // 아직 실제 출진과 연결하지 않음. V4.start(...)로 따로 돌리고, V4.toLegacy()로 기존 finishBattle에 넘길 수 있음.
@@ -14666,6 +14710,7 @@ ACT.v4Tog = () => { S.opt = S.opt || {}; S.opt.v4Battle = !v4On(); toast(`전투
 { const f = startBattle; startBattle = function (att, fromCn, toCn, units, food, playerSide, defMode) { const defTroops = C(toCn).troops; const r = f.apply(this, arguments); try { if (B && playerSide) B.v4args = { att, from: fromCn, to: toCn, units, food, playerSide, defMode: B.mode || defMode, defTroops }; } catch (e) { } return r; }; }
 function v4EnterReal() {
   const old = B, a = old.v4args; UI.v4old = old; B = null;
+  try { if (typeof volunteerCall === 'function') volunteerCall(C(a.to), a.att, old); } catch (e) { } // v107 6d 의용병 호출 지점 3(보강): 보통 startBattle 래퍼에서 이미 발동해 old.volun 표시로 건너뛴다. 없으면 성내 예비대(old.dres)로 더한다
   const spec = u => ({ gen: u.gen, vg: u.vg, st: u.st, jg: u.jg, troops: u.troops, form: u.form, role: u.role, elite: u.elite, eliteName: u.eliteName });
   // 수비 부대는 옛 startBattle이 만든 편성을 그대로 쓴다. 공격 부대는 출진 편성(정예 표시 포함)에 내통해 돌아선 부대를 더한다
   const dUnits = old.units.filter(u => u.side === 'D').map(spec);

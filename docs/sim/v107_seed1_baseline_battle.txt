@@ -1,0 +1,6 @@
+block 36 window.addEventListener is not a function
+block 40 window.addEventListener is not a function
+야전 8000 공격 승 19/20 평균 턴 7.5 {"적 전멸":18,"적 총대장 퇴각":2}
+야전 15000 공격 승 20/20 평균 턴 7.5 {"적 전멸":20}
+공성 8000 공격 승 5/20 평균 턴 17.6 {"적 전멸":11,"적 총대장 퇴각":9}
+공성 15000 공격 승 5/20 평균 턴 14.7 {"적 전멸":13,"적 총대장 퇴각":7}
