@@ -4,7 +4,10 @@ const fs = require('fs'), vm = require('vm'), path = require('path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v107.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
-const ctx = { console, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },
+// 시드 고정: BSEED 환경변수(기본 1). 같은 코드면 같은 결과 → 차이가 나면 실제 변화다. BSEED=0 이면 Math.random 그대로.
+const SEED = +(process.env.BSEED ?? 1); let _s = SEED >>> 0;
+const SMath = SEED ? Object.assign(Object.create(Math), { random: () => { _s = (_s + 0x6D2B79F5) >>> 0; let t = _s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; } }) : Math;
+const ctx = { console, Math: SMath, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },
   localStorage: { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
   document: el(), navigator: { userAgent: 'node' }, location: { reload() { } } };
 ctx.window = ctx; vm.createContext(ctx);
