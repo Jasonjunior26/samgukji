@@ -12161,7 +12161,7 @@ function trSat(nat, g, d) { const T = trT(); T.mk[nat] = T.mk[nat] || {}; T.mk[n
 // ---------- 교역도 · 인물 발견 ----------
 function trGain(fid, nat, v, cn) {
   if (v > 0) v = Math.max(1, Math.round(v * trAmp(fid, nat))); // 6b: 거점 증폭
-  if (v > 0 && trRoot(fid) !== '상략') v = Math.max(1, Math.round(v * TR6B.gainMul)); // 교역도 난이도 2배(증가치 ×0.5), 상략 뿌리는 그대로
+  if (v > 0) v = Math.max(1, Math.round(v * (trRoot(fid) === '상략' ? TR6B.gainMulSang : TR6B.gainMul))); // 교역도 증가치 배율: 상략 ×0.7, 그 외 ×0.35
   const T = trT(); T.rel[fid] = T.rel[fid] || {}; const old = T.rel[fid][nat] || 0; const nv = trClamp(old + v, 0, 100); T.rel[fid][nat] = nv;
   if (nv > old) trCheck(fid, nat, cn, old, nv); return nv - old;
 }
@@ -12397,7 +12397,7 @@ ACT.trGinsengPick = v => { const r = useGinseng(v); toast(r.msg, r.ok); renderSh
 
 // ========== 6b: 거점·증폭 · 뿌리 게이트 · 세력 단위 한도 · 물가 · 명령 · AI 뿌리별 교역도 · 화면 (docs/v107_빌드명세.md 7-3) ==========
 // 수치는 "가정"(시험기 통합_시뮬레이션.md §2 모델에서 옮김): hubGain 0.5(확정) · usaSum 150(확정) · tradeFrac 0.5(가정) · coastRisk 0.03(가정) · AI 친교 2/월·학습 확률 20%(가정)
-const TR6B = { gainMul: 0.5, hubGain: 0.5, usaSum: 150, tradeFrac: 0.5, minFrac: 0.2, coastRisk: 0.03, banq: 200, study: { 개성: 300, 병종: 800 }, studyMo: { 개성: 2, 병종: 3 }, studyRel: { 개성: 20, 병종: 40 }, aiBanq: 2, aiStudyP: 20, aiFoodKeepMo: 24, aiFoodMax: 5000, gainPer: 300, gainMax: 6, gainBox: 10 };
+const TR6B = { gainMul: 0.35, gainMulSang: 0.7, hubGain: 0.5, usaSum: 150, tradeFrac: 0.5, minFrac: 0.2, coastRisk: 0.03, banq: 200, study: { 개성: 300, 병종: 800 }, studyMo: { 개성: 2, 병종: 3 }, studyRel: { 개성: 20, 병종: 40 }, aiBanq: 2, aiStudyP: 20, aiFoodKeepMo: 24, aiFoodMax: 5000, gainPer: 300, gainMax: 6, gainBox: 10 };
 const TR_LAND = ['대군', '안문', '서평', '무위', '장액', '월수', '운남', '영창']; // 육로 거점 8곳 (교역_성향_설계.md §3-1)
 const TR_HUB = { kor: ['양평', '북평', '남피', '북해', '동래'], jpn: ['동래', '북해', '낭야', '동해', '광릉', '말릉', '오', '회계', '건안'], eeu: ['대군', '안문', '서평', '무위', '장액'], weu: ['월수', '운남', '영창', '남해', '합포', '교지'], usa: ['건안', '회계', '오', '말릉', '광릉', '동해', '남해', '합포', '교지'] }; // 방면↔거점 (통합_시뮬레이션.md §2, 가정)
 const TR_ROOT_BR = { 경륜: ['인물', '개성'], 강병: ['병종', '물자'], 상략: ['차익', '용병'], 덕화: ['민생', '보급'] }; // 뿌리 → 열린 갈래 2개 (교역_성향_설계.md §4)
