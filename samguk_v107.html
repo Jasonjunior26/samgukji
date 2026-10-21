@@ -9444,7 +9444,7 @@ function faceBody2(p, key, age) {
   // 몸·옷
   const armor = p.관 === '투구' || p.관 === '깃털관';
   o.push(`<path d="M8 120 Q12 96 34 92 L66 92 Q88 96 92 120Z" fill="url(#${id}c)"/>`);
-  if (armor) o.push(`<path d="M18 120 Q22 100 36 96 L64 96 Q78 100 82 120Z" fill="${lighten('#7d8796', .1)}" opacity=".85"/><path d="M26 106 H74 M24 113 H76" stroke="#545c6a" stroke-width="1.6"/>`);
+  if (armor || p.관 === '깃투구' || p.관 === '무쇠투구') o.push(`<path d="M18 120 Q22 100 36 96 L64 96 Q78 100 82 120Z" fill="${lighten('#7d8796', .1)}" opacity=".85"/><path d="M26 106 H74 M24 113 H76" stroke="#545c6a" stroke-width="1.6"/>`);
   else o.push(`<path d="M38 92 L50 112 L62 92" fill="none" stroke="${lighten(cl, .45)}" stroke-width="3"/><path d="M44 92 L50 103 L56 92" fill="${dk(cl, .45)}"/>`);
   o.push(`<rect x="43" y="80" width="14" height="14" fill="${sd}"/>`);
   // 귀
@@ -9487,6 +9487,14 @@ function faceBody2(p, key, age) {
   else if (k === '군주관') o.push(`<path d="M${cx - 22} 34 Q${cx} 18 ${cx + 22} 34Z" fill="#141318"/><rect x="${cx - 30}" y="14" width="60" height="6" rx="2" fill="#1d1c22" stroke="${gold}" stroke-width="1.5"/><path d="M${cx - 24} 20 v8 M${cx - 16} 20 v9 M${cx + 16} 20 v9 M${cx + 24} 20 v8" stroke="#e3c46b" stroke-width="1.6"/><circle cx="${cx}" cy="25" r="3.2" fill="#f2d36b"/>`);
   else if (k === '두건') o.push(`<path d="M${cx - fw - 3} 46 Q${cx - 4} 16 ${cx + fw + 3} 44 L${cx + fw + 3} 38 Q${cx} 26 ${cx - fw - 3} 40Z" fill="${kc}"/><path d="M${cx + fw} 40 q10 2 12 16" stroke="${kc}" stroke-width="5" fill="none" stroke-linecap="round"/>`);
   else if (k === '윤건') o.push(`<path d="M${cx - 21} 38 Q${cx} 12 ${cx + 21} 38Z" fill="#2c2f4e"/><path d="M${cx - 23} 38 H${cx + 23}" stroke="#4e5384" stroke-width="3"/><path d="M${cx + 20} 36 q8 6 6 22" stroke="#4e5384" stroke-width="3" fill="none"/>`);
+  else if (k === '털모자') o.push(`<path d="M${cx - fw - 4} 46 Q${cx - fw - 8} 14 ${cx} 12 Q${cx + fw + 8} 14 ${cx + fw + 4} 46 Q${cx} 36 ${cx - fw - 4} 46Z" fill="#6b4a2e"/><path d="M${cx - fw - 6} 42 Q${cx} 30 ${cx + fw + 6} 42 L${cx + fw + 5} 50 Q${cx} 40 ${cx - fw - 5} 50Z" fill="#d8c8a8"/><path d="M${cx - 6} 20 q6 -4 12 0" stroke="#4a3320" stroke-width="2" fill="none"/>`);
+  else if (k === '베레') o.push(`<ellipse cx="${cx - 4}" cy="28" rx="${fw + 8}" ry="11" transform="rotate(-9 ${cx} 28)" fill="${kc}"/><path d="M${cx - fw - 2} 36 Q${cx - 4} 42 ${cx + fw + 2} 34" stroke="${dk(kc, .7)}" stroke-width="2.4" fill="none"/><circle cx="${cx + 3}" cy="17" r="2.4" fill="${dk(kc, .7)}"/>`);
+  else if (k === '깃투구' || k === '무쇠투구') {
+    const mt = k === '깃투구' ? '#3d3f4a' : '#7d8490';
+    o.push(`<path d="M${cx - fw - 6} 60 Q${cx - fw - 8} 22 ${cx} 18 Q${cx + fw + 8} 22 ${cx + fw + 6} 60 L${cx + fw - 1} 62 Q${cx + fw} 36 ${cx} 34 Q${cx - fw} 36 ${cx - fw + 1} 62Z" fill="${mt}"/><path d="M${cx - fw - 2} 44 Q${cx} 36 ${cx + fw + 2} 44" stroke="${dk(mt, .6)}" stroke-width="2.4" fill="none"/>`);
+    if (k === '깃투구') o.push(`<path d="M${cx - 4} 22 Q${cx - 22} 2 ${cx - 36} 8 Q${cx - 20} 10 ${cx - 8} 26Z" fill="${gold}"/><path d="M${cx + 4} 22 Q${cx + 22} 2 ${cx + 36} 8 Q${cx + 20} 10 ${cx + 8} 26Z" fill="${gold}"/><path d="M${cx - fw - 6} 56 q-6 8 -2 16 M${cx + fw + 6} 56 q6 8 2 16" stroke="${mt}" stroke-width="5" fill="none" stroke-linecap="round"/>`);
+    else o.push(`<path d="M${cx} 18 V34" stroke="${dk(mt, .6)}" stroke-width="2.2"/><rect x="${cx - 2.5}" y="34" width="5" height="16" fill="${mt}"/><circle cx="${cx}" cy="15" r="3" fill="#b9bfca"/>`);
+  }
   else if (armor) {
     const mt = kc === '#e8e8e8' ? '#dfe3ea' : '#a6adb9';
     o.push(`<path d="M${cx - fw - 6} 60 Q${cx - fw - 8} 22 ${cx} 18 Q${cx + fw + 8} 22 ${cx + fw + 6} 60 L${cx + fw - 1} 62 Q${cx + fw} 36 ${cx} 34 Q${cx - fw} 36 ${cx - fw + 1} 62Z" fill="${mt}"/><path d="M${cx - fw - 2} 44 Q${cx} 36 ${cx + fw + 2} 44" stroke="${dk(mt, .7)}" stroke-width="2.4" fill="none"/><rect x="${cx - 3}" y="10" width="6" height="10" rx="2" fill="${gold}"/>`);
@@ -12053,6 +12061,9 @@ const TR_CN = { 비단: 60, 도자기: 40, 차: 30 }; // 중국 상품 기준가
 const TR_TIER = [[60, 1], [80, 2], [100, 3]];
 const TR_UNIT_FX = { 맥궁병: 1.2, 사무라이: 1.25, 후사르: 1.3, 원탁기사: 1.3, 총사: 1.4 }; // 자동 전투 피해 배율 (V4에서는 절반)
 // 외국 인물: [나라, 단계, 이름, 통, 무, 지, 정, 매, 안, 특기, 발견 때 나이]
+// v107 S8: 외국 장수 초상 — 나라마다 머리쓰개를 고정(고구려 상투·왜 깃투구·서역 털모자·대진 베레·부상 무쇠투구), 나머지는 무작위 초상 그대로
+const TR_HAT = { kor: '상투', jpn: '깃투구', eeu: '털모자', weu: '베레', usa: '무쇠투구' };
+function trFace(nat, n, war) { const f = randFace(war); if (TR_HAT[nat]) f.관 = TR_HAT[nat]; if (nat === 'weu') { f.관색 = '#7a2a3a'; f.피부 = '창백'; if (f.눈동자 !== '청' && hashN(n + 'e') < .5) f.눈동자 = '청'; } return f; }
 const TR_GENS = [
   ['kor', 1, '양만춘', 88, 82, 74, 55, 70, 62, ['철벽', '신궁'], 30], ['kor', 1, '계백', 85, 88, 66, 48, 74, 55, ['돌격', '독전'], 28], ['kor', 1, '온달', 74, 86, 52, 40, 72, 45, ['일기', '기습'], 24],
   ['kor', 2, '을지문덕', 94, 80, 92, 78, 82, 80, ['신산', '매복', '지휘'], 34], ['kor', 2, '김유신', 92, 86, 84, 80, 86, 78, ['지휘', '고무', '철벽'], 30], ['kor', 3, '광개토대왕', 98, 92, 80, 88, 96, 85, ['돌격', '지휘', '위압'], 26],
@@ -12085,8 +12096,8 @@ function trInit() {
   // v1 세이브: 세력 공용 화물(T.cargo[fid]) → 본거지(없으면 첫 관문) 도시 창고로 옮김
   if (T.cargo) { Object.keys(T.cargo).forEach(fid => { const cg = T.cargo[fid] || {}; if (!Object.keys(cg).length || !S.fac[fid]) return; const cn = capitalOf(fid) || (citiesOf(fid)[0] || {}).n; if (!cn) return; const dst = trCityCargo(cn); Object.keys(cg).forEach(g => { if (cg[g] > 0) dst[g] = (dst[g] || 0) + cg[g]; }); }); delete T.cargo; }
   TR_GENS.forEach(([nat, tier, n, t, w, i, p, c, a, sk, age]) => {
-    if (S.gen[n]) { if (S.gen[n].nat == null) { S.gen[n].nat = nat; S.gen[n].trTier = tier; S.gen[n].trAge = age; } return; }
-    const o = makeGen({ n, t, w, i, p, c, a, sk: sk.slice(), loc: TR_NAT[nat].gates[0], born: null, die: 9999, face: randFace(w >= i) });
+    if (S.gen[n]) { if (S.gen[n].nat == null) { S.gen[n].nat = nat; S.gen[n].trTier = tier; S.gen[n].trAge = age; } if (S.gen[n].face && TR_HAT[nat] && S.gen[n].face.관 !== TR_HAT[nat]) S.gen[n].face.관 = TR_HAT[nat]; return; }
+    const o = makeGen({ n, t, w, i, p, c, a, sk: sk.slice(), loc: TR_NAT[nat].gates[0], born: null, die: 9999, face: trFace(nat, n, w >= i) });
     o.st = '미등장'; o.appear = '교역'; o.found = false; o.tr = [TR_NAT[nat].trait]; o.nat = nat; o.trTier = tier; o.trAge = age; o.origin = '교역'; o.merit = 0;
     try { o.fm = autoForms(o); } catch (e) { o.fm = ['어린', '방원']; }
     S.gen[n] = o;
@@ -14330,6 +14341,8 @@ const V4UI = (() => {
     g.drawImage(im, 0, 0);
     // 서 있는 성문: 원본 겹침 그림(3×3칸). 없으면 도트 성문
     for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { if (W.map[y][x].t !== 'T') continue; const ov = jm.gates.find(q => q.x === x && q.y === y); const gi = ov && jimg(ov.img); if (gi) g.drawImage(gi, (x - 1) * TS, (y - 1) * TS); else g.drawImage(tile('T', 0, 0, 5, false), x * TS, y * TS - 5 * PS, TS, 21 * PS); }
+    // 열린 성문(O): 겹침 그림이 없어 성벽이 그대로 보이므로 문짝 자리에 어두운 통로를 얹는다 (v107 S8, 눈으로 확인 못 함)
+    for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { if (W.map[y][x].t !== 'O') continue; g.fillStyle = 'rgba(24,16,10,.62)'; g.fillRect(x * TS + TS * .14, y * TS - TS * .1, TS * .72, TS * 1.1); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(x * TS + TS * .14, y * TS - TS * .1, TS * .72, TS * .1); }
     st.map = c; st.mapKey = key; return c;
   }
   // 지도 전체를 한 장으로 미리 그림 (지형이 바뀌면 다시)
