@@ -14,7 +14,7 @@ const ctx = { console: { log() { }, error() { }, warn() { }, info() { } }, Math:
   document: el(), navigator: { userAgent: 'node' }, location: { reload() { } } };
 ctx.window = ctx; vm.createContext(ctx);
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { } });
-ctx.SETSEED = s => { seed = s >>> 0; }; ctx.PRINT = (...a) => console.log(...a); ctx.MONTHS = MONTHS; ctx.SEEDS = SEEDS; ctx.SCEN = SCEN; ctx.PLAYER = PLAYER; ctx.ONLY = ONLY;
+ctx.SETSEED = s => { seed = s >>> 0; }; ctx.PRINT = (...a) => console.log(...a); ctx.MONTHS = MONTHS; ctx.SEEDS = SEEDS; ctx.SCEN = SCEN; ctx.PLAYER = PLAYER; ctx.ONLY = ONLY; ctx.HASH = !!process.env.RSHASH;
 
 vm.runInContext(`(() => {
   const ROOTS = ['경륜', '강병', '상략', '덕화'];
@@ -47,6 +47,7 @@ vm.runInContext(`(() => {
       rows.push({ root, sd, f, rt, player: f === S.player, c0: start[f].c, c1: citiesOf(f).filter(isCity).length, dead: dead[f] || 0, own, all, st }); });
     const p = rows.filter(r => r.root === root && r.sd === sd && r.player)[0];
     PRINT('[' + root + ' s' + sd + '] 플레이어 도시 ' + p.c0 + '→' + p.c1 + (p.dead ? ' 멸망 ' + p.dead + '개월' : '') + ' 자기방법 ' + p.own + '/' + p.all + ' 태그 ' + JSON.stringify(p.st) + ' | 장치 ' + JSON.stringify(DV) + ' | 오류 ' + err + ' | 의용병 ' + JSON.stringify(S.vol || {}) + ' | ' + Math.round((Date.now() - t0) / 1000) + 's'); VOLS.push(S.vol || {}); // v107 6d: S.vol = {n 발동, sum, max, maxPop, big 인구25만↑ 건, b20 V 2만↑ 건, rep 격퇴, popSum 인구 가산}
+    if (HASH) { const j = JSON.stringify(S); let h = 2166136261; for (let q = 0; q < j.length; q++) { h ^= j.charCodeAt(q); h = Math.imul(h, 16777619); } PRINT('  상태 해시 ' + (h >>> 0).toString(16) + ' 길이 ' + j.length); } // RSHASH=1: 최적화 전후 동일성 확인용
   }
   PRINT('\\n== 플레이어(' + PLAYER + ') 뿌리별, ' + MONTHS + '개월, 시드 ' + SEEDS.join(',') + ', 시나리오 ' + SCEN + ' ==');
   const mean = a => a.reduce((s, x) => s + x, 0) / Math.max(1, a.length); const f1 = (x, n = 1) => x.toFixed(n);

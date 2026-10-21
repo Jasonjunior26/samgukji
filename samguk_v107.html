@@ -510,9 +510,12 @@ function F(id) { return S.fac[id]; }
 function G(n) { return S.gen[n]; }
 function C(n) { return S.city[n]; }
 function fname(id) { return id ? (S.fac[id].title ? S.fac[id].title : S.fac[id].ruler + '군') : '공백지'; }
-function citiesOf(fid) { return Object.values(S.city).filter(c => c.owner === fid); }
+// v107 성능: 세력별 도시 목록 캐시 — 도시 owner를 접근자로 바꿔 값이 바뀔 때만 다시 만든다(값은 기호 키에 둬 저장 JSON은 그대로). 새 게임·불러오기로 S.city가 바뀌면 다시 설치.
+const _OWN = Symbol('owner'); let _cofRef = null, _cofVer = 0, _cofAt = -1, _cofMap = null;
+function _cofInstall() { _cofRef = S.city; Object.values(S.city).forEach(c => { const d = Object.getOwnPropertyDescriptor(c, 'owner'); if (d && d.get) return; c[_OWN] = c.owner; Object.defineProperty(c, 'owner', { enumerable: true, configurable: true, get() { return this[_OWN]; }, set(x) { if (this[_OWN] !== x) { this[_OWN] = x; _cofVer++; } } }); }); _cofVer++; }
+function citiesOf(fid) { if (S.city !== _cofRef) _cofInstall(); if (_cofAt !== _cofVer) { _cofAt = _cofVer; _cofMap = new Map(); Object.values(S.city).forEach(c => { const o = c.owner; let a = _cofMap.get(o); if (!a) _cofMap.set(o, a = []); a.push(c); }); } const a = _cofMap.get(fid); return a ? a.slice() : []; }
 function gensIn(cn, fid) { return Object.values(S.gen).filter(g => g.st === '현역' && g.loc === cn && (fid === undefined || g.fac === fid)); }
-function gensOf(fid) { return Object.values(S.gen).filter(g => g.st === '현역' && g.fac === fid); }
+function gensOf(fid) { const r = [], G = S.gen; for (const k in G) { const g = G[k]; if (g.fac === fid && g.st === '현역') r.push(g); } return r; } // v107 성능: 중간 배열 없이 같은 순서로
 function freeGens(cn, fid) { return gensIn(cn, fid).filter(g => !g.acted && g.inj === 0 && !g.away); }
 function isRuler(g) { return g.fac && S.fac[g.fac].ruler === g.n; }
 function hasSk(g, s) { return g && g.sk && g.sk.includes(s); }
@@ -610,7 +613,7 @@ function faceBody(p) {
 // ===== 전략 명령 (플레이어·AI 공용) =====
 function spend(c, gold, food) { if (c.gold < (gold || 0) || c.food < (food || 0)) return false; c.gold -= gold || 0; c.food -= food || 0; return true; }
 const TIERF = { 1: 1.2, 2: 1, 3: 0.8, 4: 1.5 };
-function costMul(c) { return c.owner && Object.values(S.gen).some(x => x.st === '현역' && x.loc === c.n && x.fac === c.owner && hasSk(x, '재정')) ? 0.8 : 1; }
+function costMul(c) { if (!c.owner) return 1; const G = S.gen; for (const k in G) { const x = G[k]; if (x.loc === c.n && x.fac === c.owner && x.st === '현역' && hasSk(x, '재정')) return 0.8; } return 1; } // v107 성능: 위치부터 걸러 같은 결과
 function devCost(c, kind) {
   const cur = { '개발': c.dev, '상업': c.com, '치수': c.flood, '성벽': c.def }[kind];
   const base = kind === '성벽' ? 80 + cur * 2.5 : 40 + cur * 1.6;
@@ -5844,7 +5847,7 @@ aiArms = function (fid) { if (fid === S.player) return; citiesOf(fid).forEach(c 
 
 // ===== v36: AI 출진 기준 55% · 최강 세력 견제 · 공격 거점 단계 운영 =====
 // 최강 세력 견제: 천하 병력 30%를 넘는 세력과 맞닿은 AI는 그 세력을 주 적으로(해마다 절반 확률로 전환)
-{ const f = lordThink; lordThink = function (fid) { f.apply(this, arguments); const al = Object.values(S.fac).filter(x => x.alive); const tot = al.reduce((s, x) => s + powOf(x.id), 0); const top = al.sort((a, b) => powOf(b.id) - powOf(a.id))[0]; const F = S.fac[fid];
+{ const f = lordThink; lordThink = function (fid) { f.apply(this, arguments); const al = Object.values(S.fac).filter(x => x.alive); const PW = {}; al.forEach(x => { PW[x.id] = powOf(x.id); }); const tot = al.reduce((s, x) => s + PW[x.id], 0); const top = al.sort((a, b) => PW[b.id] - PW[a.id])[0]; /* v107 성능: 정렬 비교마다 powOf 다시 세지 않음 */ const F = S.fac[fid];
   if (top && top.id !== fid && powOf(top.id) > tot * 0.3 && lordNeigh(fid).includes(top.id) && F.lord && F.lord.enemy !== top.id && !F.lord.coal && P(50)) { F.lord.enemy = top.id; F.lord.until = S.y * 12 + S.m + 12; F.lord.coal = true; if (nearPlayer(citiesOf(fid).map(c => c.n))) world(`${fname(fid)}이(가) 세력이 커진 ${fname(top.id)}을(를) 견제하기로 했다.`); }
   if (F.lord && F.lord.enemy !== (top && top.id)) F.lord.coal = false; }; }
 // 거점 판정 (AI: 군주 공세 준비 / 우리: 군단 거점)
