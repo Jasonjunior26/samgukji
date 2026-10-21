@@ -545,7 +545,16 @@ function gensOf(fid) { const r = [], G = S.gen; for (const k in G) { const g = G
 function freeGens(cn, fid) { return gensIn(cn, fid).filter(g => !g.acted && g.inj === 0 && !g.away); }
 function isRuler(g) { return g.fac && S.fac[g.fac].ruler === g.n; }
 function hasSk(g, s) { return g && g.sk && g.sk.includes(s); }
-function ssDist(a, b) { const d = Math.abs(a - b) % 150; return Math.min(d, 150 - d); }
+function ssDist(a, b) { const d = Math.abs(a - b) % 150; return Math.min(d, 150 - d); } // 인연(1581)·평균 상성(1870)에만 쓴다. 등용·합류·충성 사유에는 쓰지 않는다(RC_ROOT 로 대체)
+// 노선×인재 유형 보정 (군주 개인 상성 ssDist 를 대체). 유형: 상략=탐욕, 덕화=의리, 강병=무력. 경륜은 유형 없음.
+// k.* = 예전 -ssDist/3 항(평균 약 -12.5)을 대신하는 상수. tools/recruit_calib.js 로 변경 전후 평균 성공률을 맞춘 값.
+const RC_ROOT = { gyeongryun: 5, gyeongryunOff: 8, typeOff: 14, uiCap: 10, th: { 상략: 6, 덕화: 14, 강병: 80 }, act: { 비경륜: -5, 자기유형: 10 }, k: { 재야: -17.5, 포로: -16.7, 현역: -14.8, 합류: -16.5, 항복: -16.9 } };
+function rcHas(g, r) { if (!g) return false; if (r === '상략') return ((g.pers && g.pers.탐욕) || 0) >= RC_ROOT.th.상략; if (r === '덕화') return (g.ui || 0) >= RC_ROOT.th.덕화; if (r === '강병') return stat(g, 'w') >= RC_ROOT.th.강병; return false; }
+// 적 현역 등용: 경륜 +gyeongryun(5), 비경륜 -5(+자기 유형 act.자기유형 10). 비현역(재야·포로·합류·항복): 경륜 +gyeongryunOff(8), 비경륜 자기 유형 +typeOff(14) (+자기 유형이면 +10). 재야·포로 등용은 비경륜이 자기 유형 인재일 때만 +10.
+function rcAdj(fid, tgt) { const r = fid && rootOf(fid); if (!r) return 0; if (tgt.st === '현역') return r === '경륜' ? RC_ROOT.gyeongryun : RC_ROOT.act.비경륜 + (rcHas(tgt, r) ? RC_ROOT.act.자기유형 : 0); return r === '경륜' ? RC_ROOT.gyeongryunOff : rcHas(tgt, r) ? RC_ROOT.typeOff : 0; }
+// 덕화 군주가 영입할 때는 인재 의리 감점을 uiCap(평균 수준)까지만 받는다.
+function rcUi(fid, g) { return fid && rootOf(fid) === '덕화' ? Math.min(g.ui, RC_ROOT.uiCap) : g.ui; }
+function rcJoinAdj(fid, g) { const r = fid && rootOf(fid); return r === '경륜' ? RC_ROOT.gyeongryunOff : r && rcHas(g, r) ? RC_ROOT.typeOff : 0; }
 function itemBonus(g, key) { let v = 0; Object.values(S.items).forEach(it => { if (it.owner === g.n && it.eff[key]) v += it.eff[key]; }); return v; }
 function stat(g, k) { const map = { t: '통솔', w: '무력', i: '지력', p: '정치', c: '매력', a: '안목' }; return clamp(g[k] + itemBonus(g, map[k]), 1, 110); }
 function addExp(g, k, v) {
@@ -697,15 +706,14 @@ function demandOf(t) {
 }
 function recruitChance(rec, tgt, bonus, promise) {
   if (tgt.st === '현역' && isRuler(tgt)) return 0;
-  const ruler = G(S.fac[rec.fac].ruler);
   let p;
-  if (tgt.st === '재야') p = 50 + (stat(rec, 'c') - 60) / 2 - ssDist(ruler.ss, tgt.ss) / 3 - tgt.ui;
-  else if (tgt.st === '포로') p = 35 + (stat(rec, 'c') - 60) / 2 - ssDist(ruler.ss, tgt.ss) / 3 - tgt.ui * 2 + (100 - tgt.loy) / 3;
-  else p = 5 + (stat(rec, 'c') - 60) / 3 - ssDist(ruler.ss, tgt.ss) / 3 - tgt.ui * 2 + (70 - tgt.loy);
+  if (tgt.st === '재야') p = 50 + RC_ROOT.k.재야 + (stat(rec, 'c') - 60) / 2 - rcUi(rec.fac, tgt);
+  else if (tgt.st === '포로') p = 35 + RC_ROOT.k.포로 + (stat(rec, 'c') - 60) / 2 - rcUi(rec.fac, tgt) * 2 + (100 - tgt.loy) / 3;
+  else p = 5 + RC_ROOT.k.현역 + (stat(rec, 'c') - 60) / 3 - rcUi(rec.fac, tgt) * 2 + (70 - tgt.loy);
   if (hasSk(rec, '명성')) p += 20; if (S.fac[rec.fac].heonje) p += 10; p += (bonus || 0) / 20;
   if (rec.fac === S.player) p += Math.min(32, (S.tries[tgt.n] || 0) * 8);
   if (promise && demandOf(tgt)) p += 20;
-  if (tgt.st === '재야' && ssDist(ruler.ss, tgt.ss) >= 70) p = Math.min(p, 5);
+  p += rcAdj(rec.fac, tgt);
   return clamp(Math.round(p), 0, 95);
 }
 function joinFac(g, fid, cn, loy) {
@@ -989,7 +997,7 @@ function handleCapture(g, att, cn) {
   // AI 처리
   const wasRuler = oldFac && S.fac[oldFac].ruler === g.n;
   const ruler = G(S.fac[att].ruler);
-  if (!wasRuler && g.n !== '맹획' && P(40 - ssDist(ruler.ss, g.ss) / 3 - g.ui)) { joinFac(g, att, cn, 55); bondFollow(g, oldFac, att); }
+  if (!wasRuler && g.n !== '맹획' && P(40 + RC_ROOT.k.합류 - rcUi(att, g) + rcJoinAdj(att, g))) { joinFac(g, att, cn, 55); bondFollow(g, oldFac, att); }
   else if (P(hos(att, oldFac) >= 90 && notable(g) ? 40 : 15)) { S.killedBy[g.n] = att; genDies(g, '처형되었다'); }
   else { g.st = '재야'; g.found = false; }
   if (oldFac === S.player || (oldFac && S.player === oldFac)) news(`${g.n}이(가) ${fname(att)}에 사로잡혔다.`);
@@ -1002,7 +1010,7 @@ function decideCaptive(n, how) {
   if (n === '맹획' && (S.chil || 0) < 7 && how !== '처형') { const m = chilRelease(g); return { ok: how === '석방', msg: how === '등용' ? `맹획이 "억지로는 굴복하지 않는다"며 버텼다. 풀어주었다. ${m}` : m }; }
   if (how === '등용') {
     const ruler = G(S.fac[S.player].ruler);
-    const p = wasRuler ? 0 : clamp(Math.round(45 - ssDist(ruler.ss, g.ss) / 3 - g.ui * 2 + stat(ruler, 'c') / 5), 0, 90);
+    const p = wasRuler ? 0 : clamp(Math.round(45 + RC_ROOT.k.항복 - rcUi(S.player, g) * 2 + stat(ruler, 'c') / 5 + rcJoinAdj(S.player, g)), 0, 90);
     if (P(p)) { joinFac(g, S.player, g.loc, 50 + R(0, 20)); badd(pr, n, 5.5, '포로가 되었다가 귀순했다'); const fl = bondFollow(g, g.capFrom, S.player); return { ok: true, msg: `${n}이(가) 항복했다.${fl.length ? ` ${fl.join('·')}도 뒤따라 넘어왔다.` : ''}` }; }
     g.st = '재야'; g.found = true; return { ok: false, msg: `${n}이(가) 거부하여 풀어주었다.` };
   }
@@ -3161,7 +3169,7 @@ function loyFactors(g) {
   if ((g.ya || 5) >= 11) out.push(['야망이 큼', -8]);
   if (hasTr(g, '충직')) out.push(['개성 충직', 10]); if (hasTr(g, '야심가')) out.push(['개성 야심가', -10]);
   if (g.pers.탐욕 >= 8) out.push(['재물 욕심', -5]);
-  const sd = ssDist(r.ss, g.ss); if (sd <= 15) out.push(['군주와 성향이 맞음', 8]); else if (sd >= 60) out.push(['군주와 성향이 다름', -10]);
+  { const rr = rootOf(r.fac); if (rr && rr !== '경륜') { if (rcHas(g, rr)) out.push(['노선에 맞는 인재', 8]); else if (['상략', '덕화', '강병'].some(t => rcHas(g, t))) out.push(['노선과 다른 유형', -10]); } }
   const cm = Math.round((stat(r, 'c') - 70) / 4); if (cm) out.push([`군주 매력 ${stat(r, 'c')}`, cm]);
   const mom = Math.round(f.mom || 0); if (mom) out.push([mom > 0 ? '세력의 기세' : '세력이 기울어 감', clamp(mom, -10, 10)]);
   if (g.unpaid) out.push([`녹봉 지연 ${g.unpaid}개월`, -Math.min(20, g.unpaid * 5)]);
@@ -3512,7 +3520,7 @@ function addTrust(g, v) { if (!g || isRuler(g)) return; if (v > 0 && hasTr(g, '�
     if (g.trust >= 1) out.push(['쌓인 신뢰', Math.floor(g.trust)]);
     if (g.master === r.n) out.push(['군주의 제자', 5]);
     // 인연 70 이상이면 성향 차이·의리 감점을 절반으로
-    if (bget(g.n, r.n) >= 70) out.forEach(x => { if (/성향이 다름|의리가 얕음/.test(x[0]) && x[1] < 0) { x[1] = Math.round(x[1] / 2); x[0] += ' (신뢰로 절반)'; } });
+    if (bget(g.n, r.n) >= 70) out.forEach(x => { if (/노선과 다른 유형|의리가 얕음/.test(x[0]) && x[1] < 0) { x[1] = Math.round(x[1] / 2); x[0] += ' (신뢰로 절반)'; } });
     return out;
   };
   const lt = loyTarget;
@@ -4465,7 +4473,7 @@ function handleCapture(g, att, cn) {
   if (att === S.player) { S.captives.push(g.n); if (oldFac && S.fac[oldFac].ruler === g.n && S.fac[oldFac].alive) succession(oldFac); return; }
   const wasRuler = oldFac && S.fac[oldFac].ruler === g.n;
   const ruler = G(S.fac[att].ruler); const lp = loyalPenalty(g, oldFac);
-  const pJoin = wasRuler || g.n === '맹획' || lp.block ? 0 : Math.min(lp.cap, 40 - ssDist(ruler.ss, g.ss) / 3 - g.ui - lp.minus);
+  const pJoin = wasRuler || g.n === '맹획' || lp.block ? 0 : Math.min(lp.cap, 40 + RC_ROOT.k.합류 - rcUi(att, g) - lp.minus + rcJoinAdj(att, g));
   if (P(pJoin)) { joinFac(g, att, cn, 55); bondFollow(g, oldFac, att); }
   else if (P(hos(att, oldFac) >= 90 && notable(g) ? 40 : 15)) { S.killedBy[g.n] = att; genDies(g, '처형되었다'); }
   else if (!wasRuler && returnHome(g, oldFac, att)) { }
@@ -5089,7 +5097,7 @@ function cabEffRaw(fid, post) { const g = cabActive(fid, post); if (!g) return 0
 // ---------- 6. 훈련 ----------
 function cmdTrain(cn, gn) {
   const c = C(cn), g = G(gn); const cost = trainCost(c); if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${cost} 필요).` };
-  let v = 4 * abf(stat(g, 't')); if (hasFac(c, '훈련장')) v *= 1.3; if (c.train > 100) v *= 100 / c.train; v = Math.max(1, Math.round(v));
+  let v = 4 * abf(stat(g, 't')); if (hasFac(c, '훈련장')) v *= 1.3; if (rootOf(c.owner) === '강병') v *= 1.25; if (c.train > 100) v *= 100 / c.train; v = Math.max(1, Math.round(v));
   c.train += v; g.acted = true; const b = g.t; addExp(g, 't', 9);
   return { ok: true, msg: `${g.n}이(가) 병사를 훈련시켜 훈련 +${v} (${c.train}). 통솔 경험을 쌓았다${g.t > b ? ` — 통솔 +${g.t - b}!` : ''}.` };
 }
@@ -5097,7 +5105,7 @@ function monthlyDecay() {
   Object.values(S.city).forEach(c => {
     if (!c.owner || kindOf(c.n) !== '도시') return; c.peak = c.peak || {}; c.decAcc = c.decAcc || {};
     ['dev', 'com', 'flood'].forEach(k => { c.peak[k] = Math.max(c.peak[k] || 0, c[k]); c.decAcc[k] = (c.decAcc[k] || 0) + decayOf(c, c[k]); const w = Math.floor(c.decAcc[k]); if (w) { c[k] = Math.max(0, c[k] - w); c.decAcc[k] -= w; } });
-    c.decAcc.tr = (c.decAcc.tr || 0) + 1 + Math.pow(Math.max(0, c.train - 100) / 50, 2); const wt = Math.floor(c.decAcc.tr); if (wt) { c.train = Math.max(0, c.train - wt); c.decAcc.tr -= wt; }
+    c.decAcc.tr = (c.decAcc.tr || 0) + (rootOf(c.owner) === '강병' ? 0.5 : 1) + Math.pow(Math.max(0, c.train - 100) / 50, 2); const wt = Math.floor(c.decAcc.tr); if (wt) { c.train = Math.max(0, c.train - wt); c.decAcc.tr -= wt; }
   });
 }
 // 출진하고 돌아오면 실전 경험 +5
@@ -7137,7 +7145,7 @@ function showCaptives(next) {
   if (!n) { render(); return next && next(); }
   const g = G(n); const ruler = G(S.fac[S.player].ruler);
   const wasRuler = Object.values(S.fac).some(f => f.alive && f.ruler === n);
-  const p = wasRuler ? 0 : clamp(Math.round(45 - ssDist(ruler.ss, g.ss) / 3 - g.ui * 2 + stat(ruler, 'c') / 5), 0, 90);
+  const p = wasRuler ? 0 : clamp(Math.round(45 + RC_ROOT.k.항복 - rcUi(S.player, g) * 2 + stat(ruler, 'c') / 5 + rcJoinAdj(S.player, g)), 0, 90);
   UI.capNext = next;
   openSheet('포로 처분', () => `<div class="pn row2">${face(n, 72)}<span class="grow"><b class="big">${n}</b><small>통${g.t} 무${g.w} 지${g.i} 정${g.p} 매${g.c}</small><small>특기 ${g.sk.join(', ') || '없음'}</small></span></div>`,
     () => `${advLine(p, 'cap|' + n)}<div class="grid3">${btn(`등용 ${advEst(p, 'cap|' + n).t}`, 'capDo', '등용', { p: 1 })}${btn('석방', 'capDo', '석방')}${btn('처형', 'capDo', '처형')}</div>`, { noClose: true });
@@ -12949,7 +12957,6 @@ function tuhangInfo(f) { // 덕화 플레이어 정보: 인접 적 도시 민충
   return q; }; }
 { const f = recruitChance; recruitChance = function (rec, tgt) {
   let q = f.apply(this, arguments); if (typeof q !== 'number' || !rec || !tgt) return q;
-  if (tgt.st === '현역' && rec.fac && S.fac[tgt.fac]) q = Math.round(q * rootRateK(rec.fac));
   if (rec.fac === S.player && hasPol(S.player, '구현령') && polW(S.player, '구현령') < 1) q = Math.max(0, q - 6);
   return q; }; }
 { const f = diploChance; diploChance = function (env, tf, type, gold, target) { if (type === '매입' && env && env.fac) gold = (gold || 0) / rootCostK(env.fac); return f.call(this, env, tf, type, gold, target); }; }
@@ -13354,7 +13361,7 @@ vMap = function () { return '<div class="s7slot"></div>'; };
 // ---------- 노선·국책 설명 (전용 장치는 RT_DESC, 교역 품목은 TR_ROOT_BR·TR_BR_N 상수를 읽는다 — 수치를 여기 적지 않는다) ----------
 const S7_ROOT = {
   경륜: { h: '경륜 — 인재로 얻는다', how: '적 태수를 설득해 성째 넘겨받는다.', good: '귀순한 태수는 오래 남는다.', bad: '설득할 장수가 없으면 막힌다.', fit: '지력·정치 높은 군주' },
-  강병: { h: '강병 — 정예로 돌파한다', how: '훈련·장비를 올린 정예로 성을 친다.', good: '전투가 가장 강하다.', bad: '손실·유지비가 크고 흡수가 느리다.', fit: '무력·통솔 높은 군주' },
+  강병: { h: '강병 — 정예로 돌파한다', how: '훈련·장비를 올린 정예로 성을 친다.', good: '전투가 가장 강하다. 훈련도가 오래 유지된다.', bad: '손실·유지비가 크고 흡수가 느리다.', fit: '무력·통솔 높은 군주' },
   상략: { h: '상략 — 금으로 산다', how: '매수·매입·조공으로 성과 사람을 사고 동맹을 갈라놓는다.', good: '금만 있으면 가장 빠르다.', bad: '금 의존. 사 온 장수는 충성이 낮다.', fit: '매력 높은 군주, 항구 보유' },
   덕화: { h: '덕화 — 백성이 찾아온다', how: '민심으로 이웃 성을 투항시킨다.', good: '점령지 흡수가 가장 빠르다.', bad: '느리고 정면 전투에 약하다.', fit: '정치·통솔 균형' } };
 function s7Info(kind) { const r = rootOf(S.player), x = `<button type="button" class="x" data-a="s7info" data-v="" aria-label="닫기">✕</button>`;
@@ -13767,13 +13774,14 @@ function rt18Detail(r) {
   const price = k => Math.round(E.도시값 * 0.15 * k / 100) * 100, own = RT_ROOTS.filter(o => o !== r);
   const pct = x => Math.round(x * 100), pol = Object.keys(RT_POL).filter(p => RT_POL[p] === r);
   const brs = TR_ROOT_BR[r].map(N).join('·');
-  const rateTxt = (k) => `이간 ${Math.round(E.이간 * k)}%·내통 ${Math.round(E.내통 * k)}%·적 현역 장수 등용 ${Math.round(E.등용 * k)}%`;
+  const rateTxt = (k) => `이간 ${Math.round(E.이간 * k)}%·내통 ${Math.round(E.내통 * k)}%`;
   const g = [], b = [], w = [];
   let intro = '', gen = true;
   if (r === '경륜') {
     intro = '인재로 큰다 — 적 태수를 설득해 성째 넘겨받는다.';
     g.push('설득: 인접한 적 태수의 포섭도를 올려 100이 되면 매달 확률로 도시째 귀순(병력 50~80% 동반).');
     g.push(`성공률 ${rateTxt(K.rate)} (타 노선은 ${rateTxt(off.rate)}).`);
+    g.push(`등용: 적 현역 장수 +${RC_ROOT.gyeongryun}%p (타 노선 ${RC_ROOT.act.비경륜}%p), 재야·포로·합류·항복 장수는 +${RC_ROOT.gyeongryunOff}%p.`);
     g.push('이간·내통이 성공하면 포섭도도 함께 오른다(+10/+15 안팎).');
     g.push('국책 구현령은 등용 성공 +15%p, 공신 우대는 장수 충성 +3 (타 노선 국책이면 +9%p·+2).');
     g.push(`교역(${brs}): 인물 발견, 개성 학습(능력 +${TR6C.traitAdd}, 최대 ${TR6C.traitMax}회), 연수(능력 +1, 월 ${TR6C.drillMo}회).`);
@@ -13781,6 +13789,7 @@ function rt18Detail(r) {
   } else if (r === '강병') {
     intro = '전투로 큰다 — 훈련과 장비를 올린 정예로 성을 친다.';
     g.push('국책 정예주의: 훈련 매월 +2, 전투력 +8%. 총동원령: 징병비 −30% (타 노선 국책이면 60%).');
+    g.push('훈련: 훈련 명령 효과 ×1.25, 훈련도가 매달 줄어드는 양이 절반(1→0.5). 모병 비용은 그대로.');
     g.push(`교역 병종 학습: 해금 1개마다 전선 도시 훈련 월 +${TR6C.unitTrain}.`);
     g.push(`교역 물자 구매: 전선 도시 군비 +${TR6C.matArm}·훈련 +${TR6C.matTrain} (월 ${TR6C.matMo}회).`);
     b.push('이간·내통·설득·매수·동맹 이간처럼 전용 계략과 AI 행동이 없다.');
@@ -13810,6 +13819,7 @@ function rt18Detail(r) {
     b.push('투항은 확률과 조건이 많아 확장 수단으로는 확정력이 낮다.');
     w.push('계략 > 민심(투항 전망)', '내정 > 진휼·시주', '군사 > 징병', '교역 > 민생·군량 판매');
   }
+  if (r !== '경륜') { const ty = { 상략: '탐욕 6↑', 덕화: '의리 14↑', 강병: '무력 80↑' }[r]; g.push(`등용: 적 현역 장수 ${RC_ROOT.act.비경륜}%p (노선 유형 인재 — ${ty} — 면 +${RC_ROOT.act.자기유형}%p로 상쇄), 재야·포로·합류·항복 장수는 유형 인재일 때 +${RC_ROOT.typeOff}%p.` + (r === '덕화' ? ` 덕화는 인재의 의리 감점을 ${RC_ROOT.uiCap}까지만 받는다.` : '')); }
   g.push(`국책 효과 100%: ${pol.join('·')} (다른 노선 국책은 60%).`);
   if (K.rate < 1) b.unshift(`성공률 ×${K.rate}: ${rateTxt(K.rate)} (경륜 ${rateTxt(1)}).`);
   if (K.cost > 1) b.unshift(`비용 ×${K.cost}: 매수 가격 ${fm(price(K.cost))} (상략 ${fm(price(1))}), 매입은 같은 성공률에 금 ${K.cost}배, 조공 월 수령 ${E.조공} → ${fm(E.조공 / K.cost)}.`);
