@@ -53,12 +53,12 @@ vm.runInContext(`(() => {
   const newVal = (st, c, r) => {
     const { F, rec, t } = c; if (st.startsWith('현역')) st = '현역'; const sv = F.root; F.root = r;
     try {
-      if (st === '합류') return clampN(40 + RC_ROOT.k.합류 - t.ui + rcJoinAdj(F.id, t), 0, 100);
-      if (st === '항복') return clampN(Math.round(45 + RC_ROOT.k.항복 - t.ui * 2 + stat(rec, 'c') / 5 + rcJoinAdj(F.id, t)), 0, 90);
+      if (st === '합류') return clampN(40 + RC_ROOT.k.합류 - rcUi(F.id, t) + rcJoinAdj(F.id, t), 0, 100);
+      if (st === '항복') return clampN(Math.round(45 + RC_ROOT.k.항복 - rcUi(F.id, t) * 2 + stat(rec, 'c') / 5 + rcJoinAdj(F.id, t)), 0, 90);
       let p;
-      if (st === '재야') p = 50 + RC_ROOT.k.재야 + (stat(rec, 'c') - 60) / 2 - t.ui;
-      else if (st === '포로') p = 35 + RC_ROOT.k.포로 + (stat(rec, 'c') - 60) / 2 - t.ui * 2 + (100 - t.loy) / 3;
-      else p = 5 + RC_ROOT.k.현역 + (stat(rec, 'c') - 60) / 3 - t.ui * 2 + (70 - t.loy);
+      if (st === '재야') p = 50 + RC_ROOT.k.재야 + (stat(rec, 'c') - 60) / 2 - rcUi(F.id, t);
+      else if (st === '포로') p = 35 + RC_ROOT.k.포로 + (stat(rec, 'c') - 60) / 2 - rcUi(F.id, t) * 2 + (100 - t.loy) / 3;
+      else p = 5 + RC_ROOT.k.현역 + (stat(rec, 'c') - 60) / 3 - rcUi(F.id, t) * 2 + (70 - t.loy);
       p += rcAdj(F.id, t);
       return clampN(Math.round(p), 0, 95);
     } finally { F.root = sv; }
@@ -81,6 +81,9 @@ vm.runInContext(`(() => {
     const bo = ROOTS.filter(r => r !== '경륜').reduce((a, r) => a + o[r].m, 0) / 3, bn = ROOTS.filter(r => r !== '경륜').reduce((a, r) => a + n[r].m, 0) / 3;
     PRINT(st + ' | 4노선평균 | ' + ao.toFixed(2) + ' | ' + an.toFixed(2) + ' | ' + (an - ao).toFixed(2) + ' | 노선 간 격차(최대-최소) 전 ' + gap(o).toFixed(2) + ' 후 ' + gap(n).toFixed(2) + ' | 경륜-비경륜평균 전 ' + (o['경륜'].m - bo).toFixed(2) + ' 후 ' + (n['경륜'].m - bn).toFixed(2));
   });
+  // 자기 유형 인재 대상 평균(덕화=의리>=14, 상략=탐욕>=6, 강병=무력>=80) — 변경 후, 그 노선 군주가 그 유형을 영입할 때
+  PRINT('상태 | 덕화→의리>=14 | 상략→탐욕>=6 | 강병→무력>=80 | (참고) 경륜→의리>=14');
+  Object.keys(combos).forEach(st => { const f = (r, ty) => { const a = combos[st].filter(c => rcHas(c.t, ty)); return a.length ? (a.reduce((s, c) => s + newVal(st, c, r), 0) / a.length).toFixed(2) + '(n' + a.length + ')' : '-'; }; PRINT(st + ' | ' + f('덕화', '덕화') + ' | ' + f('상략', '상략') + ' | ' + f('강병', '강병') + ' | ' + f('경륜', '덕화')); });
   // 유형 해당 비율
   const cur = combos.현역.map(c => c.t); const uniq = [...new Set(cur)];
   PRINT('현역 장수 ' + uniq.length + '명 유형 해당: ' + ['상략', '덕화', '강병'].map(r => r + ' ' + uniq.filter(g => rcHas(g, r)).length).join(' / '));
