@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S7 화면 시험</title>
+<style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}#out{position:absolute;left:-9999px}</style></head>
+<body>
+<!-- v107 S7 UI v1.4 시험기. 게임 파일은 고치지 않는다.
+     촬영: chrome --headless=new --allow-file-access-from-files --window-size=800,360 --screenshot=... "file:///.../tools/s7_harness.html?m=4"
+     기능 시험: --dump-dom "...?m=4&test=1" → 결과 JSON (pre#out)
+     인자: m=월(계절), city=선택 도시, tab=탭, info=root|pol, sheet=명령(군사 등, 시트 열기), root=뿌리, zoom=배율 -->
+<iframe id="g" src="../samguk_v107.html"></iframe>
+<pre id="out"></pre>
+<script>
+const Q = new URLSearchParams(location.search), sl = ms => new Promise(r => setTimeout(r, ms));
+const out = o => { document.getElementById('out').textContent = JSON.stringify(o); };
+document.getElementById('g').addEventListener('load', async () => {
+  const w = document.getElementById('g').contentWindow, errs = [];
+  w.addEventListener('error', e => errs.push(String(e.message)));
+  const oce = w.console.error; w.console.error = (...a) => { errs.push(a.map(String).join(' ').slice(0, 200)); oce.apply(w.console, a); };
+  try {
+    w.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 4)}; S.fac[S.player].root = S.fac[S.player].root || ${JSON.stringify(Q.get('root') || '경륜')};
+      S.fac[S.player].pol = S.fac[S.player].pol && S.fac[S.player].pol.length ? S.fac[S.player].pol : ['구현령', '상업 진흥'];
+      UI.city = ${JSON.stringify(Q.get('city') || '')} || capitalOf(S.player); UI.sheets = []; render();`);
+    await sl(150);
+    if (Q.get('tab')) w.eval('ACT').s7tab(Q.get('tab'));
+    if (Q.get('info')) w.eval('ACT').s7info(Q.get('info'));
+    if (Q.get('zoom')) { w.eval('ACT').s7z(+Q.get('zoom')); }
+    if (Q.get('sheet')) w.eval('ACT').cmd(Q.get('sheet'));
+    if (Q.get('act')) w.eval(Q.get('act'));
+    await sl(150);
+    if (!Q.get('test')) { out({ errs, land: w.eval('S7').land, perf: w.eval('S7').perf }); return; }
+    // ---- 기능 시험 ----
+    const R = { errs, land: w.eval('S7').land, W: w.innerWidth, H: w.innerHeight }, D = w.document, chk = {};
+    chk.map = !!D.querySelector('#app .s7map svg #s7T path');
+    chk.labels = D.querySelectorAll('#s7scr text').length;
+    if (w.eval('S7').land) {
+      for (const t of ['군사', '내정', '인사', '외교', '계략', '교역', '정보']) { w.eval('ACT').s7tab(t); chk['tab_' + t] = D.querySelectorAll('#s7ps button').length; }
+      w.eval('ACT').s7info('root'); chk.infoRoot = (D.querySelector('.s7info') || {}).textContent ? D.querySelector('.s7info').textContent.length : 0;
+      w.eval('ACT').s7info('pol'); chk.infoPol = D.querySelector('.s7info') ? D.querySelector('.s7info').textContent.slice(0, 80) : '';
+      w.eval('ACT').s7info(''); chk.infoClosed = !D.querySelector('.s7info');
+      w.eval('ACT').s7tab('군사'); w.eval('ACT').cmd('군사'); await sl(50); const sh = D.querySelector('#sheet .sh'); chk.sheetW = sh ? Math.round(sh.getBoundingClientRect().width) : 0; chk.sheetH = sh ? Math.round(sh.getBoundingClientRect().height) : 0; w.closeAll();
+      const top = D.getElementById('s7top'); chk.topOverflow = top ? top.scrollWidth - top.clientWidth : -1;
+      chk.smallText = [...D.querySelectorAll('#s7top *, #s7rail *, #s7ps *')].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(w.getComputedStyle(e).fontSize) < 13).map(e => e.tagName + ':' + e.textContent.trim().slice(0, 12)).slice(0, 8);
+      chk.smallTargets = [...D.querySelectorAll('#s7rail button, #s7ps button, #s7panel>.b, .s7zoom button')].filter(e => { const r = e.getBoundingClientRect(); return r.height && r.height < 40; }).map(e => e.textContent.trim().slice(0, 12)).slice(0, 8);
+    } else { chk.grid3 = !!D.querySelector('#app .grid3'); chk.seaTag = !!D.querySelector('#app .sea-tag'); chk.opsbar = !!D.querySelector('#app .opsbar'); chk.trbar = !!D.querySelector('#app [data-a="trOpen"]'); }
+    // 다른 도시 고르기
+    const other = Object.keys(w.eval('S').city).find(n => w.eval('S').city[n].owner && w.eval('S').city[n].owner !== w.eval('S').player); w.eval('ACT').city(other); chk.otherCity = other; chk.sel = (D.querySelector('#s7sel path') ? 1 : 0);
+    w.eval('ACT').city(w.capitalOf(w.eval('S').player));
+    // 저장·불러오기
+    const s0 = w.saveStr(); w.eval('LS').setItem('sg_slot9', s0); w.eval('ACT').loadFrom('slot9'); await sl(50); chk.load = w.eval('S').y + '.' + w.eval('S').m + ' ' + (w.eval('UI').scr) + ' map=' + !!D.querySelector('#app .s7map'); w.eval('LS').removeItem('sg_slot9');
+    // 달 진행 3번 (지도 영토 재계산 포함)
+    const y0 = w.eval('S').y * 12 + w.eval('S').m; for (let i = 0; i < 3; i++) { w.eval(`closeAll(); const pend = endMonth(); UI.queue = []; monthlyUpdate(); UI.scr = 'main'; render();`); await sl(30); } chk.months = w.eval('S').y * 12 + w.eval('S').m - y0;
+    // 영토 재계산·render 시간: 주인을 바꿔 가며 10번
+    const cs = Object.keys(w.eval('S').city), t = []; for (let i = 0; i < 10; i++) { const n = cs[(i * 7) % cs.length], o = w.eval('S').city[n].owner; w.eval('S').city[n].owner = w.eval('S').player; const t0 = w.performance.now(); w.render(); t.push(w.performance.now() - t0); w.eval('S').city[n].owner = o; }
+    chk.renderOwnerChangeMs = t.map(x => +x.toFixed(1));
+    const t2 = []; for (let i = 0; i < 10; i++) { const t0 = w.performance.now(); w.render(); t2.push(w.performance.now() - t0); } chk.renderPlainMs = t2.map(x => +x.toFixed(1));
+    const t3 = []; for (let i = 0; i < 10; i++) { const t0 = w.performance.now(); w.eval('ACT').s7z(i % 2 ? 1.3 : 0.77); w.s7Cam(); t3.push(w.performance.now() - t0); } chk.camMs = t3.map(x => +x.toFixed(1));
+    // 새 게임 다시
+    w.eval(`newGame('유비'); UI.scr = 'main'; UI.city = capitalOf(S.player); render();`); await sl(50); chk.newGame = w.fname(w.eval('S').player) + ' map=' + !!D.querySelector('#app .s7map #s7T path');
+    R.chk = chk; R.perf = w.eval('S7').perf; out(R);
+  } catch (e) { out({ fatal: String(e && e.stack || e).slice(0, 600), errs }); }
+});
+</script>
+</body></html>

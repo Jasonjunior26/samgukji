@@ -1,0 +1,326 @@
+<!-- v107 S7 UI v1.4 — 가로 메인 화면·현대풍 지도·뿌리/국책 칩 (원본: tools/s7_ui.html, 넣기: node tools/s7_build.js) -->
+<style>
+/* 가로(orientation landscape + 폭 640 이상)이고 메인 화면일 때만 body.s7L. 색은 계절과 무관한 고정 어두운 판 */
+body.s7L{overflow:hidden}
+body.s7L #app{max-width:none;margin:0;height:100vh;height:100dvh;min-height:0;overflow:hidden}
+body.s7L .scr.s7m{display:grid;grid-template-rows:30px minmax(0,1fr);grid-template-columns:56px minmax(0,1fr) 260px;gap:0;padding:0;height:100%;min-height:0;background:#0f1428;color:#ece8dc}
+#s7top{grid-column:1/4;display:flex;align-items:center;gap:8px;padding:0 4px 0 10px;background:#0b1022;border-bottom:1px solid #2c3866;font-size:13px;white-space:nowrap;overflow:hidden;min-width:0}
+#s7top .dt{font-weight:700;color:#ffd75e;display:flex;align-items:center;gap:6px}
+#s7top .fc{width:10px;height:10px;border-radius:2px;border:1px solid #fff;display:inline-block}
+#s7top .st{display:flex;align-items:center;gap:4px}
+#s7top .st b{font-weight:600;color:#ece8dc}
+#s7top i{font-style:normal;color:#aab2cf}
+#s7top .sp{flex:1}
+#s7top .chip{display:flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:12px;background:#1c2547;border:1px solid #2c3866;color:#ece8dc;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+#s7top .chip.root{background:#2a2146;border-color:#ffd75e;color:#ffd75e;font-weight:700}
+#s7top .chip b{font-weight:600}
+#s7top .chip b.own{color:#ffd75e}
+#s7top .sw{width:10px;height:10px;border-radius:50%;border:1px solid #fff;display:inline-block}
+#s7top .b.s{min-height:24px;height:24px;width:34px;padding:0;border-radius:5px;font-size:14px}
+@media(max-width:760px){#s7top{gap:6px}#s7top .st.pr,#s7top .sea,#s7top .chip.pol>i{display:none}}
+#s7rail{display:flex;flex-direction:column;background:#0b1022;border-right:1px solid #2c3866;min-height:0}
+#s7rail button{flex:1;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:none;border:0;border-left:3px solid transparent;color:#aab2cf;font:inherit;font-size:13px;cursor:pointer;padding:0}
+#s7rail button svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#s7rail button.on{color:#ffd75e;background:#1a2246;border-left-color:#ffd75e}
+#s7mapw{position:relative;overflow:hidden;background:#0f1428;min-width:0;min-height:0}
+.s7map{position:relative;overflow:hidden;touch-action:none;cursor:grab;line-height:0;-webkit-user-select:none;user-select:none}
+#s7mapw .s7map{position:absolute;inset:0}
+.mapbox .s7map{height:min(88vw,420px)}
+.s7map svg{display:block;width:100%;height:100%}
+.s7map text{font-family:inherit}
+.s7zoom{position:absolute;right:6px;bottom:6px;display:flex;flex-direction:column;gap:4px}
+.s7zoom button{width:40px;height:40px;border-radius:7px;border:1px solid #2c3866;background:rgba(11,16,34,.86);color:#ece8dc;font-size:19px;line-height:1;cursor:pointer}
+#s7panel{display:flex;flex-direction:column;background:#151c38;border-left:1px solid #2c3866;min-height:0;min-width:0}
+#s7ps{flex:1;overflow-y:auto;min-height:0;padding:6px 8px;font-size:13px}
+#s7panel>.b{flex:0 0 auto;margin:6px 8px 8px;min-height:40px;height:40px;border-radius:7px;border:0;background:#c9a24a;color:#1a1305;font-size:15px}
+#s7ps .row{min-height:42px;font-size:14px;padding:3px 8px;margin:0 0 4px;gap:8px}
+#s7ps .row small{font-size:13px;color:#aab2cf}
+#s7ps .row b{color:#ece8dc}
+#s7ps .kv{font-size:13px;color:#ffd75e;margin:6px 2px 4px}
+#s7ps .col{display:flex;flex-direction:column}
+#s7ps .opsbar{min-height:40px;font-size:13px}
+#s7ps .b{min-height:40px;font-size:14px}
+.s7fl{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px;font-size:13px;color:#aab2cf}
+.s7fl span{padding:1px 7px;border-radius:10px;background:#1c2547;border:1px solid #2c3866}
+.s7fl span.warn{border-color:#ff8a7a;color:#ffb0a4}
+.s7tt{font-size:13px;color:#ffd75e;margin:8px 2px 4px;display:flex;justify-content:space-between}
+.s7tt i{font-style:normal;color:#aab2cf}
+.s7note{font-size:13px;color:#aab2cf;padding:6px 2px}
+.s7info{background:#1c2547;border:1px solid #2c3866;border-radius:7px;padding:6px 8px;line-height:1.45}
+.s7info .x{float:right;width:40px;height:40px;margin:-4px -6px 0 4px;border-radius:6px;border:1px solid #2c3866;background:#151c38;color:#ece8dc;font-size:16px;cursor:pointer}
+.s7info h3{font-size:15px;color:#ffd75e;margin:2px 0}
+.s7info .tag{font-size:13px;color:#aab2cf;margin-bottom:6px}
+.s7info .r{font-size:13px;margin:6px 0}
+.s7info .r b{display:block;color:#ffd75e;font-size:13px}
+.s7info .r.good b{color:#8fd19a}
+.s7info .r.bad b{color:#f0a090}
+.s7info .b{width:100%;margin-top:6px}
+#s7ps .quest{font-size:13px;min-height:40px}
+#s7ps .ccard :is(small,i,span,b,.sm,.cbadge,.cfoot,.cauto,.cwarn){font-size:13px}
+#s7ps .ccard{margin:0 0 4px}
+/* 시트: 가로에서는 지도를 가리지 않게 오른쪽에 붙는 패널 */
+body.s7L #sheet.on{justify-content:flex-end;align-items:stretch;background:rgba(5,8,18,.28);backdrop-filter:none;-webkit-backdrop-filter:none}
+body.s7L .sh{width:min(520px,65vw);max-width:none;max-height:none;height:100%;border-radius:0;border:0;border-left:1px solid rgba(226,184,92,.35)}
+body.s7L .sh .row{min-height:44px}
+body.s7L .shb{font-size:14px}
+</style>
+<script>
+// ===== v107 S7: UI v1.4 — 가로 3단 메인 화면·현대풍 지도·뿌리/국책 칩 (설계: docs/변화_UI_저장_음악.md v1.4, 명세 §5) =====
+// 지도 바탕(해안선·섬·지도 범위·산맥·계절 팔레트)은 목업 tools/mockup_v14/build.js 4차에서 tools/s7_build.js 가 만든다. 흐림 필터는 쓰지 않는다.
+const MAP_BASE = /*__MAP_BASE__*/null;
+const S7 = { tab: '군사', info: null, cam: null, land: false, el: null, sk: '', sig: '', focus: null, toasted: false, W: 0, H: 0, perf: { renders: 0, renderSum: 0, renderMax: 0, terrN: 0, terrMax: 0, static: {} } };
+function s7Land() { try { return !!(window.matchMedia && window.matchMedia('(orientation: landscape)').matches) && window.innerWidth >= 640; } catch (e) { return false; } }
+function s7Price() { try { return typeof facPriceIdx === 'function' ? facPriceIdx(S.player) : (S.pIdx || 1); } catch (e) { return 1; } }
+// ---------- 색: 지도 전용 진한·고채도 세력색 (목업 3·4차 mapCol: 명도 상한 45, 채도 ×1.7, 채도 하한 35) ----------
+const S7COL = (() => {
+  const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const unlin = v => 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+  const hex = h => { h = String(h || '#888888'); if (h.length === 4) h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3]; return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) || 0); };
+  const toHex = a => '#' + a.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  function rgb2lab(c) { const [r, g, b] = c.map(lin); const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, Y = 0.2126 * r + 0.7152 * g + 0.0722 * b, Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883; const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))]; }
+  function lab2rgb([L, a, b]) { const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - b / 200; const g = t => t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787; const X = g(fx) * 0.95047, Y = g(fy), Z = g(fz) * 1.08883; return [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.2040 * Y + 1.0570 * Z].map(v => Math.max(0, Math.min(255, unlin(Math.max(0, v))))); }
+  const chroma = h => { const [, a, b] = rgb2lab(hex(h)); return Math.hypot(a, b); };
+  const cache = {};
+  function mapCol(h) { if (cache[h]) return cache[h]; const [L, a, b] = rgb2lab(hex(h)), C = Math.hypot(a, b) || 1; let C2 = Math.max(C * 1.7, 35), L2 = Math.min(L, 45), out;
+    for (let k = 0; k < 12; k++) { out = toHex(lab2rgb([L2, a / C * C2, b / C * C2])); if (chroma(out) >= 35) break; C2 += 6; if (k > 5) L2 += 2; }
+    return (cache[h] = out); }
+  return { mapCol, hex, toHex, chroma };
+})();
+// ---------- 도시·보로노이 (도시 위치는 고정이라 한 번만) ----------
+function s7Clip(P, L, a, b, c, lab) { const oP = [], oL = [], n = P.length;
+  for (let i = 0; i < n; i++) { const p = P[i], q = P[(i + 1) % n], dp = a * p[0] + b * p[1] - c, dq = a * q[0] + b * q[1] - c, ip = dp <= 0, iq = dq <= 0;
+    const X = () => { const t = dp / (dp - dq); return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]; };
+    if (ip && iq) { oP.push(p); oL.push(L[i]); } else if (ip && !iq) { oP.push(p); oL.push(L[i]); oP.push(X()); oL.push(lab); } else if (!ip && iq) { oP.push(X()); oL.push(L[i]); } }
+  return [oP, oL]; }
+let S7D = null;
+function s7Data() { if (S7D) return S7D; const t0 = performance.now();
+  const cs = DB.도시.map((c, i) => ({ i, n: c.이름, x: c.좌표.x, y: c.좌표.y, t: c.지형, k: c.종류 || '도시', g: c.등급 || 3 }));
+  const by = {}; cs.forEach(c => by[c.n] = c);
+  const cells = cs.map((s, i) => { let P = [[-10, -10], [1010, -10], [1010, 1020], [-10, 1020]], L = [-1, -1, -1, -1];
+    const others = cs.map((o, j) => [j, (o.x - s.x) ** 2 + (o.y - s.y) ** 2]).filter(e => e[0] !== i).sort((a, b) => a[1] - b[1]);
+    for (const [j] of others) { const o = cs[j]; [P, L] = s7Clip(P, L, o.x - s.x, o.y - s.y, (o.x * o.x + o.y * o.y - s.x * s.x - s.y * s.y) / 2, j); }
+    return { P, L }; });
+  const Rr = cs.map((s, i) => { const nd = cs.filter((_, j) => j !== i).map(o => Math.hypot(o.x - s.x, o.y - s.y)).sort((a, b) => a - b).slice(0, 3); return Math.max(78, Math.min(96, 1.2 * (nd[0] + nd[1] + nd[2]) / 3)); });
+  S7D = { cs, by, cells, Rr }; S7.perf.voronoiBase = +(performance.now() - t0).toFixed(1); return S7D; }
+const s7PolyD = P => 'M' + P.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L') + 'Z';
+const s7Hash = (s, k = 0) => { let h = 2166136261 ^ k; for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; };
+function s7InPoly(x, y, P) { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+// ---------- 영토 (주인이 바뀔 때만): 보로노이 셀을 반경 상한으로 끌어당기고(같은 세력 공유 변은 그대로), 세력마다 한 path ----------
+function s7Terr(own) { const { cs, cells, Rr } = s7Data(); const t0 = performance.now();
+  const cellsT = cells.map((cl, i) => { const s = cs[i], R = Rr[i], o = own[i], P = cl.P, L = cl.L, n = P.length, oP = [], oL = [];
+    const dist = p => Math.hypot(p[0] - s.x, p[1] - s.y);
+    const pull = p => { const d = dist(p); return d > R ? [s.x + (p[0] - s.x) * R / d, s.y + (p[1] - s.y) * R / d] : p; };
+    const disk = (p, q, r) => { const dx = q[0] - p[0], dy = q[1] - p[1], fx = p[0] - s.x, fy = p[1] - s.y, A = dx * dx + dy * dy, B = 2 * (fx * dx + fy * dy), C = fx * fx + fy * fy - r * r, D = B * B - 4 * A * C;
+      if (D <= 0 || !A) return null; const sq = Math.sqrt(D), t0 = Math.max(0, (-B - sq) / (2 * A)), t1 = Math.min(1, (-B + sq) / (2 * A)); if (t1 <= t0) return null; return [[p[0] + dx * t0, p[1] + dy * t0], [p[0] + dx * t1, p[1] + dy * t1]]; };
+    const push = (p, l) => { const z = oP[oP.length - 1]; if (z && Math.abs(z[0] - p[0]) < 0.05 && Math.abs(z[1] - p[1]) < 0.05) { oL[oL.length - 1] = l; return; } oP.push(p); oL.push(l); };
+    for (let k = 0; k < n; k++) { const p = P[k], q = P[(k + 1) % n], j = L[k];
+      if (o && j >= 0 && own[j] === o) { const sg = disk(p, q, Math.max(R, Rr[j])); if (sg) { push(sg[0], j); push(sg[1], -2); } }
+      else { const inside = dist(p) <= R && dist(q) <= R; push(pull(p), inside ? j : -2); } }
+    const fP = [], fL = [], m = oP.length;
+    for (let k = 0; k < m; k++) { const a = oP[k], b = oP[(k + 1) % m]; fP.push(a); fL.push(oL[k]);
+      if (oL[k] === -2 && dist(a) > R * 0.98 && dist(b) > R * 0.98) { let a0 = Math.atan2(a[1] - s.y, a[0] - s.x), a1 = Math.atan2(b[1] - s.y, b[0] - s.x), da = a1 - a0;
+        while (da <= -Math.PI) da += 2 * Math.PI; while (da > Math.PI) da -= 2 * Math.PI; const st = Math.ceil(Math.abs(da) / 0.785);
+        if (Math.abs(da) > 0.87) for (let u = 1; u < st; u++) { const t = a0 + da * u / st; fP.push([s.x + R * Math.cos(t), s.y + R * Math.sin(t)]); fL.push(-2); } } }
+    return { P: fP, L: fL }; });
+  const by = {}; cs.forEach((c, i) => { if (own[i] && cellsT[i].P.length) (by[own[i]] = by[own[i]] || []).push(s7PolyD(cellsT[i].P)); });
+  let territ = '', allT = '';
+  for (const f in by) { const col = S7COL.mapCol(S.fac[f] ? S.fac[f].col : '#888888'), d = by[f].join(''); territ += `<g opacity=".64"><path d="${d}" fill="${col}" stroke="${col}" stroke-width="1"/></g>`; allT += d; }
+  let bord = '';
+  cellsT.forEach((cl, i) => { const a = own[i]; if (!a) return; const n = cl.P.length; cl.L.forEach((j, k) => { if (j >= 0 && own[j] === a) return; const p = cl.P[k], q = cl.P[(k + 1) % n]; bord += `M${p[0].toFixed(1)},${p[1].toFixed(1)}L${q[0].toFixed(1)},${q[1].toFixed(1)}`; }); });
+  const ms = performance.now() - t0; const pf = S7.perf; pf.terr = +ms.toFixed(1); pf.terrN++; pf.terrMax = Math.max(pf.terrMax, +ms.toFixed(1));
+  return { territ, allT, bord }; }
+// ---------- 정적 층 (계절마다 한 번 만들어 캐시): 바다·해안 띠·땅·지형 칠·산맥·지도 밖 땅·장식·능선·강·길 ----------
+const S7ST = {};
+function s7Static(sk) { if (S7ST[sk]) return S7ST[sk]; const t0 = performance.now();
+  const M = MAP_BASE, Z = M.seasons[sk] || M.seasons.spring, { cs, cells, by } = s7Data();
+  const terrColor = c => c.t === '산악' || c.t === '관문' ? Z.mount : c.t === '남만' ? Z.south : c.t === '강변' || c.t === '나루' ? Z.river_land : Z.plain;
+  let terr = '', ridge = '';
+  cs.forEach((c, i) => { const col = terrColor(c); terr += `<path d="${s7PolyD(cells[i].P)}" fill="${col}" stroke="${col}" stroke-width="2"/>`;
+    if (c.t === '산악' || c.t === '관문') for (let k = 0; k < 2; k++) { const a = s7Hash(c.n, k) * 6.283, r = 10 + s7Hash(c.n, k + 9) * 26, x = c.x + Math.cos(a) * r, y = c.y + Math.sin(a) * r, w = 5 + s7Hash(c.n, k + 5) * 4;
+      ridge += `M${(x - w).toFixed(1)},${(y + w * 0.5).toFixed(1)}L${x.toFixed(1)},${(y - w * 0.45).toFixed(1)}L${(x + w).toFixed(1)},${(y + w * 0.5).toFixed(1)}`; } });
+  let rng = '', rdg = '', tck = '';
+  for (const r of M.ranges) { rng += s7PolyD(r.poly); rdg += 'M' + r.ridge.map(p => p.join(',')).join('L'); for (const t of r.ticks) tck += `M${t[0]},${t[1]}L${t[2]},${t[3]}`; }
+  const landD = s7PolyD(M.coast) + M.islands.map(s7PolyD).join(''), innerD = s7PolyD(M.inner), outer = 'M-1500,-1500H2000V1500H-1500Z';
+  let rd = '', wd = '';
+  for (const e of DB.도로) { const a = by[e.a], b = by[e.b]; if (!a || !b) continue; const s = `M${a.x},${a.y}L${b.x},${b.y}`; if (e.종류 === '육로') rd += s; else wd += s; }
+  let riv = '';
+  for (const r of RIVERS) { const p = r.p, n = p.length - 1; for (let i = 0; i < n; i++) { const w = r.w * (0.22 + 0.5 * (i + 1) / n), s0 = p[Math.max(0, i - 1)], s2 = p[i + 1], s3 = p[Math.min(n, i + 2)];
+    riv += `<path d="M${p[i]}C${p[i][0] + (s2[0] - s0[0]) / 6},${p[i][1] + (s2[1] - s0[1]) / 6} ${p[i + 1][0] - (s3[0] - p[i][0]) / 6},${p[i + 1][1] - (s3[1] - p[i][1]) / 6} ${p[i + 1]}" stroke-width="${w.toFixed(2)}"/>`; } }
+  // 계절 장식 (설·겨울 눈, 봄 꽃잎, 여름 반딧불, 가을 낙엽) — 땅 위 결정적 위치, 도시 둘레는 비운다
+  let dec = '';
+  for (let n = 0, placed = 0; n < 1600 && placed < 260; n++) { const x = s7Hash('d' + n, 1) * 1000, y = s7Hash('d' + n, 2) * 1010; if (!s7InPoly(x, y, M.coast) || !s7InPoly(x, y, M.inner)) continue;
+    if (cs.some(c => Math.abs(c.x - x) < 16 && Math.abs(c.y - y) < 16)) continue; placed++; const r = s7Hash('d' + n, 3), a = (s7Hash('d' + n, 4) * 360).toFixed(0), X = x.toFixed(1), Y = y.toFixed(1);
+    if (sk === 'winter' || sk === 'newyear') dec += `<circle cx="${X}" cy="${Y}" r="${(2 + r * 2.2).toFixed(1)}" fill="${sk === 'newyear' && r > .7 ? '#f6c64a' : '#ffffff'}" stroke="#7d8ea6" stroke-width=".5" opacity=".85"/>`;
+    else if (sk === 'spring') { if (r > .55) continue; dec += `<ellipse rx="5" ry="2.6" transform="translate(${X},${Y}) rotate(${a})" fill="#f48fb1" stroke="#b0587a" stroke-width=".5" opacity=".85"/>`; }
+    else if (sk === 'autumn') { if (r > .5) continue; dec += `<path d="M0,-5.4Q4.4,0 0,5.4Q-4.4,0 0,-5.4ZM0,4V8" transform="translate(${X},${Y}) rotate(${a})" fill="${r > .25 ? '#d9682a' : '#c9a020'}" stroke="#7a3a12" stroke-width=".5" opacity=".9"/>`; }
+    else { if (r > .35) continue; dec += `<circle cx="${X}" cy="${Y}" r="2.2" fill="#f2ff8a" stroke="#6a8a2a" stroke-width=".5" opacity=".95"/><circle cx="${X}" cy="${Y}" r="5.5" fill="#e8f78a" opacity=".22"/>`; } }
+  const st = {
+    Z,
+    defs: `<clipPath id="s7land"><path d="${landD}"/></clipPath><clipPath id="s7inner"><path d="${innerD}"/></clipPath><radialGradient id="s7vig" cx="50%" cy="50%" r="75%"><stop offset=".55" stop-color="${Z.tint}" stop-opacity="0"/><stop offset="1" stop-color="${Z.tint}" stop-opacity=".42"/></radialGradient><radialGradient id="s7fog" gradientUnits="userSpaceOnUse" cx="500" cy="505" r="1250"><stop offset=".56" stop-color="${Z.fog}" stop-opacity="0"/><stop offset=".72" stop-color="${Z.fog}" stop-opacity=".55"/><stop offset="1" stop-color="${Z.fog}" stop-opacity="1"/></radialGradient>`,
+    A: `<path d="${outer}" fill="${Z.sea}"/><path d="${landD}" fill="none" stroke="${Z.band}" stroke-opacity=".28" stroke-width="30" stroke-linejoin="round"/><path d="${landD}" fill="none" stroke="${Z.band}" stroke-opacity=".5" stroke-width="12" stroke-linejoin="round"/><path d="${landD}" fill="${Z.plain}"/>`
+      + `<g clip-path="url(#s7land)">${terr}<path d="${rng}" fill="${Z.range}" stroke="${Z.range}" stroke-width="9" stroke-linejoin="round" opacity=".9"/><path d="${innerD}" fill="none" stroke="${Z.offmap}" stroke-opacity=".5" stroke-width="18"/><path d="${outer}${innerD}" fill-rule="evenodd" fill="${Z.offmap}"/></g>`,
+    B: `<g clip-path="url(#s7land)"><g pointer-events="none">${dec}</g><path d="${ridge}" fill="none" stroke="${Z.ridge}" stroke-opacity=".5" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="${tck}" fill="none" stroke="${Z.ridge}" stroke-opacity=".7" stroke-width="1.1" stroke-linecap="round"/><path d="${rdg}" fill="none" stroke="${Z.ridge}" stroke-opacity=".9" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g>`,
+    C: `<g clip-path="url(#s7land)"><g fill="none" stroke="#0e2c4e" stroke-linecap="round" stroke-opacity=".95">${riv}</g></g><path d="${landD}" fill="none" stroke="#2d3a48" stroke-opacity=".7" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`
+      + `<path d="${rd}" fill="none" stroke="#2e2a24" stroke-width="1.3" stroke-dasharray="4 3" stroke-opacity=".9" vector-effect="non-scaling-stroke"/><path d="${wd}" fill="none" stroke="#0d2a48" stroke-opacity=".9" stroke-width="3.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${wd}" fill="none" stroke="#7cc8ff" stroke-width="1.6" stroke-dasharray="5 3" vector-effect="non-scaling-stroke"/>`,
+    F: `<rect x="-1500" y="-1500" width="3500" height="3000" fill="url(#s7fog)" pointer-events="none"/>` };
+  S7.perf.static[sk] = +(performance.now() - t0).toFixed(1);
+  return (S7ST[sk] = st); }
+// ---------- 지도 DOM (한 번 만들어 render 마다 자리만 옮긴다) ----------
+function s7El() { if (S7.el) return S7.el;
+  const el = document.createElement('div'); el.className = 's7map';
+  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="전략 지도"><defs id="s7defs"></defs><rect id="s7bg" x="0" y="0" width="100%" height="100%"/><g id="s7world"><g id="s7A"></g><g id="s7T"></g><g id="s7B"></g><g id="s7Bd"></g><g id="s7C"></g><g id="s7sel"></g><g id="s7F"></g></g><rect x="0" y="0" width="100%" height="100%" fill="url(#s7vig)" pointer-events="none"/><g id="s7scr"></g></svg><div class="s7zoom"><button type="button" data-a="s7z" data-v="1.3" aria-label="확대">+</button><button type="button" data-a="s7z" data-v="0.77" aria-label="축소">−</button></div>`;
+  const pts = new Map(); let moved = 0, pinch0 = null;
+  const svgR = () => el.getBoundingClientRect();
+  el.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; try { el.setPointerCapture(e.pointerId); } catch (x) { } pts.set(e.pointerId, [e.clientX, e.clientY]); moved = 0;
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, k: S7.cam.k }; } });
+  el.addEventListener('pointermove', e => { if (!pts.has(e.pointerId) || !S7.cam) return; const p = pts.get(e.pointerId), dx = e.clientX - p[0], dy = e.clientY - p[1];
+    if (pts.size === 1) { S7.cam.x -= dx / S7.cam.k; S7.cam.y -= dy / S7.cam.k; moved += Math.abs(dx) + Math.abs(dy); s7Req(); }
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 2 && pinch0) { const [a, b] = [...pts.values()], r = svgR(); moved = 99; s7ZoomAt(pinch0.k * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0.d / S7.cam.k, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top); } });
+  const up = e => { if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null;
+    if (moved < 6 && pts.size === 0 && S7.cam) { const r = svgR(), px = e.clientX - r.left, py = e.clientY - r.top; let best = null, bd = 22;
+      for (const c of s7Data().cs) { const [sx, sy] = s7ToS(c.x, c.y), d = Math.hypot(sx - px, sy - py); if (d < bd) { bd = d; best = c; } }
+      if (best && S.city[best.n]) { S7.focus = best.n; if (UI.city !== best.n) ACT.city(best.n); } } };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('wheel', e => { if (!S7.cam) return; e.preventDefault(); const r = svgR(); s7ZoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+  return (S7.el = el); }
+function s7ToS(x, y) { const c = S7.cam; return [(x - c.x) * c.k + S7.W / 2, (y - c.y) * c.k + S7.H / 2]; }
+function s7Clamp() { const c = S7.cam, W = S7.W, H = S7.H, PADB = 6, kmin = Math.min(W / 1020, (H - PADB) / 1030) * 0.98; c.k = Math.max(kmin, Math.min(3, c.k));
+  const hw = W / 2 / c.k, hh = H / 2 / c.k, ylo = -10 + hh, yhi = 1020 - (H / 2 - PADB) / c.k;
+  c.x = hw * 2 >= 1020 ? 500 : Math.max(-10 + hw, Math.min(1010 - hw, c.x)); c.y = yhi <= ylo ? (ylo + yhi) / 2 : Math.max(ylo, Math.min(yhi, c.y)); }
+let s7Raf = 0;
+function s7Req() { if (!s7Raf) s7Raf = requestAnimationFrame(() => { s7Raf = 0; s7Cam(); }); }
+function s7ZoomAt(f, px, py) { const c = S7.cam; if (!c) return; const wx = (px - S7.W / 2) / c.k + c.x, wy = (py - S7.H / 2) / c.k + c.y; c.k *= f; s7Clamp(); c.x = wx - (px - S7.W / 2) / c.k; c.y = wy - (py - S7.H / 2) / c.k; s7Req(); }
+ACT.s7z = v => { s7ZoomAt(+v || 1, S7.W / 2, S7.H / 2); };
+function s7Cam() { const el = S7.el; if (!el || !el.isConnected || !S) return; const r = el.getBoundingClientRect(); S7.W = r.width; S7.H = r.height; if (!S7.W || !S7.H) return;
+  if (!S7.cam) { const c = s7Data().by[UI.city] || { x: 500, y: 500 }; S7.cam = { x: c.x, y: c.y, k: S7.land ? 0.72 : 0.55 }; }
+  s7Clamp(); const c = S7.cam; el.querySelector('#s7world').setAttribute('transform', `translate(${(S7.W / 2 - c.x * c.k).toFixed(2)},${(S7.H / 2 - c.y * c.k).toFixed(2)}) scale(${c.k.toFixed(4)})`); s7Draw(); }
+function s7Focus(n) { const c = s7Data().by[n]; if (!c) return; if (!S7.cam || !S7.W) { S7.cam = null; return; } const [sx, sy] = s7ToS(c.x, c.y); if (sx < S7.W * 0.12 || sx > S7.W * 0.88 || sy < S7.H * 0.12 || sy > S7.H * 0.88) { S7.cam.x = c.x; S7.cam.y = c.y; } }
+// 주인·세력색·계절이 바뀌었을 때만 층을 다시 채운다
+function s7Update() { const el = S7.el, sk = seasonKey(), { cs } = s7Data();
+  const nf = Object.keys(S.fac).length; if (S7.nf !== nf) { S7.nf = nf; if (typeof fixFacCols === 'function') { const cols = Object.values(S.fac).map(F => F.col); if (new Set(cols).size < cols.length) fixFacCols(); } }
+  const own = cs.map(c => (S.city[c.n] && S.city[c.n].owner) || null);
+  const sig = own.join(',') + '|' + Object.values(S.fac).map(F => F.col).join(',');
+  const st = s7Static(sk);
+  if (S7.sk !== sk) { S7.sk = sk; el.querySelector('#s7defs').innerHTML = st.defs; el.querySelector('#s7bg').setAttribute('fill', st.Z.fog); el.querySelector('#s7A').innerHTML = st.A; el.querySelector('#s7B').innerHTML = st.B; el.querySelector('#s7C').innerHTML = st.C; el.querySelector('#s7F').innerHTML = st.F; S7.sig = ''; }
+  if (S7.sig !== sig) { S7.sig = sig; const T = s7Terr(own);
+    S7.caps = new Set(Object.keys(S.fac).filter(f => citiesOf(f).length).map(f => capitalOf(f)).filter(Boolean));
+    el.querySelector('#s7T').innerHTML = `<g clip-path="url(#s7land)"><g clip-path="url(#s7inner)"><g opacity=".97"><path d="${T.allT}" fill="${st.Z.terr_base}" stroke="${st.Z.terr_base}" stroke-width="1"/></g>${T.territ}</g></g>`;
+    el.querySelector('#s7Bd').innerHTML = `<g clip-path="url(#s7land)"><g clip-path="url(#s7inner)"><path d="${T.bord}" fill="none" stroke="#1c1a2a" stroke-opacity=".95" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></g></g>`; } }
+function s7Sel() { const el = S7.el, { by } = s7Data(); let d = '';
+  for (const e of DB.도로) if (e.a === UI.city || e.b === UI.city) { const a = by[e.a], b = by[e.b]; if (a && b) d += `M${a.x},${a.y}L${b.x},${b.y}`; }
+  el.querySelector('#s7sel').innerHTML = d ? `<path d="${d}" fill="none" stroke="#1a1404" stroke-opacity=".85" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="#ffd75e" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>` : ''; }
+// ---------- 화면 층: 거점 아이콘·배지·이름표 (카메라가 바뀔 때마다) ----------
+const S7SHIELD = 'M-10,-11H-6V-8H-2V-11H2V-8H6V-11H10V2Q10,8 0,12Q-10,8 -10,2Z', S7GATE = 'M-11,-10H11V-5H8V10H3V3Q3,-1 0,-1Q-3,-1 -3,3V10H-8V-5H-11Z', S7ANCHOR = 'M0,-6V7M-6,2Q0,10 6,2M-4,-2H4', S7CROWN = 'M-6,0L-7,-7L-3,-4L0,-9L3,-4L7,-7L6,0Z';
+function s7Draw() { const t0 = performance.now(), el = S7.el, k = S7.cam.k, W = S7.W, H = S7.H, { cs, by } = s7Data(), caps = S7.caps || new Set(), P = S.player, sel = by[UI.city];
+  const ownOf = c => (S.city[c.n] && S.city[c.n].owner) || null;
+  const prio = c => { const o = ownOf(c); if (c === sel) return 0; if (!o) return 6; if (caps.has(c.n)) return 1; if (c.k === '도시' && c.g === 1) return 2; if (o === P) return 2; if (c.k === '도시' && c.g === 2) return 3; if (c.k === '도시') return 4; return 5; };
+  const lim = k < 0.55 ? 2 : k < 1.15 ? 4 : 9, f = Math.max(0.75, Math.min(1.25, 0.7 + 0.45 * k)), showMinor = k >= 0.5;
+  const list = cs.map(c => { const [sx, sy] = s7ToS(c.x, c.y); return { c, sx, sy, p: prio(c) }; }).filter(o => o.sx > -30 && o.sx < W + 30 && o.sy > -30 && o.sy < H + 30);
+  list.sort((a, b) => a.p - b.p || a.c.g - b.c.g);
+  let ic = '', bd = '', lb = ''; const occ = []; const hit = r => occ.some(o => r[0] < o[2] && r[2] > o[0] && r[1] < o[3] && r[3] > o[1]);
+  for (const o of [...list].reverse()) { const c = o.c, own = ownOf(c); if (c.k !== '도시' && !showMinor && o.p > 0) continue;
+    const col = own ? S.fac[own].col : '#a7acb6', free = !own && c !== sel; let s = c.k === '도시' ? [0.95, 0.8, 0.66][Math.max(0, Math.min(2, c.g - 1))] : 0.62; s *= f; if (free) s *= 0.7;
+    const X = o.sx.toFixed(1), Y = o.sy.toFixed(1), tr = `translate(${X},${Y}) scale(${s.toFixed(3)})`;
+    if (c === sel) ic += `<circle cx="${X}" cy="${Y}" r="${(16 * s + 5).toFixed(1)}" fill="none" stroke="#1a1404" stroke-width="4.5"/><circle cx="${X}" cy="${Y}" r="${(16 * s + 5).toFixed(1)}" fill="none" stroke="#ffd75e" stroke-width="2.2"/>`;
+    if (free) { const d = c.k === '관문' ? S7GATE : c.k === '나루' ? null : S7SHIELD;
+      ic += `<g transform="${tr}" opacity=".92">` + (d ? `<path d="${d}" fill="${col}" stroke="#1f232b" stroke-width="3.4" stroke-linejoin="round"/>` : `<circle r="10" fill="${col}" stroke="#1f232b" stroke-width="3.4"/><path d="${S7ANCHOR}" fill="none" stroke="#1f232b" stroke-width="2.2" stroke-linecap="round"/>`) + '</g>'; }
+    else if (c.k === '나루') ic += `<g transform="${tr}"><circle r="10" fill="${own ? col : '#3d4b6a'}" stroke="#0b0f1e" stroke-width="4"/><circle r="10" fill="none" stroke="#fff" stroke-width="1.6"/><path d="${S7ANCHOR}" fill="none" stroke="${own ? '#10142a' : '#fff'}" stroke-width="2" stroke-linecap="round"/><circle cy="-7.5" r="1.6" fill="none" stroke="${own ? '#10142a' : '#fff'}" stroke-width="1.4"/></g>`;
+    else { const d = c.k === '관문' ? S7GATE : S7SHIELD;
+      ic += `<g transform="${tr}"><path d="${d}" fill="${col}" stroke="#0b0f1e" stroke-width="4.2" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/>`;
+      if (c.k === '도시' && c.g === 1) ic += `<rect x="-3" y="-3" width="6" height="6" fill="#10142a" opacity=".55"/>`;
+      if (caps.has(c.n)) ic += `<path d="${S7CROWN}" transform="${own === P || c === sel ? 'translate(0,-15)' : 'translate(0,-12.5) scale(.6)'}" fill="#ffd75e" stroke="#0b0f1e" stroke-width="1.6" stroke-linejoin="round"/>`;
+      ic += '</g>'; }
+    // 배지 한 줄 (아이콘 오른쪽 위): 출진 가능 장수 초록 점 · 공방 · 군비 특색 병종
+    if (own) { const cc = S.city[c.n]; let bx = o.sx + 9 * s, by2 = o.sy - 11 * s; const parts = [];
+      if (own === P && typeof freeGens === 'function' && freeGens(c.n, P).length) parts.push('dot');
+      if (c.k === '도시' && (own === P || k >= 1.15)) { let t = ''; if (typeof WORKSHOP !== 'undefined' && (WORKSHOP[c.n] || (cc.facs || []).includes('공방'))) t += '⚒';
+        try { if (typeof armSpec === 'function') { const sp = armSpec(cc); t += ARM_F.filter(x => sp[x] === 'terr' || (sp[x] && own === P)).map(x => ARM_ICON[x]).join(''); } } catch (e) { } if (t) parts.push(t); }
+      for (const pt of parts) { if (pt === 'dot') { bd += `<circle cx="${(bx + 3.6).toFixed(1)}" cy="${by2.toFixed(1)}" r="3.6" fill="#3ddc6a" stroke="#0b0f1e" stroke-width="1.6"/>`; bx += 9; }
+        else { bd += `<text x="${bx.toFixed(1)}" y="${(by2 + 4).toFixed(1)}" font-size="11" paint-order="stroke" stroke="#0b0f1e" stroke-width="2.4" fill="#ffd75e">${pt}</text>`; bx += pt.length * 11; } } }
+    const r = (c.k === '도시' ? 12 : 10) * s; occ.push([o.sx - r, o.sy - r, o.sx + r, o.sy + r]); }
+  for (const o of list) { const c = o.c; if (o.p > lim) continue; if (c.k !== '도시' && !showMinor && o.p > 0) continue;
+    const fs = c.k === '도시' ? (c.g === 1 ? 14 : 13) : 12, w = c.n.length * fs + 8, h = fs + 6, r = (c.k === '도시' ? 12 : 10) * f * 0.9;
+    const cand = [[o.sx - w / 2, o.sy + r + 1], [o.sx + r + 2, o.sy - h / 2], [o.sx - w / 2, o.sy - r - h - (caps.has(c.n) ? 8 : 1)], [o.sx - r - 2 - w, o.sy - h / 2]];
+    let pos = null; for (const [x, y] of cand) { const R = [x, y, x + w, y + h]; if (o.p === 0 || !hit(R)) { pos = R; break; } } if (!pos) continue; occ.push(pos);
+    const isSel = c === sel;
+    lb += `<g><rect x="${pos[0].toFixed(1)}" y="${pos[1].toFixed(1)}" width="${w}" height="${h}" rx="4" fill="rgba(12,16,32,.84)"${isSel ? ' stroke="#ffd75e" stroke-width="1.2"' : ''}/><text x="${(pos[0] + w / 2).toFixed(1)}" y="${(pos[1] + h / 2 + fs * 0.36).toFixed(1)}" font-size="${fs}" font-weight="${c.g === 1 || isSel ? 700 : 500}" fill="${isSel ? '#ffd75e' : '#ffffff'}" text-anchor="middle">${c.n}</text></g>`; }
+  el.querySelector('#s7scr').innerHTML = ic + bd + lb; S7.perf.draw = +(performance.now() - t0).toFixed(1); }
+function s7Mount() { const slot = document.querySelector('#app .s7slot'); if (!slot || !S) return; const el = s7El(); slot.replaceWith(el);
+  s7Update(); s7Sel();
+  if (S7.focus !== UI.city) { s7Focus(UI.city); S7.focus = UI.city; }
+  s7Cam(); }
+// ---------- 지도 진입점: 새 vMap 은 자리표만 내고, afterRender 에서 지도 DOM 을 옮겨 붙인다 (UI.mapZoom 토글 폐지) ----------
+vMap = function () { return '<div class="s7slot"></div>'; };
+{ const f = afterRender; afterRender = function () { if (UI.scr === 'main') { try { s7Mount(); } catch (e) { console.error('s7Mount', e); } return; } return f.apply(this, arguments); }; }
+// ---------- 뿌리·국책 설명 (전용 장치는 RT_DESC, 교역 갈래는 TR_ROOT_BR·TR_BR_N 상수를 읽는다 — 수치를 여기 적지 않는다) ----------
+const S7_ROOT = {
+  경륜: { h: '經綸 — 인재로 천하를 얻는다', how: '적 장수와 태수를 설득해 성을 피 흘리지 않고 넘겨받는다(귀순). 등용·이간·내통이 주 무기다.', good: '지력·매력 높은 장수가 많을수록 빠르게 큰다. 귀순한 태수는 오래 남는다.', bad: '장수 의존이 크다. 설득할 장수가 없거나 군주와 의리가 깊은 태수는 못 돌린다.', fit: '지력·정치 높은 군주, 내륙 대도시' },
+  강병: { h: '强兵 — 정예로 정면 돌파한다', how: '훈련과 장비를 올린 정예로 성을 전투로 함락한다.', good: '전투에서 가장 강하다. 훈련·군비 보정을 길게 유지한다.', bad: '전투 손실·유지비가 크고, 점령지 민심이 낮아 흡수가 느리다.', fit: '무력·통솔 높은 군주, 전선이 긴 처지' },
+  상략: { h: '商略 — 금으로 성과 사람을 산다', how: '매수·매입·조공으로 성과 장수를 사들이고, 이웃 동맹을 이간해 적을 고립시키고, 용병으로 병력을 채운다.', good: '가장 빠르다. 금만 있으면 싸우지 않고 성이 넘어온다.', bad: '금 의존이 크다. 물가·유지비에 약하고, 사 온 장수는 충성이 낮다. 용병은 정예에 진다.', fit: '매력 높은 군주, 항구·관문 보유, 수비 성향' },
+  덕화: { h: '德化 — 백성이 스스로 찾아오게 한다', how: '민심을 높게 유지해 이웃 적 성의 민심을 끌어온다. 민심이 무너진 적 성은 스스로 투항한다.', good: '점령지 흡수가 가장 빠르고, 전쟁·기근으로 흔들리는 적 성이 저절로 넘어온다.', bad: '느리다. 정면 전투에 약하다.', fit: '정치·통솔 균형, 내치 중시, 영토 안정형' } };
+function s7Info(kind) { const r = rootOf(S.player), x = `<button type="button" class="x" data-a="s7info" data-v="" aria-label="닫기">✕</button>`;
+  if (kind === 'root') { if (!r) return `<div class="s7info">${x}<h3>뿌리 없음</h3><div class="tag">새 게임에서 뿌리를 정합니다.</div>${btn('뿌리 선택', 'rootMenu', '', { s: 1 })}</div>`;
+    const Q = S7_ROOT[r] || {}; const br = typeof TR_ROOT_BR !== 'undefined' && TR_ROOT_BR[r] ? TR_ROOT_BR[r].map(b => (typeof TR_BR_N !== 'undefined' && TR_BR_N[b]) || b).join(' · ') : '미정';
+    return `<div class="s7info">${x}<h3>뿌리 ${r}</h3><div class="tag">${Q.h || ''} · 새 게임에서 정해 끝까지 간다</div><div class="r"><b>통일하는 방법</b>${Q.how || ''}</div><div class="r"><b>열리는 교역 갈래</b>${br}</div><div class="r"><b>전용 장치</b>${typeof RT_DESC !== 'undefined' ? RT_DESC[r] : ''}</div><div class="r good"><b>강점</b>${Q.good || ''}</div><div class="r bad"><b>약점</b>${Q.bad || ''}</div><div class="r"><b>어울리는 군주</b>${Q.fit || ''}</div>${btn(`${r}책 명령`, 'rootMenu', '', { s: 1 })}</div>`; }
+  const ps = polOf(S.player);
+  return `<div class="s7info">${x}<h3>올해 국책</h3><div class="tag">매년 1월에 바꿀 수 있다 · ★ = 소속 뿌리(효과 100%), 그 외 60%</div>` + (ps.length ? ps.map(p => { const pr = typeof RT_POL !== 'undefined' ? RT_POL[p] : null, own = !r || pr === r, [g, b] = String(POL_DESC[p] || '').split(' / ');
+    return `<div class="r"><b>${p}${pr === r ? ' ★' : ''} · 소속 ${pr || '—'}${own ? '' : ' (효과 60%)'}</b></div><div class="r good"><b>효익</b>${g || ''}</div><div class="r bad"><b>대가</b>${b || ''}</div>`; }).join('') : '<div class="r">올해 고른 국책이 없습니다.</div>') + btn('국책 고르기', 's7pol', '', { s: 1 }) + '</div>'; }
+ACT.s7info = v => { S7.info = v && S7.info !== v ? v : null; render(); };
+ACT.s7tab = v => { S7.tab = v; S7.info = null; render(); };
+ACT.s7cmd = v => ACT.cmd(v);
+ACT.s7pol = () => openPolicy();
+ACT.s7trade = () => openTrade();
+// ---------- 명령 분류 탭 (결정 C): 군사·인사·계략은 ACT.cmd 가 여는 메뉴 시트를 그대로 받아 패널에 펼친다 (래퍼들이 붙인 행 포함) ----------
+function s7Capture(v) { const n = UI.sheets.length, os = openSheet, rs = renderSheet; let got = null;
+  openSheet = function (title, body, foot, o) { UI.sheets.push({ title, body, foot, ...(o || {}) }); }; renderSheet = function () { };
+  try { ACT.cmd(v); } catch (e) { console.error('s7Capture', v, e); } finally { openSheet = os; renderSheet = rs; }
+  if (UI.sheets.length > n) { got = UI.sheets[UI.sheets.length - 1]; UI.sheets.length = n; }
+  return got; }
+function s7OpsHtml() { const c = C(UI.city); if (!c || c.owner !== S.player || kindOf(c.n) !== '도시' || typeof opsSummary !== 'function') return ''; let h = '';
+  try { h = `<button type="button" class="opsbar" data-a="opsOpen"><span><b>운영 설정</b> ${esc(opsSummary(c))}</span><span>›</span></button>`; } catch (e) { return ''; }
+  try { const F = S.fac[S.player], subs = F.subcaps || []; if (UI.city !== capitalOf(S.player) && typeof subCapMax === 'function' && (subCapMax(S.player) > 0 || subs.includes(UI.city))) h += btn(subs.includes(UI.city) ? '부도 지정 풀기' : `부도로 지정 (${subs.length}/${subCapMax(S.player)})`, 'subCapT', UI.city, { s: 1 }); } catch (e) { }
+  return h; }
+const S7_TABS = ['군사', '내정', '인사', '외교', '계략', '교역', '정보'];
+const S7_ICON = { 군사: '<path d="M4 20L16 8M14 4h6v6M4 4l6 6M20 20l-4-4M3 17l4 4"/>', 내정: '<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/>', 인사: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/>', 외교: '<path d="M5 4h11l3 3v13H5zM9 9h7M9 13h7M9 17h4"/>', 계략: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>', 교역: '<path d="M12 3v18M5 7h14M5 7l-3 7h6zM19 7l-3 7h6z"/>', 정보: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>' };
+function s7Row(t, d, a, v, dis) { return `<button type="button" class="row" data-a="${a}" data-v="${esc(v == null ? '' : v)}"${dis ? ' disabled' : ''}><span class="grow"><b>${t}</b>${d ? `<small>${d}</small>` : ''}</span><span class="rt">&gt;</span></button>`; }
+function s7TabBody(tab, c, own) { const note = '<div class="s7note">아군 도시를 고르면 명령할 수 있습니다.</div>';
+  if (tab === '군사' || tab === '인사' || tab === '계략') { if (tab === '군사' && !own) return note; const sh = s7Capture(tab); let b = ''; try { b = sh ? sh.body() : ''; } catch (e) { b = ''; } return `<div class="col">${b}</div>`; }
+  if (tab === '내정') { if (!own) return note; return s7Row('내정·개발', '농업·상업·치안·성벽 등 이 도시를 키웁니다', 's7cmd', '내정') + s7OpsHtml() + s7Row('국책·후계', `올해 국책 ${polOf(S.player).join('·') || '없음'} · 1년에 한 번`, 's7pol'); }
+  if (tab === '외교') { const r = rootOf(S.player); let h = s7Row('외교', '친선·동맹·휴전·권고 등', 's7cmd', '외교');
+    try { const cnt = rtOwnCount(S.player); h += s7Row(r ? r + '책' : '뿌리 선택', r ? `자기 방법 ${cnt.own}/${cnt.all}` : '새 게임의 뿌리를 정합니다', 'rootMenu'); } catch (e) { } return h; }
+  if (tab === '교역') return (typeof openWorldTrade === 'function' ? s7Row('세계 교역', '교역 상대국과 상거래·학습·친교', 'trOpen') : '') + s7Row('군량 매매', '금과 군량을 시세대로 사고팝니다', 's7trade');
+  return ['장수', '도시', '세력', '목표', '도감', '기록'].map(x => s7Row(x, '', 'info', x)).join(''); }
+function s7Panel() { if (S7.info) return s7Info(S7.info);
+  const c = C(UI.city), own = c.owner === S.player, cs = citiesOf(S.player), gs = gensOf(S.player), q = curQuest();
+  const sal = gs.reduce((s, g) => s + salary(g), 0), disc = gs.filter(g => (g.disc || 0) >= 50).length, env = (S.envoys || []).filter(e => G(e.g) && G(e.g).fac === S.player).length;
+  return `${cityCard2(c)}<div class="s7fl"><span>도시 ${cs.length}</span><span>장수 ${gs.length}</span><span>녹봉 월 ${fmt(sal)}</span>${S.missions.length ? `<span>정찰 ${S.missions.length}</span>` : ''}${env ? `<span>파견 ${env}</span>` : ''}${disc ? `<span class="warn">불만 ${disc}</span>` : ''}${S.coal ? '<span class="warn">연합 견제</span>' : ''}</div>`
+    + (q ? `<button type="button" class="quest" data-a="info" data-v="목표">목표: ${q[0]} · ${questDesc(q)}</button>` : '')
+    + `<div class="s7tt">${S7.tab}<i>${own ? '명령 가능' : '아군 도시가 아님'}</i></div>${s7TabBody(S7.tab, c, own)}`; }
+function s7Main() { const F = S.fac[S.player], cs = citiesOf(S.player), r = rootOf(S.player), ps = polOf(S.player), sk = seasonKey(), pr = s7Price();
+  const tg = cs.reduce((s, c) => s + stockOf(c, 'gold'), 0), tf = cs.reduce((s, c) => s + stockOf(c, 'food'), 0), tt = cs.reduce((s, c) => s + c.troops, 0);
+  const tint = MAP_BASE.seasons[sk] ? MAP_BASE.seasons[sk].tint : '#ccc';
+  const top = `<div id="s7top"><span class="dt"><i class="fc" style="background:${F.col}"></i>${S.y}년 ${S.m}월 · ${fname(S.player)}</span><span class="st"><i>금</i><b>${fmt(tg)}</b></span><span class="st"><i>군량</i><b>${fmt(tf)}</b></span><span class="st"><i>병력</i><b>${fmt(tt)}</b></span><span class="st pr"><i>물가</i><b>${Math.round(pr * 100)}%</b></span><span class="sp"></span>`
+    + (r ? `<button type="button" class="chip root" data-a="s7info" data-v="root" title="눌러서 설명 보기">뿌리 ${r}</button>` : `<button type="button" class="chip root" data-a="rootMenu">뿌리 선택</button>`)
+    + `<button type="button" class="chip pol" data-a="s7info" data-v="pol" title="눌러서 설명 보기"><i>국책</i>${ps.length ? ps.map(p => { const o = typeof RT_POL !== 'undefined' && r && RT_POL[p] === r; return `<b class="${o ? 'own' : ''}">${p}${o ? '★' : ''}</b>`; }).join('·') : '<b>없음</b>'}</button>`
+    + `<span class="chip sea"><span class="sw" style="background:${tint}"></span>${SEASON_KO[sk] || ''}</span>${btn('☰', 'sys', '', { s: 1, aria: '메뉴' })}</div>`;
+  const rail = `<nav id="s7rail">${S7_TABS.map(t => `<button type="button" class="${t === S7.tab ? 'on' : ''}" data-a="s7tab" data-v="${t}"><svg viewBox="0 0 24 24">${S7_ICON[t]}</svg>${t}</button>`).join('')}</nav>`;
+  return `<div class="scr main s7m">${top}${rail}<div id="s7mapw">${vMap()}</div><aside id="s7panel"><div id="s7ps">${s7Panel()}</div>${btn('이번 달 끝내기', 'endMonth', '', { p: 1 })}</aside></div>`; }
+// 세로 배치는 그대로 두고, 지운 덧씌움 4개(물가·운영 설정·부도 지정·계절 표식)를 문자열로 흡수
+{ const f = vMain; vMain = function () { if (S7.land) return s7Main(); let h = f.apply(this, arguments);
+  try { h = h.replace(/(<div class="tt">[^<]*)/, `$1<span class="sea-tag">${SEASON_KO[seasonKey()]}</span>`);
+    const p = s7Price(); if (p > 1.005) h = h.replace(/(<div class="chips">[\s\S]*?)(<\/div>)/, `$1<span>물가 ${p.toFixed(2)}</span>$2`);
+    const ops = s7OpsHtml(); if (ops) h = h.replace(/(<div class="grid3">(?=<button[^>]*data-a="cmd" data-v="군사")[\s\S]*?<\/div>)/, `$1${ops}`); } catch (e) { }
+  return h; }; }
+// render: 가로 판정 → body.s7L, 패널 스크롤 유지, 시간 측정, 세로 안내 토스트 1회
+{ const f = render; render = function () {
+  const land = s7Land(); S7.land = !!(land && UI.scr === 'main' && S); document.body.classList.toggle('s7L', S7.land);
+  const ps = document.getElementById('s7ps'), key = S7.tab + '|' + UI.city + '|' + S7.info, keep = ps && S7.pkey === key ? ps.scrollTop : 0;
+  const t0 = performance.now(); const r = f.apply(this, arguments);
+  if (UI.scr === 'main') { const ms = performance.now() - t0, pf = S7.perf; pf.render = +ms.toFixed(1); pf.renders++; pf.renderSum += ms; pf.renderMax = Math.max(pf.renderMax, +ms.toFixed(1));
+    const np = document.getElementById('s7ps'); if (np) { S7.pkey = key; if (keep) np.scrollTop = keep; }
+    if (!land && !S7.toasted && S) { S7.toasted = true; setTimeout(() => { try { if (UI.scr === 'main' && !s7Land()) toast('가로로 돌리면 더 편합니다'); } catch (e) { } }, 700); } }
+  return r; }; }
+{ let q = 0; window.addEventListener('resize', () => { if (q) return; q = requestAnimationFrame(() => { q = 0; try { if (UI.scr !== 'main' || !S) return; if (s7Land() !== S7.land) render(); else s7Cam(); } catch (e) { } }); }); }
+</script>
+<!-- /v107 S7 -->
