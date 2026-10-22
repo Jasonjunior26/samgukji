@@ -6968,7 +6968,7 @@ function openDiplo() {
   UI.f = { tf: null, type: '동맹', g: null, gold: 0, target: null };
   openSheet(`${UI.city} · 외교 대상`, () => Object.values(S.fac).filter(f => f.alive && f.id !== S.player).map(f => `<button type="button" class="row" data-a="dpT" data-v="${f.id}">${face(f.ruler, 32)}<span class="grow"><b>${f.ruler}군</b><small>도시 ${citiesOf(f.id).length} · 병력 ${fmt(citiesOf(f.id).reduce((s, c) => s + c.troops, 0))}</small></span><span class="rt">${allied(S.player, f.id) ? `동맹 ${f.ally[S.player]}개월` : `적대 ${hos(S.player, f.id)}`}</span></button>`).join(''));
 }
-ACT.dpT = v => { UI.f.tf = v; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${S.fac[v].ruler}군 외교`, () => {
+ACT.dpT = v => { UI.f.tf = v; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${S.fac[v].title || S.fac[v].ruler} 외교`, () => {
   const types = allied(S.player, v) ? ['원조', '공동공격', '선물'] : ['동맹', '항복권고', '선물'];
   const gs = freeList();
   const golds = UI.f.type === '선물' ? [300, 500, 1000] : UI.f.type === '동맹' ? [0, 200, 500] : [0];
@@ -7838,7 +7838,7 @@ function openDiplo() {
   UI.f = { tf: null, type: '동맹', g: null, gold: 0, target: null };
   openSheet('외교 대상', () => Object.values(S.fac).filter(f => f.alive && f.id !== S.player).sort((a, b) => nearOurs(capitalOf(a.id)) - nearOurs(capitalOf(b.id))).map(f => `<button type="button" class="row" data-a="dpT" data-v="${f.id}">${face(f.ruler, 32)}<span class="grow"><b>${fname(f.id)}</b><small>도시 ${citiesOf(f.id).length} · 병력 ${fmt(citiesOf(f.id).reduce((s, c) => s + c.troops, 0))} · 수도 ${capitalOf(f.id) || '-'}</small></span><span class="rt">${allied(S.player, f.id) ? `동맹 ${f.ally[S.player]}개월` : `적대 ${hos(S.player, f.id)}`}</span></button>`).join(''));
 }
-ACT.dpT = v => { UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${fname(v)} 외교`, () => {
+ACT.dpT = v => { UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${S.fac[v].title || S.fac[v].ruler} 외교`, () => {
   const types = allied(S.player, v) ? ['원조', '공동공격', '선물'] : ['동맹', '항복권고', '선물'];
   const golds = UI.f.type === '선물' ? [300, 500, 1000] : UI.f.type === '동맹' ? [0, 200, 500] : [0];
   if (!golds.includes(UI.f.gold)) UI.f.gold = golds[0];
@@ -9103,7 +9103,7 @@ function relText(fid) {
 }
 ACT.dpT = v => {
   UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; UI.f.target = null;
-  openSheet(`${fname(v)} 외교`, () => {
+  openSheet(`${S.fac[v].title || S.fac[v].ruler} 외교`, () => {
     const al = allied(S.player, v);
     const types = al ? ['원조', '공동공격', '선물'] : ['동맹', '불가침', '조공', '매입', '할양', '항복권고', '선물'];
     const t = UI.f.type; let golds = [0];
@@ -13429,7 +13429,7 @@ function s7TabBody(tab, c, own) { const note = '<div class="s7note">아군 도�
   if (tab === '외교') { const sh = s7Capture('외교'); let bd = ''; try { bd = sh ? sh.body() : ''; } catch (e) { bd = ''; } return '<div class="kv">외교 대상</div><div class="col">' + bd + '</div>'; }
   const I = (x, d) => s7Row(x, d, 'info', x, false, 'info'); // 자료 탭 (v1.11): 조회 / 기록 두 묶음
   return '<div class="kv">조회</div>' + I('장수', '능력치·충성·위치') + I('도시', '금·군량·병력·민충') + I('세력', '세력 순위와 관계')
-    + '<div class="kv">기록</div>' + I('목표', '단계별 목표') + I('도감', '발견한 조합') + I('기록', '최근 소식'); }
+    + '<div class="kv">참고</div>' + I('목표', '단계별 목표') + I('도감', '발견한 조합') + I('기록', '최근 소식'); }
 function s7Panel() { if (S7.info) return s7Info(S7.info);
   const c = C(UI.city), own = c.owner === S.player, cs = citiesOf(S.player), gs = gensOf(S.player);
   return `${S7.card ? `<div class="s7cch"><span>${esc(c.n)} 정보</span><button type="button" class="x" data-a="s7card" aria-label="닫기">✕</button></div>${cityCard2(c)}` : ''}`
