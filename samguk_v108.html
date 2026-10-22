@@ -6968,7 +6968,7 @@ function openDiplo() {
   UI.f = { tf: null, type: '동맹', g: null, gold: 0, target: null };
   openSheet(`${UI.city} · 외교 상대`, () => Object.values(S.fac).filter(f => f.alive && f.id !== S.player).map(f => `<button type="button" class="row" data-a="dpT" data-v="${f.id}">${face(f.ruler, 32)}<span class="grow"><b>${f.ruler}군</b><small>도시 ${citiesOf(f.id).length} · 병력 ${fmt(citiesOf(f.id).reduce((s, c) => s + c.troops, 0))}</small></span><span class="rt">${allied(S.player, f.id) ? `동맹 ${f.ally[S.player]}개월` : `적대 ${hos(S.player, f.id)}`}</span></button>`).join(''));
 }
-ACT.dpT = v => { UI.f.tf = v; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${S.fac[v].ruler}군과 외교`, () => {
+ACT.dpT = v => { UI.f.tf = v; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${S.fac[v].ruler}군 외교`, () => {
   const types = allied(S.player, v) ? ['원조', '공동공격', '선물'] : ['동맹', '항복권고', '선물'];
   const gs = freeList();
   const golds = UI.f.type === '선물' ? [300, 500, 1000] : UI.f.type === '동맹' ? [0, 200, 500] : [0];
@@ -7838,7 +7838,7 @@ function openDiplo() {
   UI.f = { tf: null, type: '동맹', g: null, gold: 0, target: null };
   openSheet('외교 상대', () => Object.values(S.fac).filter(f => f.alive && f.id !== S.player).sort((a, b) => nearOurs(capitalOf(a.id)) - nearOurs(capitalOf(b.id))).map(f => `<button type="button" class="row" data-a="dpT" data-v="${f.id}">${face(f.ruler, 32)}<span class="grow"><b>${fname(f.id)}</b><small>도시 ${citiesOf(f.id).length} · 병력 ${fmt(citiesOf(f.id).reduce((s, c) => s + c.troops, 0))} · 수도 ${capitalOf(f.id) || '-'}</small></span><span class="rt">${allied(S.player, f.id) ? `동맹 ${f.ally[S.player]}개월` : `적대 ${hos(S.player, f.id)}`}</span></button>`).join(''));
 }
-ACT.dpT = v => { UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${fname(v)}과(와) 외교`, () => {
+ACT.dpT = v => { UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; openSheet(`${fname(v)} 외교`, () => {
   const types = allied(S.player, v) ? ['원조', '공동공격', '선물'] : ['동맹', '항복권고', '선물'];
   const golds = UI.f.type === '선물' ? [300, 500, 1000] : UI.f.type === '동맹' ? [0, 200, 500] : [0];
   if (!golds.includes(UI.f.gold)) UI.f.gold = golds[0];
@@ -9103,7 +9103,7 @@ function relText(fid) {
 }
 ACT.dpT = v => {
   UI.f.tf = v; UI.f.g = null; UI.f.type = allied(S.player, v) ? '원조' : '동맹'; UI.f.target = null;
-  openSheet(`${fname(v)}과(와) 외교`, () => {
+  openSheet(`${fname(v)} 외교`, () => {
     const al = allied(S.player, v);
     const types = al ? ['원조', '공동공격', '선물'] : ['동맹', '불가침', '조공', '매입', '할양', '항복권고', '선물'];
     const t = UI.f.type; let golds = [0];
@@ -13312,7 +13312,7 @@ function s7El() { if (S7.el) return S7.el;
   el.addEventListener('pointerdown', e => { if (e.target.closest('button')) return; try { el.setPointerCapture(e.pointerId); } catch (x) { } pts.set(e.pointerId, loc(e)); moved = 0;
     if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, k: S7.cam.k }; } });
   el.addEventListener('pointermove', e => { if (!pts.has(e.pointerId) || !S7.cam) return; const p = pts.get(e.pointerId), q = loc(e), dx = q[0] - p[0], dy = q[1] - p[1];
-    if (pts.size === 1) { S7.cam.x -= dx / S7.cam.k; S7.cam.y -= dy / S7.cam.k; moved += Math.abs(dx) + Math.abs(dy); s7Req(); }
+    if (pts.size === 1) { S7.cam.x -= dx / S7.cam.k; S7.cam.y -= dy / S7.cam.k; moved += Math.abs(dx) + Math.abs(dy); if (moved >= 6) S7.user = true; s7Req(); }
     pts.set(e.pointerId, q);
     if (pts.size === 2 && pinch0) { const [a, b] = [...pts.values()]; moved = 99; s7ZoomAt(pinch0.k * Math.hypot(a[0] - b[0], a[1] - b[1]) / pinch0.d / S7.cam.k, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); } });
   const up = e => { if (!pts.has(e.pointerId)) return; pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null;
@@ -13323,17 +13323,18 @@ function s7El() { if (S7.el) return S7.el;
   el.addEventListener('wheel', e => { if (!S7.cam) return; e.preventDefault(); const [wx, wy] = loc(e); s7ZoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, wx, wy); }, { passive: false });
   return (S7.el = el); }
 function s7ToS(x, y) { const c = S7.cam; return [(x - c.x) * c.k + S7.W / 2, (y - c.y) * c.k + S7.H / 2]; }
-function s7Clamp() { const c = S7.cam, W = S7.W, H = S7.H, PADB = 6, kmin = Math.min(W / 1020, (H - PADB) / 1030) * 0.98; c.k = Math.max(kmin, Math.min(3, c.k));
-  const hw = W / 2 / c.k, hh = H / 2 / c.k, ylo = -10 + hh, yhi = 1020 - (H / 2 - PADB) / c.k;
-  c.x = hw * 2 >= 1020 ? 500 : Math.max(-10 + hw, Math.min(1010 - hw, c.x)); c.y = yhi <= ylo ? (ylo + yhi) / 2 : Math.max(ylo, Math.min(yhi, c.y)); }
+function s7Clamp() { const c = S7.cam, W = S7.W, H = S7.H, PADB = 6, V = s19Vis(), vw = V.R - V.L, vh = V.B - V.T, ox = (V.L + V.R) / 2 - W / 2, oy = (V.T + V.B) / 2 - H / 2, kmin = Math.min(vw / 1020, (vh - PADB) / 1030) * 0.98; c.k = Math.max(kmin, Math.min(3, c.k));
+  /* 가로는 보이는 영역(V)의 가운데를 기준으로 막는다. 세로(V = 화면 전체)는 ox = oy = 0 이라 예전과 같다 */
+  const hw = vw / 2 / c.k, hh = vh / 2 / c.k, ylo = -10 + hh, yhi = 1020 - (vh / 2 - PADB) / c.k, vx = c.x + ox / c.k, vy = c.y + oy / c.k;
+  c.x = (hw * 2 >= 1020 ? 500 : Math.max(-10 + hw, Math.min(1010 - hw, vx))) - ox / c.k; c.y = (yhi <= ylo ? (ylo + yhi) / 2 : Math.max(ylo, Math.min(yhi, vy))) - oy / c.k; }
 let s7Raf = 0;
 function s7Req() { if (!s7Raf) s7Raf = requestAnimationFrame(() => { s7Raf = 0; s7Cam(); }); }
 function s7ZoomAt(f, px, py) { const c = S7.cam; if (!c) return; const wx = (px - S7.W / 2) / c.k + c.x, wy = (py - S7.H / 2) / c.k + c.y; c.k *= f; s7Clamp(); c.x = wx - (px - S7.W / 2) / c.k; c.y = wy - (py - S7.H / 2) / c.k; s7Req(); }
-ACT.s7z = v => { s7ZoomAt(+v || 1, S7.W / 2, S7.H / 2); };
+ACT.s7z = v => { const V = s19Vis(); S7.user = true; s7ZoomAt(+v || 1, (V.L + V.R) / 2, (V.T + V.B) / 2); };
 function s7Cam() { const el = S7.el; if (!el || !el.isConnected || !S) return; S7.W = el.offsetWidth; S7.H = el.offsetHeight; if (!S7.W || !S7.H) return;
-  if (!S7.cam) { const c = s7Data().by[UI.city] || { x: 500, y: 500 }; S7.cam = { x: c.x, y: c.y, k: S7.land ? 0.72 : 0.55 }; }
+  if (!S7.cam) { const c = s7Data().by[UI.city] || { x: 500, y: 500 }; S7.cam = { x: c.x, y: c.y, k: S7.land ? 0.72 : 0.55 }; S7.user = false; if (S7.land) s19Center(c.x, c.y); }
   s7Clamp(); const c = S7.cam; el.querySelector('#s7world').setAttribute('transform', `translate(${(S7.W / 2 - c.x * c.k).toFixed(2)},${(S7.H / 2 - c.y * c.k).toFixed(2)}) scale(${c.k.toFixed(4)})`); s7Draw(); }
-function s7Focus(n) { const c = s7Data().by[n]; if (!c) return; if (!S7.cam || !S7.W) { S7.cam = null; return; } const [sx, sy] = s7ToS(c.x, c.y); const L = S7.land ? 100 : S7.W * 0.12, R = S7.land ? S7.W - 280 : S7.W * 0.88, T = S7.land ? 60 : S7.H * 0.12, B = S7.land ? S7.H - 12 : S7.H * 0.88; if (sx < L || sx > R || sy < T || sy > B) { S7.cam.x = c.x; S7.cam.y = c.y; if (S7.land) s19Shift(); } }
+function s7Focus(n) { const c = s7Data().by[n]; if (!c) return; if (!S7.cam || !S7.W) { S7.cam = null; return; } const [sx, sy] = s7ToS(c.x, c.y); const V = s19Vis(), m = S7.land ? 24 : 0, L = S7.land ? V.L + m : S7.W * 0.12, R = S7.land ? V.R - m : S7.W * 0.88, T = S7.land ? V.T + 20 : S7.H * 0.12, B = S7.land ? V.B - 20 : S7.H * 0.88; if (sx < L || sx > R || sy < T || sy > B) { if (S7.land) s19Center(c.x, c.y); else { S7.cam.x = c.x; S7.cam.y = c.y; } } }
 // 주인·세력색·계절이 바뀌었을 때만 층을 다시 채운다
 function s7Update() { const el = S7.el, sk = seasonKey(), { cs } = s7Data();
   const nf = Object.keys(S.fac).length; if (S7.nf !== nf) { S7.nf = nf; if (typeof fixFacCols === 'function') { const cols = Object.values(S.fac).map(F => F.col); if (new Set(cols).size < cols.length) fixFacCols(); } }
@@ -13922,13 +13923,28 @@ body.s7L #sheet .dkhint{font-size:13px;font-weight:400;color:#aab2cf;white-space
 body.s7L #sheet .dk .row,body.s7L #sheet .dk .row:has(>.fc){min-height:44px}
 body.s7L #sheet .dk .shb .b,body.s7L #sheet .dk .shf .b{min-height:44px}
 body.s7L #sheet .dk .shf>.b{min-height:48px}
+/* v1.10: ⓘ·메뉴 터치 44px(상단바 44px, 도크 머리는 보이는 크기 그대로 터치 영역만 확장), 개발 탭 띠는 줄바꿈, 레일은 낮은 화면에서 스크롤 */
+body.s7L #s7top{height:44px}
+body.s7L #s7top .b.s{height:44px;min-height:44px;min-width:44px}
+body.s7L #sheet .shh .hb{position:relative;min-width:44px}
+body.s7L #sheet .shh .hb::after{content:'';position:absolute;left:0;right:0;top:-6px;bottom:-6px}
+body.s7L #sheet .devtabs{flex-wrap:wrap;overflow:visible;white-space:normal;gap:3px;padding:2px 0 6px}
+body.s7L #sheet .devtabs .dg{display:none}
+body.s7L #sheet .devtabs button{padding:0 7px;min-height:36px}
+body.s7L #s7rail{overflow-y:auto;scrollbar-width:none}
+body.s7L #s7rail::-webkit-scrollbar{display:none}
 </style>
 <script>
 // ===== v1.9: 가로 도크 (설계: docs/변화_UI_저장_음악.md v1.9). 시트 로직은 그대로, renderSheet 뒤에 DOM 만 좌우로 나눈다 =====
 const S19 = { top: null, l: 0, r: 0 };
 // 지도의 '내 도시로' : 선택 도시가 아군이면 그 도시, 아니면 수도. 카드에 가리지 않는 가운데로 맞춘다
-function s19Shift() { const c = S7.cam; if (!c || !S7.land) return; c.x += 89 / c.k; c.y -= 24 / c.k; s7Req(); }
-ACT.s7home = () => { if (!S7.cam) return; const cc = C(UI.city), n = cc && cc.owner === S.player ? UI.city : capitalOf(S.player), d = n && s7Data().by[n]; if (!d) return; S7.cam.x = d.x; S7.cam.y = d.y; s19Shift(); };
+// 보이는 영역 = 왼쪽 레일(76px+여백)·위 상단바·오른쪽 패널(262px+여백, 도크가 열리면 패널이 숨으므로 제외)·도크 위쪽을 뺀 부분. 세로는 화면 전체
+function s19Vis() { const W = S7.W || 0, H = S7.H || 0; if (!S7.land) return { L: 0, R: W, T: 0, B: H };
+  const sh = document.querySelector('#sheet.on .sh'), T = 56, B = sh ? H - 16 - sh.offsetHeight : H - 8;
+  return { L: 92, R: sh ? W - 8 : W - 278, T, B: Math.max(T + 40, B) }; }
+// 세계 좌표 (x,y) 가 보이는 영역의 한가운데 오도록 카메라를 옮긴다
+function s19Center(x, y) { const c = S7.cam; if (!c) return; const V = s19Vis(); c.x = x - ((V.L + V.R) / 2 - S7.W / 2) / c.k; c.y = y - ((V.T + V.B) / 2 - S7.H / 2) / c.k; s7Req(); }
+ACT.s7home = () => { if (!S7.cam) return; const cc = C(UI.city), n = cc && cc.owner === S.player ? UI.city : capitalOf(S.player), d = n && s7Data().by[n]; if (!d) return; S7.user = false; s19Center(d.x, d.y); };
 // 시트가 열린 채 지도의 도시를 누르면: 시트 안에 그 도시를 값으로 가진 행(대상 목록)이 있으면 그 행을 누른 것과 같다
 function s19MapPick(n) { try { const el = [...document.querySelectorAll('#sheet .sh [data-a][data-v]')].find(e => e.dataset.v === n && !e.disabled); if (el) el.click(); } catch (e) { } }
 function s19Arrows(list, up, dn) { const upd = () => { up.disabled = list.scrollTop <= 1; dn.disabled = list.scrollTop + list.clientHeight >= list.scrollHeight - 1; };
@@ -13952,7 +13968,7 @@ function s19Dock() { const sh = document.querySelector('#sheet .sh'); if (!sh ||
   if ([...sh.querySelectorAll('[data-a][data-v]')].some(e => S.city[e.dataset.v] && e.closest('.shb, .dkl'))) { const h = mk('span', 'dkhint'); h.textContent = '지도의 도시를 눌러도 고를 수 있음'; shh.append(h); }
   const fl = sh.querySelector('.flash'); if (fl && fl.scrollIntoView) fl.scrollIntoView({ block: 'center' }); }
 { const f = renderSheet; renderSheet = function () { let o = null; try { const L = document.querySelector('#sheet .dkL'), R = document.querySelector('#sheet .sh.dk .shb'); S19.l = L ? L.scrollTop : 0; S19.r = R ? R.scrollTop : 0; } catch (e) { }
-  const r = f.apply(this, arguments); try { s19Dock(); S19.top = UI.sheets[UI.sheets.length - 1] || null; } catch (e) { console.error('s19Dock', e); } return r; }; }
+  const r = f.apply(this, arguments); try { s19Dock(); S19.top = UI.sheets[UI.sheets.length - 1] || null; const open = !!document.querySelector('#sheet.on .sh.dk'); if (open && !S19.open && S7.land && S7.cam && !S7.user && UI.city) s7Focus(UI.city); S19.open = open; } catch (e) { console.error('s19Dock', e); } return r; }; }
 </script>
 <!-- /v108 v1.9 -->
 <script>
