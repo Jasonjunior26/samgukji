@@ -9149,11 +9149,12 @@ function openFacility() {
   openSheet(`${UI.city} · 시설`, () => { const c = C(UI.city); const cap = gradeOf(c); const has = c.facs || [];
     return devTabsHtml('시설') + `<div class="kv">${GRADE_NAME[cap]} · 시설 ${has.length}/${cap}칸 · 다음 시설 금 ${fmt(Math.round(facCost(c) * (1 - cabEff(S.player, '건설') * 0.1)))}</div>${has.map(f => `<div class="govr"><span class="grow"><b>${f}</b><small>${FACS[f]}</small></span>${btn('헐기', 'facDel', f, { s: 1 })}</div>`).join('') || '<p class="dim">아직 시설이 없습니다.</p>'}
     <div class="kv">지을 시설</div><div class="grid2">${Object.keys(FACS).filter(f => !has.includes(f)).map(f => btn(`${f}<small>${f === '공방' && WORKSHOP[c.n] ? '특산 공방이 이미 있음 — 내정 → 공방에서 바로 제작' : f === '공방' && gradeOf(c) < 2 ? '군(2등급) 이상 도시만' : FACS[f]}</small>`, 'facPick', f, { p: UI.f.fac === f, s: 1, dis: !canFac(c, f) || has.length >= cap })).join('')}</div>
-    ${UI.f.fac ? `<div class="kv">감독 (정치 경험)</div>${freeList().sort((a, b) => stat(b, 'p') - stat(a, 'p')).map((g, i) => genRow(g, `정${stat(g, 'p')}${i < 3 ? '<i class="rec">추천</i>' : ''}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}` : ''}`; },
-    () => btn(UI.f.fac && UI.f.g ? `${UI.f.g}에게 ${UI.f.fac} 공사를 맡긴다` : '시설과 감독을 고르세요', 'facGo', '', { p: 1, dis: !(UI.f.fac && UI.f.g) }));
+    ${UI.f.fac ? `<div class="kv">${UI.f.fac} 공사 · 금 ${fmt(Math.round(facCost(c) * (1 - cabEff(S.player, '건설') * 0.1)))}</div>${s112Line(s112Fac())}` : ''}`; },
+    () => { const ag = s112Fac(); return btn(UI.f.fac && ag ? `${UI.f.fac} 공사를 맡긴다` : (UI.f.fac ? '이번 달 행동할 장수가 없습니다' : '시설을 고르세요'), 'facGo', '', { p: 1, dis: !(UI.f.fac && ag) }); });
 }
 ACT.facPick = v => { UI.f.fac = v; renderSheet(); };
-ACT.facGo = () => done(cmdBuild(UI.city, UI.f.g, UI.f.fac));
+const s112Fac = () => s112Auto(UI.city, g => stat(g, 'p') * 1000 + stat(g, 'c'));
+ACT.facGo = () => { const g = s112Fac(); if (!g || !UI.f.fac) return toast('이번 달 행동할 장수가 없습니다.', false); done(cmdBuild(UI.city, g.n, UI.f.fac)); };
 ACT.facDel = v => { const r = cmdDemolish(UI.city, v); toast(r.msg); renderSheet(); render(); };
 function openGradeUp() {
   openSheet(`${UI.city} · 승급`, () => { const c = C(UI.city); const g = gradeOf(c); const r = gradeReady(c);
@@ -9185,10 +9186,16 @@ ACT.spGo = () => done(cmdSpar(UI.city, UI.f.a, UI.f.b));
 // 토벌·병법·첩보
 function openSuppress() { UI.f = { g: null }; openSheet(`${UI.city} · 토벌`, () => `<div class="kv">산적 ${banditOf(C(UI.city))} (60 이상이면 가끔 민충·금을 빼앗김)</div><div class="dim sm">무력 경험, 민충 +2, 금 100. 산적이 적으면 할 수 없습니다.</div>${freeList().sort((a, b) => stat(b, 'w') - stat(a, 'w')).map((g, i) => genRow(g, `무${stat(g, 'w')}${i < 3 ? '<i class="rec">추천</i>' : ''}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`, () => btn(UI.f.g ? `${UI.f.g}에게 토벌을 맡긴다` : '장수를 고르세요', 'suGo', '', { p: 1, dis: !UI.f.g || banditOf(C(UI.city)) < 10 })); }
 ACT.suGo = () => done(cmdSuppress(UI.city, UI.f.g));
-function openTactics() { UI.f = { g: null }; openSheet(`${UI.city} · 병법 연구`, () => `<div class="dim sm">지력·통솔 경험. 이 도시에서 3개월 안에 나가는 부대 사기 +5, 진형 숙련 연구 중이면 조금 빨라집니다.</div>${freeList().sort((a, b) => stat(b, 'i') - stat(a, 'i')).map((g, i) => genRow(g, `지${stat(g, 'i')}${i < 3 ? '<i class="rec">추천</i>' : ''}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`, () => btn(UI.f.g ? `${UI.f.g}에게 병법 연구를 맡긴다` : '장수를 고르세요', 'taGo', '', { p: 1, dis: !UI.f.g })); }
-ACT.taGo = () => done(cmdTactics(UI.city, UI.f.g));
-function openSpyCmd() { UI.f = { g: null, t: null }; openSheet(`${UI.city} · 도시 정찰`, () => { const ts = ADJ[UI.city].map(C).filter(c => c.owner && c.owner !== S.player); return `<div class="dim sm">맞닿은 적 도시를 살펴 장수·병력 정보를 쌓습니다. 지력·안목 경험.</div><div class="grid3">${ts.map(c => btn(`${c.n}<small>${fname(c.owner)}</small>`, 'spyT', c.n, { p: UI.f.t === c.n, s: 1 })).join('') || '<p class="dim">맞닿은 적 도시가 없습니다.</p>'}</div>${freeList().sort((a, b) => stat(b, 'i') + stat(b, 'a') - stat(a, 'i') - stat(a, 'a')).map((g, i) => genRow(g, `지${stat(g, 'i')} 안${stat(g, 'a')}${i < 3 ? '<i class="rec">추천</i>' : ''}`, 'pick', g.n, UI.f.g === g.n)).join('') || noGen()}`; }, () => btn(UI.f.g && UI.f.t ? `${UI.f.g}에게 ${UI.f.t} 도시 정찰을 맡긴다` : '대상과 장수를 고르세요', 'spyGo', '', { p: 1, dis: !(UI.f.g && UI.f.t) })); }
-ACT.spyT = v => { UI.f.t = v; renderSheet(); }; ACT.spyGo = () => done(cmdSpy(UI.city, UI.f.g, UI.f.t));
+// v1.12-3b: 장수 목록 없이 확인 카드 + 담당 자동 배정(그 도시에서 행동 안 한 장수 중 해당 능력 최고)
+function s112Auto(cn, score) { const L = freeGens(cn, S.player).slice().sort((a, b) => score(b) - score(a)); return L[0] || null; }
+function s112Line(g) { return g ? `<div class="kv">담당: ${g.n}(자동)</div>` : '<div class="warn">이번 달 행동할 장수가 없습니다.</div>'; }
+function s112Foot(label, act, ok) { return `<div class="grid2">${btn(label, act, '', { p: 1, dis: !ok, why: ok ? '' : '이번 달 행동할 장수가 없습니다' })}${btn('취소', 'close', '', {})}</div>`; }
+const s112Tac = () => s112Auto(UI.city, g => stat(g, 'i') * 1000 + stat(g, 't'));
+const s112Spy = () => s112Auto(UI.city, g => (stat(g, 'i') + stat(g, 'a')) * 1000 + stat(g, 'i'));
+function openTactics() { UI.f = { g: null }; openSheet(`${UI.city} · 병법 연구`, () => `<p>병법을 연구합니다. 비용 없음 · 3개월 안에 이 도시에서 나가는 부대 사기 +5, 진형 숙련 연구 중이면 조금 빨라집니다.</p>${s112Line(s112Tac())}`, () => s112Foot('실행', 'taGo', !!s112Tac()), { cf: 1 }); }
+ACT.taGo = () => { const g = s112Tac(); if (!g) return toast('이번 달 행동할 장수가 없습니다.', false); done(cmdTactics(UI.city, g.n)); };
+function openSpyCmd() { UI.f = { g: null, t: null }; openSheet(`${UI.city} · 도시 정찰`, () => { const ts = ADJ[UI.city].map(C).filter(c => c.owner && c.owner !== S.player); return `<p>맞닿은 적 도시를 살펴 장수·병력 정보를 쌓습니다. 비용 없음.</p><div class="grid3">${ts.map(c => btn(`${c.n}<small>${fname(c.owner)}</small>`, 'spyT', c.n, { p: UI.f.t === c.n, s: 1 })).join('') || '<p class="dim">맞닿은 적 도시가 없습니다.</p>'}</div>${s112Line(s112Spy())}`; }, () => { const ok = !!s112Spy() && !!UI.f.t; return s112Foot(UI.f.t ? `${UI.f.t} 정찰` : '대상을 고르세요', 'spyGo', ok); }, { cf: 1 }); }
+ACT.spyT = v => { UI.f.t = v; renderSheet(); }; ACT.spyGo = () => { const g = s112Spy(); if (!g || !UI.f.t) return toast(!g ? '이번 달 행동할 장수가 없습니다.' : '대상을 고르세요.', false); done(cmdSpy(UI.city, g.n, UI.f.t)); };
 // 메뉴 연결
 {
   const sub = ACT.sub;
@@ -13708,6 +13715,91 @@ function tip(id, msg) { const k = 'sg_seen_' + id; try { if (TIP_MEM[id] || LS.g
 { const f = openPolicy; openPolicy = function () { f.apply(this, arguments); setTimeout(() => tip('pol'), 200); }; }
 </script>
 <!-- /v107 S9 -->
+<!-- v1.12-3b 확인 카드: 서원·상거래·징병 수량 -->
+<script>
+// ===== v1.12-3b: 서원·상거래는 확인 카드(담당 자동), 징병은 수량 입력(장수 자동 배정). 효과 수식은 기존 cmd* 그대로 =====
+const s112Aca = () => s112Auto(UI.city, g => stat(g, 'p') * 1000 + stat(g, 'a'));
+function openAcademy() {
+  UI.f = { g: null };
+  openSheet(`${UI.city} · 서원`, () => {
+    const c = C(UI.city), a = c.acad || 0; if (a >= 5) return '<p>서원이 이미 최고 단계입니다.</p>';
+    const cost = acadCost(c);
+    return `<p>서원을 넓힙니다 (${a} → ${a + 1}단계). 금 ${fmt(cost)} (지금 ${fmt(c.gold)}) · 매년 봄 청년 인재가 더 많이, 더 뛰어나게 모입니다.</p>${s112Line(s112Aca())}`;
+  }, () => { const c = C(UI.city); const ok = (c.acad || 0) < 5 && !!s112Aca(); return s112Foot('실행', 'acGo', ok); }, { cf: 1 });
+}
+ACT.acGo = () => { const g = s112Aca(); if (!g) return toast('이번 달 행동할 장수가 없습니다.', false); done(cmdAcademy(UI.city, g.n)); };
+{ const f = openDevMulti; openDevMulti = function (kind) { if (kind === '서원') return openAcademy(); return f.apply(this, arguments); }; }
+
+const s112Trd = () => s112Auto(UI.city, g => stat(g, 'p') * 1000 + stat(g, 'c'));
+function openTrCard() {
+  const nat = UI.f && UI.f.nat || null; const N = nat && TR_NAT[nat];
+  openSheet(`${N ? N.n : UI.city} · 상거래`, () => {
+    let lim = ''; try { lim = ` · 이번 달 교역 한도 금 ${fmt(trLeft(S.player, nat))}`; } catch (e) { }
+    return `<p>상거래를 시작합니다. 행동 1회를 쓰고, 그 뒤 거래는 여러 번 할 수 있습니다${lim}.</p>${s112Line(s112Trd())}`;
+  }, () => s112Foot('시작', 'trCardGo', !!s112Trd()), { cf: 1 });
+}
+ACT.trCardGo = () => {
+  const g = s112Trd(); if (!g) return toast('이번 달 행동할 장수가 없습니다.', false);
+  const r = trStart(g.n); if (!r.ok) return toast(r.msg, false);
+  UI.sheets.pop(); UI._s112Tr = g.n; openTrMarket();
+};
+{ const f = openTrMarket; openTrMarket = function () {
+  if (!UI._s112Tr) return openTrCard();
+  const gn = UI._s112Tr; UI._s112Tr = null; f.apply(this, arguments); UI.f.g = gn; UI.f.ses = true; renderSheet();
+}; }
+
+// ---- 징병: 수량 입력 ----
+function s112DraftSim(want) {
+  const c = C(UI.city); const res = { plan: [], total: 0, gold: 0, why: '' };
+  if (c.loy < 20) { res.why = '민충이 낮아 징병할 수 없습니다 (20 이상 필요)'; return res; }
+  const gs = freeList().slice().sort((a, b) => ((hasTr(b, '모병가') ? 1 : 0) - (hasTr(a, '모병가') ? 1 : 0)) || (stat(b, 't') - stat(a, 't')));
+  if (!gs.length) { res.why = '이번 달 행동할 장수가 없습니다'; return res; }
+  const sv = [c.pop, c.troops, c.loy], d0 = DR_IRON; let gold = c.gold, left = want;
+  DR_IRON = !!UI.f.iron && useHas(UI.city, '철', 1);
+  try {
+    for (const g of gs) {
+      if (left < 100 || c.loy < 20) break;
+      const mb = hasTr(g, '모병가'); let cap = draftCap(c); if (mb) cap = Math.floor(cap * 1.3 / 100) * 100;
+      if (cap < 100) { if (!res.plan.length) res.why = '인구·병력 한도 때문에 더 모을 수 없습니다'; break; }
+      const costOf = a => { let k = draftCost(c, a); if (mb) k = Math.round(k * 0.7 / 10) * 10; return k; };
+      let a = Math.min(left, cap); while (a >= 100 && costOf(a) > gold) a -= 100;
+      if (a < 100) { if (!res.plan.length) res.why = '금이 부족합니다'; break; }
+      const k = costOf(a); gold -= k; left -= a; res.total += a; res.gold += k; res.plan.push({ g, amt: a });
+      c.pop = Math.max(0, c.pop - a); c.troops += a; c.loy = clamp(c.loy - Math.ceil(a / (mb ? 800 : 400)), 0, 100);
+    }
+  } finally { [c.pop, c.troops, c.loy] = sv; DR_IRON = d0; }
+  return res;
+}
+function s112DraftMax() { return s112DraftSim(1e9); }
+function s112DraftPv(q) { const r = s112DraftSim(q); const f = Math.ceil(r.total / (ECO.troopFood || 15));
+  return { r, html: r.total ? `장수 ${r.plan.length}명 사용 · 병력 +${fmt(r.total)} · 금 −${fmt(r.gold)} · 군량 월 −${fmt(f)}(유지)` : (r.why || '수량을 정하세요') }; }
+function s112DraftFoot(q, pv) { const n = pv.r.plan.length; return `<div class="grid2">${btn(n ? `징병 ${fmt(pv.r.total)}명` : '징병', 'dsGo', '', { p: 1, dis: !n })}${btn('취소', 'close', '', {})}</div>`; }
+openDraft = function () {
+  UI.f = { keep: true };
+  openSheet(`${UI.city} · 징병`, () => {
+    const c = C(UI.city), mx = s112DraftMax(), max = mx.total;
+    UI.f.dq = Math.max(0, Math.min(UI.f.dq == null ? Math.min(1000, max) : UI.f.dq, max)); UI.f.dmax = max;
+    const pv = s112DraftPv(UI.f.dq); const iron = trCityCargo(UI.city).철 || 0;
+    const bar = typeof S7 !== 'undefined' && S7.land ? `<div class="grid2">${btn('징병', 's11cur', '', { p: 1, s: 1 })}${btn('용병', 's11mode', '용병', { s: 1 })}</div>` : '';
+    return `${bar}<div class="kv">모을 병사 <b id="s112v">${fmt(UI.f.dq)}</b> / ${fmt(max)}명</div>
+      <div class="grid5">${[-1000, -100, 100, 1000].map(d => btn((d > 0 ? '+' : '−') + fmt(Math.abs(d)), 's112dq', d, { s: 1 })).join('')}${btn('최대', 's112dq', 'max', { s: 1 })}</div>
+      <input type="range" class="mvs" id="s112dq" min="0" max="${max}" step="100" value="${UI.f.dq}"${max < 100 ? ' disabled' : ''}>
+      ${iron ? `<div class="grid2">${btn('철 투입<small>비용 −10% · 훈련↑ (창고 ' + iron + '개)</small>', 'drIron', '', { p: !!UI.f.iron, s: 1 })}</div>` : ''}
+      <div class="kv" id="s112pv">${pv.html}</div><div class="kv">인구 ${fmt(c.pop)} · 병력 ${fmt(c.troops)} · 금 ${fmt(c.gold)} · 민충 ${c.loy}</div>`;
+  }, () => s112DraftFoot(UI.f.dq, s112DraftPv(UI.f.dq || 0)), { cf: 1 });
+};
+ACT.s112dq = v => { const mx = UI.f.dmax || 0; UI.f.dq = v === 'max' ? mx : Math.max(0, Math.min(mx, (UI.f.dq || 0) + +v)); renderSheet(); };
+document.addEventListener('input', e => {
+  if (!e.target || e.target.id !== 's112dq') return; UI.f.dq = Math.max(0, Math.min(UI.f.dmax || 0, +e.target.value || 0));
+  const pv = s112DraftPv(UI.f.dq); const a = document.getElementById('s112v'); if (a) a.textContent = fmt(UI.f.dq);
+  const b = document.getElementById('s112pv'); if (b) b.innerHTML = pv.html; const ft = document.querySelector('#sheet .shf'); if (ft) ft.innerHTML = s112DraftFoot(UI.f.dq, pv);
+});
+ACT.dsGo = () => {
+  const sim = s112DraftSim(UI.f.dq || 0); if (!sim.plan.length) return toast(sim.why || '징병할 수 없습니다.', false);
+  const res = []; sim.plan.forEach(p => { const r = cmdDraft(UI.city, p.g.n, p.amt); if (r) res.push(r); });
+  closeAll(); render(); openSheet('징병 결과', () => res.map(r => `<div class="log ${r.ok ? '' : 'warn'}">${esc(r.msg)}</div>`).join('') || '<p class="dim">실행된 명령이 없습니다.</p>');
+};
+</script>
 <!-- v107 v1.6 가로 고정 보강·설명 접기·장수 한 줄 -->
 <style>
 /* v1.6 설명은 ⓘ(body.s7help) 때만: 숫자 없는 부가 문장·조각은 .ds 로 접는다 */
