@@ -13638,10 +13638,13 @@ function trFxHtml(fid) {
   const P = trPriceMul(fid), tier = trLuxTier(fid), o = trFx(fid), fx = k => trBranchFx(fid, TR_FX_BR[k]) || 1;
   const L = { drill: ['연수', `금 ${fmt(Math.round(TR6C.drill * P / fx('drill')))} · 능력 +1`], mat: ['물자', `금 ${fmt(Math.round(TR6C.mat * P))} · 군비 +${Math.max(1, Math.round(TR6C.matArm * fx('mat')))}`], arb: ['차익', `약 금 ${fmt(Math.round(trArbX(fid) * P))}`], wel: ['민생', `금 ${fmt(Math.round(TR6C.wel * P))}+군량`], armz: ['군비화', `군량 ${fmt(TR6C.armzFood)}→군비`] };
   const ks = Object.keys(L).filter(k => trOpen(fid, TR_FX_BR[k]));
-  const items = ks.map(k => [k, L[k][0], `전용 · ${L[k][1]}`]).concat([['lux', tier ? `고가품 ${tier}등급` : '고가품', tier ? '공통' : `공통 · 교역도 ${TR6C.lux[0]}↑`]]);
+  // v1.12: 교역 효과를 명령 행으로. 고가품은 예상 순이익·남은 횟수를 보인다(효과 수식은 그대로)
+  const cnt = k => { const m = TR6C[k + 'Mo']; return m ? ` · 이번 달 ${trFxCnt(fid, k)}/${m}회` : ''; };
+  const luxPrev = () => { if (!tier) return `교역도 ${TR6C.lux[0]} 이상인 나라가 있어야 합니다 (현재 최고 ${trRelMax(fid)})`; const mer = trRoot(fid) === '상략', x0 = trLuxX(fid), cap = Math.max(1, trLuxCap(fid)), sat = Math.max(0.2, 1 - o.volL / cap), mg = TR6C.luxM[tier - 1] * (mer && tier >= 2 ? TR6C.luxMer : 1) * sat; return `예상 순이익 금 ${fmt(Math.round(x0 * mg * P - TR6C.luxFee * x0 * P))} (이익률 ${(mg * 100).toFixed(1)}%${sat < 1 ? ` · 포화 ×${sat.toFixed(2)}` : ''}) · ${tier}등급${cnt('lux')}`; };
+  const items = ks.map(k => [k, L[k][0], `${L[k][1]}${cnt(k)}`]).concat([['lux', '고가품 판매', luxPrev()]]);
   const n = trUnits(fid).length, pt = trFxCities(fid).reduce((s, c) => s + trPopTier(c), 0);
   const pas = [n && trOpen(fid, '병종') ? `병종 ${n}개 · 전선 훈련 월 +${(TR6C.unitTrain * n * trBranchFx(fid, '병종')).toFixed(2)}` : '', pt ? `덕화 인구 구간 ${pt} · 수입 +${Math.round(TR6C.popInc * 100)}%` : '', o.traits ? `개성 학습 ${o.traits}/${TR6C.traitMax}` : ''].filter(Boolean);
-  return `<div class="kv">교역 효과</div><div class="grid3">${items.map(([k, l, d]) => btn(`${l}<small>${d}</small>`, 'trFx', k, { dis: !!trFxWhy(fid, k), why: trFxWhy(fid, k), s: 1 })).join('')}</div>${pas.length ? `<div class="dim sm">${pas.join(' · ')}</div>` : ''}`;
+  return `<div class="kv">교역 행동</div>${items.map(([k, l, d]) => { const w = trFxWhy(fid, k); return s7Row(l, w && k !== 'lux' ? d + `<span class="warn"> · ${w}</span>` : d, 'trFx', k, !!w, 'exec'); }).join('')}${pas.length ? `<div class="dim sm">${pas.join(' · ')}</div>` : ''}`;
 }
 ACT.trFx = v => { const r = trFxDo(S.player, v); toast(r.msg, r.ok); if (r.ok) news(r.msg); if (UI.sheets.length) renderSheet(); render(); };
 // ---------- 교역 커맨드 (ACT.cmd('교역')) ----------
@@ -13776,7 +13779,7 @@ function s16Esc(t) { return String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<
 // 숫자가 없는 부가 문장은 접는다(.ds). 값이 든 조각(숫자·경고)은 남긴다.
 function s16Trim(root) { if (!root) return; { const tp = UI.sheets[UI.sheets.length - 1]; if (tp && tp.cf && root.classList && root.classList.contains('sh')) return; } const N0 = t => /\d/.test(t);
   root.querySelectorAll('small,div.dim,p.dim,div.sm,.s7note,.kv,.shb>p').forEach(el => {
-    if (el.dataset.t) return; el.dataset.t = '1';
+    if (el.dataset.t) return; el.dataset.t = '1'; if (el.closest && el.closest('.row.k-exec')) return; /* v1.12: 실행 행 설명은 접지 않음 */
     if (el.querySelector('.warn,.rec,button,input,select') || el.classList.contains('warn')) return;
     const tx = el.textContent.trim(); if (!tx) return; const kv = el.classList.contains('kv'), N = kv ? N0 : (t => N0(t) && t.length <= 12); // 값 조각: 숫자가 있고 짧은 것(문장은 접음)
     if (el.children.length === 0 && tx.indexOf(' · ') > 0) { const ps = tx.split(' · '); if (ps.some(N) && !ps.every(N)) el.innerHTML = ps.map(p => `<span class="${N(p) ? 'pk' : 'ds'}">${s16Esc(p)}</span>`).join(''); else if (!ps.some(N)) { if (kv) el.innerHTML = ps.map((p, i) => `<span class="${i ? 'ds' : 'pk'}">${s16Esc(p)}</span>`).join(''); else el.classList.add('ds'); } return; }
