@@ -13206,7 +13206,12 @@ function s7RotSync() { const b = document.body, want = !!(UI.scr !== 'v4' && UI.
 (function () { let done = false; function lock() { try { const q = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); if (q && q.catch) q.catch(() => { }); } catch (e) { } }
   function go() { if (done) return; try { if (!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) { done = true; return; } const d = document.documentElement; if (document.fullscreenElement) { done = true; lock(); return; } const p = d.requestFullscreen ? d.requestFullscreen() : null; if (p && p.then) p.then(() => { done = true; lock(); }).catch(() => { }); else { done = true; lock(); } } catch (e) { } }
   // 전체화면은 click/touchend(사용자 활성화) 때만 허용된다. 실패하면 다음 탭에서 다시 시도. 못 해도 body 90도 회전이 폴백.
-  document.addEventListener('click', go, { passive: true }); document.addEventListener('touchend', go, { passive: true }); })();
+  document.addEventListener('click', go, { passive: true }); document.addEventListener('touchend', go, { passive: true });
+  // v1.12: 다른 앱에 다녀오거나 전체화면이 풀리면 다시 시도하고 화면 크기·회전을 다시 계산(삼성 인터넷 주소창 복귀 대응)
+  function fsSync() { try { const on = !!document.fullscreenElement, ok = !!(document.documentElement.requestFullscreen && window.matchMedia && window.matchMedia('(pointer: coarse)').matches); document.body.classList.toggle('fs', on); document.body.classList.toggle('fsok', ok); if (!on) done = false; setTimeout(() => { try { window.dispatchEvent(new Event('resize')); } catch (e) { } }, 120); } catch (e) { } }
+  document.addEventListener('fullscreenchange', fsSync); document.addEventListener('visibilitychange', () => { if (!document.hidden) fsSync(); }); window.addEventListener('pageshow', fsSync);
+  window.addEventListener('load', () => { try { fsSync(); } catch (e) { } });
+  window.S7FS = () => { try { const d = document.documentElement; const p = d.requestFullscreen ? d.requestFullscreen() : null; if (p && p.then) p.then(lock).catch(() => { }); } catch (e) { } }; })();
 function s7Price() { try { return typeof facPriceIdx === 'function' ? facPriceIdx(S.player) : (S.pIdx || 1); } catch (e) { return 1; } }
 // ---------- 색: 지도 전용 진한·고채도 세력색 (목업 3·4차 mapCol: 명도 상한 45, 채도 ×1.7, 채도 하한 35) ----------
 const S7COL = (() => {
@@ -13439,7 +13444,7 @@ function s7Main() { const F = S.fac[S.player], cs = citiesOf(S.player), gs = gen
   const top = `<div id="s7top"><span class="dt"><i class="fc" style="background:${F.col}"></i>${S.y}년 ${S.m}월 · ${fname(S.player)}</span><span class="st"><i>금</i><b>${fmt(tg)}</b><u>녹봉 ${fmt(sal)}</u></span><span class="st"><i>군량</i><b>${fmt(tf)}</b></span><span class="st"><i>병력</i><b>${fmt(tt)}</b></span>${disc ? `<span class="st"><u class="warn">불만 ${disc}</u></span>` : ''}${S.coal ? '<span class="st"><u class="warn">연합견제</u></span>' : ''}${S.missions.length ? `<span class="st nm"><u>정찰 ${S.missions.length}</u></span>` : ''}${env ? `<span class="st nm"><u>파견 ${env}</u></span>` : ''}<span class="st pr"><i>물가</i><b>${Math.round(pr * 100)}%</b></span><span class="sp"></span>`
     + (r ? `<button type="button" class="chip root" data-a="s7info" data-v="root" title="눌러서 설명 보기">노선: ${r}</button>` : `<button type="button" class="chip root" data-a="rootMenu">노선 선택</button>`)
     + `<button type="button" class="chip pol" data-a="s7pol" title="눌러서 국책 고르기"><i>국책</i>${ps.length ? ps.map(p => { const o = typeof RT_POL !== 'undefined' && r && RT_POL[p] === r; return `<b class="${o ? 'own' : ''}">${p}${o ? '★' : ''}</b>`; }).join('·') : '<b>없음</b>'}</button>`
-    + `${btn('도움', 's16help', '', { s: 1, aria: '도움말 — 설명 보기 켜고 끄기' })}${btn('설정', 'sys', '', { s: 1, aria: '설정 (저장·불러오기·소리)' })}</div>`;
+    + `${btn('전체', 's7fs', '', { s: 1, aria: '전체화면으로 보기' }).replace('class="b s"', 'class="b s fsb"')}${btn('도움', 's16help', '', { s: 1, aria: '도움말 — 설명 보기 켜고 끄기' })}${btn('설정', 'sys', '', { s: 1, aria: '설정 (저장·불러오기·소리)' })}</div>`;
   const rail = `<nav id="s7rail">${S7_TABS.map(t => `<button type="button" class="${t === S7.tab ? 'on' : ''}" data-a="s7tab" data-v="${t}"><svg viewBox="0 0 24 24">${S7_ICON[t]}</svg>${t}</button>`).join('')}</nav>`;
   return `<div class="scr main s7m">${top}${rail}<div id="s7mapw">${vMap()}</div><aside id="s7panel"><div id="s7ps">${s7Panel()}</div>${btn('이번 달 끝내기', 'endMonth', '', { p: 1 })}</aside></div>`; }
 // 세로 배치는 그대로 두고, 지운 덧씌움 4개(물가·운영 설정·부도 지정·계절 표식)를 문자열로 흡수
@@ -13734,9 +13739,11 @@ body.s7L .shf .b{min-height:32px;padding-top:2px;padding-bottom:2px;font-size:13
 #s7top>*{flex-shrink:0}
 #s7top .dt{flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 #s7top .sp{flex:1 1 0;min-width:0}
-#s7top .b.s{flex:0 0 auto;position:sticky;right:0;background:#0b1022;box-shadow:-6px 0 6px #0b1022}
-#s7top .b.s[data-a=sys]{width:auto;min-width:58px;padding:0 8px;font-size:13px;border-color:#ffd75e;color:#ffd75e;z-index:3}
-#s7top .b.s[data-a=s16help]{right:64px}
+/* v1.12: 도움·설정·전체 단추는 같은 모양, sticky·그림자 없이 오른쪽 끝에 나란히 */
+#s7top .b.s{flex:0 0 auto;width:auto;min-width:48px;padding:0 10px;font-size:13px;position:static;box-shadow:none}
+#s7top .sp{margin-right:2px}
+#s7top .fsb{display:none}
+body.fsok:not(.fs) #s7top .fsb{display:inline-flex}
 .s11dev{margin:6px 0 2px}.s11dev summary{font-size:12px;color:#8e9ac4;cursor:pointer;padding:4px 2px}.s11dev .col{margin-top:4px}
 /* v1.7: 명령 간격 압축 (행 약 36px, 간격 2px, 글자 13px, 터치 32px 이상) */
 body.s7L #s7ps{padding:4px 6px}
@@ -13776,10 +13783,11 @@ function s16Trim(root) { if (!root) return; const N0 = t => /\d/.test(t);
     if (!kv && !N(tx)) el.classList.add('ds'); }); }
 function s16Sync() { document.body.classList.toggle('s7help', !!S16.help); s17Fit(); }
 // v1.7: 상단바가 넘치면 덜 중요한 칩부터 숨겨 ⓘ·메뉴가 항상 보이게 한다(우선순위 낮은 것부터).
-const S17_HIDE = ['.st.nm', '.st.pr', '.chip.sea', '.chip.pol', '.st>u:not(.warn)', '.chip.root', '.st.fd', '.st.tr'];
+const S17_HIDE = ['.st.nm', '.st.pr', '.chip.sea', '.st>u:not(.warn)', '.st.fd', '.st.tr', '.chip.pol', '.st:has(>u.warn)']; // v1.12: 노선 칩(.chip.root)·도움·설정은 숨기지 않는다
 function s17Fit() { const t = document.getElementById('s7top'); if (!t) return; t.querySelectorAll('.s17x').forEach(e => e.classList.remove('s17x'));
   for (const sel of S17_HIDE) { if (t.scrollWidth <= t.clientWidth + 1) break; t.querySelectorAll(sel).forEach(e => e.classList.add('s17x')); } }
 try { addEventListener('resize', () => setTimeout(s17Fit, 60)); addEventListener('orientationchange', () => setTimeout(s17Fit, 300)); } catch (e) { }
+ACT.s7fs = () => { if (window.S7FS) window.S7FS(); };
 ACT.s16help = () => { S16.help = !S16.help; try { LS.setItem('sg_help', S16.help ? '1' : '0'); } catch (e) { } s16Sync(); };
 { const f = renderSheet; renderSheet = function () { const r = f.apply(this, arguments); try { if (document.body.classList.contains('s7L')) { const sh = document.querySelector('#sheet .sh'); if (sh) { s16Trim(sh); const h = sh.querySelector('.shh'); if (h && !h.querySelector('.hb')) h.insertBefore(document.createRange().createContextualFragment(btn('ⓘ', 's16help', '', { s: 1, aria: '설명 보기' }).replace('class="b s"', 'class="b s hb"')), h.children[1] || null); setTimeout(() => tip('help'), 300); } } } catch (e) { } return r; }; }
 { const f = render; render = function () { const r = f.apply(this, arguments); try { s16Sync(); if (UI.scr === 'main') s16Trim(document.getElementById('s7ps')); } catch (e) { } return r; }; }

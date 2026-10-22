@@ -4,9 +4,9 @@
 <style>html,body{margin:0;height:100%;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style></head>
 <body>
 <!-- 사용: chrome --headless --allow-file-access-from-files --screenshot ... "file:///.../tools/shot_harness.html?s=장면이름&siege=0&terr=0&m=6"
-     게임(samguk_v107.html)을 iframe으로 열고, 아래 장면 함수로 전투 v4 시험 화면을 조작한다. 게임 파일은 고치지 않음.
+     게임(samguk_v108.html)을 iframe으로 열고, 아래 장면 함수로 전투 v4 시험 화면을 조작한다. 게임 파일은 고치지 않음.
      실제 출진 흐름(8단계): ?s=real|realover|realdone|realret|realretdone (아래 REAL 참고) -->
-<iframe id="g" src="../samguk_v107.html"></iframe>
+<iframe id="g" src="../samguk_v108.html"></iframe>
 <script>
 const Q = new URLSearchParams(location.search);
 const sl = ms => new Promise(r => setTimeout(r, ms));
