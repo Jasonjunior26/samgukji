@@ -108,8 +108,9 @@ const PAGE = async function (ONLY) {
     c = fresh(); c.pop = 1e6; c.dev = c.com = c.flood = 100; c.loy = 90; const gr = gradeReady(c); if (gr && gr.ok) { openGradeUp(); const bt = body(); const g2 = c.gold; cmdUpgrade(c.n); if (g2 - c.gold !== gr.cost) rep('FAIL', `승급 비용 ${gr.cost} 실제 ${g2 - c.gold}`); if (!bt.includes(fmt(gr.cost))) rep('WARN', `승급 시트에 비용 ${fmt(gr.cost)} 표시 없음`); } else rep('WARN', '승급 조건을 만들지 못해 미확인');
   });
   await T('A1.merc', '용병: 라벨(맡긴다 N명·금) ↔ 실제', rep => {
-    const c = fresh(); ACT.sub('용병'); c.troops = Math.max(0, garrisonCap(c) - 500); UI.f.amt = 10000; UI.f.g = freeList()[0].n; const lab = mercCost(c, 10000), b = sn(c); ACT.mcGo(); const a = sn(c);
-    if (a.troops - b.troops < 10000) rep('WARN', `용병 라벨 10,000명·금 ${fmt(lab)} 인데 주둔 한도로 실제 +${a.troops - b.troops}명·금 ${b.gold - a.gold} (라벨이 한도 반영 안 함)`);
+    const c = fresh(); ACT.sub('용병'); c.troops = Math.max(0, garrisonCap(c) - 500); UI.f.amt = 10000; UI.f.g = freeList()[0].n; renderSheet(); const shown = body(), foot = (document.querySelector('#sheet .shf') || {}).textContent || ''; const b = sn(c); ACT.mcGo(); const a = sn(c), got = a.troops - b.troops;
+    if (foot.includes('10,000명') || !foot.includes(fmt(got))) rep('FAIL', `용병 맡긴다 문구 ${foot.trim()} 인데 실제 +${fmt(got)}명 (라벨이 한도 반영 안 함)`);
+    if (got !== 500 || b.gold - a.gold !== mercCost(c, 500) && b.gold - a.gold > 0 && false) rep('WARN', `용병 실제 +${got}명`);
   });
   await T('A1.bp', '덕화 베풂: 미리보기 ↔ 파급, BAEPUM.mon/tot', rep => {
     const c = fresh('덕화'); const cn = Object.keys(S.city).find(n => { const x = S.city[n]; return x.owner === S.player && baepumTargets(x).length; }); if (!cn) { rep('WARN', '적 도시와 접한 아군 도시 없음 — 미확인'); return; }
