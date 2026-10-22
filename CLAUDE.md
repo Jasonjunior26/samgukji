@@ -15,6 +15,7 @@
 형식과 문서 지도는 `docs/README.md`.
 
 ## 빌드·모델 운영
+- **BUILD 갱신(필수)**: 게임 html을 빌드·커밋할 때마다 `samguk_v108.html` 383줄 `const BUILD = 'v108 · YYYY-MM-DD HH:MM'`을 그때의 버전·시각으로 올린다(타이틀 화면 하단 "버전"에 표시, `buildTime`이 `YYYY-MM-DD HH:MM` 형식을 읽음). `docs/README.md` 3줄의 현재 BUILD도 같이 고친다.
 - **빌드는 지시 후에**: 변경을 곧바로 `samguk_v108.html`에 반영하지 않는다. 충분히 숙고하고 시뮬레이션(`tools/`)과 결과 기록(`docs/변화_*.md`)을 끝낸 뒤, 사용자가 "빌드하자"고 할 때만 html을 고치고 커밋한다.
 - **모델**: 기본은 Sonnet(`.claude/settings.json`), 서브에이전트도 모델을 따로 지정하지 않는다. 요청이 다른 모델에 맞으면 작업 전에 먼저 알린다: 단순 잡무만이면 Haiku, 구조를 크게 바꾸는 설계면 Opus. 이때 "`/model <모델>`로 바꾸세요"를 함께 말한다.
 
