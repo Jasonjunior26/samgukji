@@ -7105,7 +7105,7 @@ ACT.toTitle = () => { closeAll(); UI.scr = 'title'; S = null; render(); };
 ACT.endMonth = () => {
   const left = gensOf(S.player).filter(g => !g.acted && g.inj === 0).length;
   const go = () => { closeAll(); const pend = endMonth(); UI.queue = pend.slice(); nextDefense(); };
-  if (left) openSheet('이번 달 끝내기', () => `<p>아직 행동하지 않은 장수가 ${left}명 있습니다. 이번 달을 끝낼까요?</p>`, () => btn('끝낸다', 'confirmEnd', '', { p: 1 }));
+  if (left) openSheet('이번 달 끝내기', () => `<p>아직 행동하지 않은 장수가 ${left}명 있습니다. 이번 달을 끝낼까요?</p>`, () => `<div class="grid2">${btn('끝낸다', 'confirmEnd', '', { p: 1 })}${btn('취소', 'close', '', {})}</div>`, { cf: 1 });
   else go();
   ACT.confirmEnd = go;
 };
@@ -8994,7 +8994,7 @@ ACT.focusAdd = v => { const r = toggleFocus(v); toast(r.msg, r.ok); closeSheet()
     const st = shortText(); const left = gensOf(S.player).filter(g => !g.acted && g.inj === 0).length;
     if (!st) return base();
     const go = () => { closeAll(); const pend = endMonth(); UI.queue = pend.slice(); nextDefense(); };
-    openSheet('이번 달 끝내기', () => `${left ? `<p>아직 행동하지 않은 장수가 ${left}명 있습니다. 남은 장수는 있는 도시에서 자동으로 수색합니다(군단 도시 제외).</p>` : ''}<div class="adv sm neg">다음 달 녹봉·유지비를 낼 금이 모자란 도시: ${st}<br>모자라면 그 도시 장수들이 녹봉을 못 받아 불만이 쌓이고, 병사가 떠납니다. 이동으로 금을 보내거나 세율을 올리세요.</div><p>그래도 이번 달을 끝낼까요?</p>`, () => btn('끝낸다', 'confirmEnd', '', { p: 1 }));
+    openSheet('이번 달 끝내기', () => `${left ? `<p>아직 행동하지 않은 장수가 ${left}명 있습니다. 남은 장수는 있는 도시에서 자동으로 수색합니다(군단 도시 제외).</p>` : ''}<div class="adv sm neg">다음 달 녹봉·유지비를 낼 금이 모자란 도시: ${st}<br>모자라면 그 도시 장수들이 녹봉을 못 받아 불만이 쌓이고, 병사가 떠납니다. 이동으로 금을 보내거나 세율을 올리세요.</div><p>그래도 이번 달을 끝낼까요?</p>`, () => `<div class="grid2">${btn('끝낸다', 'confirmEnd', '', { p: 1 })}${btn('취소', 'close', '', {})}</div>`, { cf: 1 });
     ACT.confirmEnd = go;
   };
 }
@@ -13774,7 +13774,7 @@ const S16 = { help: false };
 try { S16.help = LS.getItem('sg_help') === '1'; } catch (e) { }
 function s16Esc(t) { return String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 // 숫자가 없는 부가 문장은 접는다(.ds). 값이 든 조각(숫자·경고)은 남긴다.
-function s16Trim(root) { if (!root) return; const N0 = t => /\d/.test(t);
+function s16Trim(root) { if (!root) return; { const tp = UI.sheets[UI.sheets.length - 1]; if (tp && tp.cf && root.classList && root.classList.contains('sh')) return; } const N0 = t => /\d/.test(t);
   root.querySelectorAll('small,div.dim,p.dim,div.sm,.s7note,.kv,.shb>p').forEach(el => {
     if (el.dataset.t) return; el.dataset.t = '1';
     if (el.querySelector('.warn,.rec,button,input,select') || el.classList.contains('warn')) return;
@@ -13950,6 +13950,18 @@ html body.s7L #sheet .sh .shf{background:none!important;border:0}
 body.s7L #sheet .sh .shb{background:none}
 body.s7L #sheet .sh.dk{display:grid;grid-template-columns:56px minmax(0,1fr);grid-template-rows:36px minmax(0,1fr) auto}
 body.s7L #sheet .sh.dk.two{grid-template-columns:56px minmax(0,1fr) minmax(0,1fr) 52px;grid-template-rows:36px minmax(0,1fr)}
+/* v1.12: 단일 열 시트는 내용 높이에 맞추고(상한 78%), 좌우 분할은 화면에 비례. 내용이 짧으면 작게, 길면 안에서만 스크롤 */
+body.s7L #sheet .sh.dk.one{height:auto;min-height:132px;max-height:min(78%,calc(100% - 60px))}
+body.s7L #sheet .sh.dk.one>.shb{overflow-y:auto;min-height:0}
+body.s7L #sheet .sh.dk.two{height:clamp(220px,62%,360px)}
+body.s7L #sheet .sh img{max-width:100%;max-height:30vh;object-fit:contain}
+/* 확인 카드: 가운데 작은 카드, 본문 몇 줄 + 단추 */
+body.s7L #sheet .sh.cf{left:50%;right:auto;top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(380px,calc(100% - 120px));height:auto;max-height:80%}
+body.s7L #sheet .sh.cf .hb{display:none}
+body.s7L #sheet .sh.cf .shb{padding:10px 14px;overflow-y:auto;min-height:0}
+body.s7L #sheet .sh.cf .shb p{margin:0 0 6px}
+body.s7L #sheet .sh.cf .shf{padding:6px 12px 12px}
+body.s7L #sheet .sh.cf .shf .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 body.s7L #sheet .dk>.shh{grid-column:1/-1;grid-row:1}
 body.s7L #sheet .dk>.dks{grid-column:1;grid-row:2/-1}
 body.s7L #sheet .dk.one>.shb{grid-column:2;grid-row:2}
@@ -14002,6 +14014,7 @@ function s19Arrows(list, up, dn) { const upd = () => { up.disabled = list.scroll
   const go = d => () => list.scrollBy({ top: d * Math.max(66, Math.round(list.clientHeight * 0.85)), behavior: 'smooth' });
   up.onclick = go(-1); dn.onclick = go(1); list.addEventListener('scroll', upd, { passive: true }); upd(); requestAnimationFrame(upd); setTimeout(upd, 150); }
 function s19Dock() { const sh = document.querySelector('#sheet .sh'); if (!sh || !document.body.classList.contains('s7L') || sh.classList.contains('dk')) return;
+  { const tp = UI.sheets[UI.sheets.length - 1]; if (tp && tp.cf) { sh.classList.add('cf'); return; } } // v1.12 확인 카드
   const shh = sh.querySelector('.shh'), shb = sh.querySelector('.shb'), shf = sh.querySelector('.shf'); if (!shh || !shb) return;
   const mk = (t, c) => { const d = document.createElement(t); d.className = c; return d; };
   const faces = [...shb.querySelectorAll('.row:has(>.fc)')], P = faces.length ? faces[0].parentElement : null;
