@@ -10566,16 +10566,16 @@ openAnnual = function (y) { const A = S.annual || {}; const ys = Object.keys(A).
     const r = yy ? A[yy].me : rows[rows.length - 1], p = yy && A[yy - 1] ? A[yy - 1].me : null; const R = ratios(r), P = ratios(p);
     const d = (a, b, good) => { if (b == null || !isFinite(a) || !isFinite(b) || b === 0) return ''; const ch = (a - b) / Math.abs(b) * 100; if (Math.abs(ch) < 0.5) return '<span class="nv-d">→</span>'; return `<span class="nv-d">${ch > 0 ? '▲' : '▼'}${Math.abs(ch).toFixed(0)}%</span>`; };
     const exp = r.up + r.sal + r.trG; const notes = []; if (R.흑자율 < 0) notes.push(`월 지출이 수입보다 ${fmt(Math.round(exp - r.inc))} 많습니다.`); if (R.유지비율 >= 25) notes.push(`유지비율이 ${R.유지비율.toFixed(0)}%입니다. 시설·방어 탑이 많은 도시를 확인하세요.`); if (R.자급률 < 1.2) notes.push(`군량 자급률이 ${R.자급률.toFixed(2)}배입니다. 개발·치수를 올리거나 병력을 줄여야 합니다.`); if (R.군량비축 < 4) notes.push(`군량 비축이 ${R.군량비축.toFixed(1)}개월분입니다.`); if (P && R.실질수입 < P.실질수입 * 0.97) notes.push(`실질 수입이 줄었습니다(물가가 수입보다 빨리 오름).`); if (P && R.동원율 > P.동원율 * 1.3 && R.자급률 < 1.5) notes.push(`동원율이 크게 올라 군량 여유가 줄고 있습니다.`); if (p && r.n < p.n) notes.push(`도시가 ${p.n - r.n}곳 줄었습니다.`);
-    return `<div class="nv-doc"><div class="nv-h0">${yy ? yy + '년' : '최근'} 나라 살림 보고 <small>${fname(S.player)}</small></div>
+    return `<div class="nv-doc"><div class="nv-L"><div class="nv-h0">${yy ? yy + '년' : '최근'} 나라 살림 보고 <small>${fname(S.player)}</small></div>
       <div class="nv-tabs">${CH_KINDS2.map(k => `<button type="button" class="${UI.annKind === k ? 'on' : ''}" data-a="chK" data-v="${k}">${k}</button>`).join('')}</div>
       <div class="nv-seg"><button type="button" class="${UI.annMode !== '월별' ? 'on' : ''}" data-a="chM" data-v="연도별"${ys.length ? '' : ' disabled'}>연도별</button><button type="button" class="${UI.annMode === '월별' ? 'on' : ''}" data-a="chM" data-v="월별">월별 (최근 4년)</button></div>
       <div class="nv-chart">${nvChartOf(UI.annKind, sel)}</div><div class="nv-cap">${sr ? `${labels[sel]}${UI.annMode === '월별' ? '' : '년'} · 월 수입 ${fmt(sr.inc)} · 보유 금 ${fmt(sr.gold)} · 병력 ${fmt(sr.troops)} · 수확 ${fmt(sr.harv)} / 소비 ${fmt(sr.use)} · 물가 ${sr.price}` : '그래프를 누르면 그 시점의 숫자가 나옵니다.'}</div>
       ${ys.length ? `<div class="nv-yrs">${ys.slice(-10).map(k => `<button type="button" class="${k === yy ? 'on' : ''}" data-a="annY" data-v="${k}">${k}</button>`).join('')}</div>` : ''}
-      <div class="nv-h1"><span class="nv-bd">데이터</span> 1차 지표</div><table class="nv-t"><thead><tr><th>항목</th><th>올해</th><th>지난해</th><th>변화</th></tr></thead><tbody>${[['도시', r.n, p && p.n, v => v + '곳'], ['인구', r.pop, p && p.pop, v => fmt(Math.round(v / 1000)) + '천'], ['병력', r.troops, p && p.troops, fmt], ['보유 금', r.gold, p && p.gold, fmt], ['월 수입', r.inc, p && p.inc, fmt], ['월 지출', exp, p && (p.up + p.sal + p.trG), fmt], ['한 해 수확', r.harv, p && p.harv, fmt], ['한 해 소비', r.use, p && p.use, fmt], ['보유 군량', r.food, p && p.food, fmt], ['개발 · 상업 · 치수', r.dev, p && p.dev, () => `${r.dev} · ${r.com} · ${r.flood}`], ['민충', r.loy, p && p.loy, v => v], ['물가', r.price, p && p.price, v => (+v).toFixed(2)]].map(([l, a, b, f]) => `<tr><td>${l}</td><td class="num">${f(a)}</td><td class="num">${b != null ? (l.startsWith('개발') ? `${p.dev} · ${p.com} · ${p.flood}` : f(b)) : '-'}</td><td class="num">${b != null ? d(a, b) : ''}</td></tr>`).join('')}</tbody></table>
+      </div><div class="nv-Rr"><div class="nv-h1"><span class="nv-bd">데이터</span> 1차 지표</div><table class="nv-t"><thead><tr><th>항목</th><th>올해</th><th>지난해</th><th>변화</th></tr></thead><tbody>${[['도시', r.n, p && p.n, v => v + '곳'], ['인구', r.pop, p && p.pop, v => fmt(Math.round(v / 1000)) + '천'], ['병력', r.troops, p && p.troops, fmt], ['보유 금', r.gold, p && p.gold, fmt], ['월 수입', r.inc, p && p.inc, fmt], ['월 지출', exp, p && (p.up + p.sal + p.trG), fmt], ['한 해 수확', r.harv, p && p.harv, fmt], ['한 해 소비', r.use, p && p.use, fmt], ['보유 군량', r.food, p && p.food, fmt], ['개발 · 상업 · 치수', r.dev, p && p.dev, () => `${r.dev} · ${r.com} · ${r.flood}`], ['민충', r.loy, p && p.loy, v => v], ['물가', r.price, p && p.price, v => (+v).toFixed(2)]].map(([l, a, b, f]) => `<tr><td>${l}</td><td class="num">${f(a)}</td><td class="num">${b != null ? (l.startsWith('개발') ? `${p.dev} · ${p.com} · ${p.flood}` : f(b)) : '-'}</td><td class="num">${b != null ? d(a, b) : ''}</td></tr>`).join('')}</tbody></table>
       <div class="nv-h1"><span class="nv-bd">데이터</span> 2차 지표 (비율) · 천하 비교</div><table class="nv-t nv-t5"><thead><tr><th>지표 · 정의</th><th>올해</th><th>지난해</th><th>천하 평균</th><th>순위</th></tr></thead><tbody>${RATIO_DEF.map(([k, def, f, dir]) => { const cmp = yy ? Object.entries(A[yy].all).filter(([, x]) => x && x.inc != null && x.use != null).map(([id, x]) => ({ id, v: ratios(x)[k] })).filter(o => isFinite(o.v)) : []; const avg = cmp.length ? cmp.reduce((s, o) => s + o.v, 0) / cmp.length : null; const ord = cmp.slice().sort((a, b) => dir < 0 ? a.v - b.v : b.v - a.v); const rk = ord.findIndex(o => o.id === S.player) + 1;
       return `<tr><td>${RNAME[k]}<div class="def">${def}</div></td><td class="num"><b>${f(R[k])}</b></td><td class="num">${P ? f(P[k]) : '-'}</td><td class="num">${avg != null ? f(avg) : '-'}</td><td class="num">${rk && dir ? rk + ' / ' + ord.length : rk ? '<span class="def">' + rk + ' / ' + ord.length + '</span>' : '-'}</td></tr>`; }).join('')}</tbody></table><div class="nv-cap">순위: 유지비율은 낮을수록, 동원율·장수당 병력은 높은 순(좋고 나쁨이 아님), 나머지는 높을수록 앞.</div>
       <div class="nv-h1"><span class="nv-bd">데이터</span> 천하 순위</div><table class="nv-t"><thead><tr><th>도시</th><th>월 수입</th><th>병력</th><th>인구</th></tr></thead><tbody><tr>${yy ? ['n', 'inc', 'troops', 'pop'].map(key => { const arr = Object.entries(A[yy].all).sort((a, b) => b[1][key] - a[1][key]); return `<td class="num">${arr.findIndex(([id]) => id === S.player) + 1} / ${arr.length}</td>`; }).join('') : '<td colspan="4">연도 기록이 쌓이면 나옵니다.</td>'}</tr></tbody></table>
-      <div class="nv-h1"><span class="nv-bd2">판단</span> 짚을 점</div>${notes.length ? notes.map(t => `<div class="nv-p">· ${esc(t)}</div>`).join('') : '<div class="nv-p">특별히 짚을 점이 없습니다.</div>'}</div>`; }, () => btn('닫기', 'close', '', { p: 1 })); };
+      <div class="nv-h1"><span class="nv-bd2">판단</span> 짚을 점</div>${notes.length ? notes.map(t => `<div class="nv-p">· ${esc(t)}</div>`).join('') : '<div class="nv-p">특별히 짚을 점이 없습니다.</div>'}</div></div>`; }, () => btn('닫기', 'close', '', { p: 1 }), { inf: 1 }); };
 ACT.chK = v => { UI.annKind = v; renderSheet(); };
 
 ACT.cmpK = v => { UI.cmpK = v; renderSheet(); };
@@ -14050,6 +14050,18 @@ body.s7L #sheet .sh.dk.one{height:auto;min-height:132px;max-height:min(78%,calc(
 body.s7L #sheet .sh.dk.one>.shb{overflow-y:auto;min-height:0}
 body.s7L #sheet .sh.dk.two{height:clamp(220px,62%,360px)}
 body.s7L #sheet .sh img{max-width:100%;max-height:30vh;object-fit:contain}
+/* 정보형(inf): 화면 가득, 좌(그래프)·우(표) 두 칸이 각자 스크롤 — 연간 보고서 */
+body.s7L #sheet .sh.inf .shb{overflow:hidden;padding:0}
+body.s7L #sheet .sh.inf .nv-doc{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:0;height:100%;min-height:0;border-radius:8px;overflow:hidden}
+body.s7L #sheet .sh.inf .nv-L,body.s7L #sheet .sh.inf .nv-Rr{min-height:0;overflow-y:auto;padding:8px 10px;scrollbar-width:thin}
+body.s7L #sheet .sh.inf .nv-Rr{border-left:1px solid #C7D2E0}
+body.s7L #sheet .sh.inf .nv-chart svg{width:100%;height:auto;max-height:170px}
+body.s7L #sheet .sh.inf .shf{display:none}
+body.s7L #sheet .sh.dk.one.inf{height:min(92%,calc(100% - 52px));max-height:none}
+body.s7L #sheet .sh.inf .nv-h0{font-size:15px;margin-bottom:4px}
+body.s7L #sheet .sh.inf .nv-tabs,body.s7L #sheet .sh.inf .nv-seg{gap:3px;margin-bottom:4px}
+body.s7L #sheet .sh.inf .nv-tabs button,body.s7L #sheet .sh.inf .nv-seg button,body.s7L #sheet .sh.inf .nv-yrs button{padding:3px 6px;font-size:12px;min-height:28px}
+body.s7L #sheet .sh.inf .nv-cap{font-size:12px}
 /* 확인 카드: 가운데 작은 카드, 본문 몇 줄 + 단추 */
 body.s7L #sheet .sh.cf{left:50%;right:auto;top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(380px,calc(100% - 120px));height:auto;max-height:80%}
 body.s7L #sheet .sh.cf .hb{display:none}
@@ -14109,7 +14121,7 @@ function s19Arrows(list, up, dn) { const upd = () => { up.disabled = list.scroll
   const go = d => () => list.scrollBy({ top: d * Math.max(66, Math.round(list.clientHeight * 0.85)), behavior: 'smooth' });
   up.onclick = go(-1); dn.onclick = go(1); list.addEventListener('scroll', upd, { passive: true }); upd(); requestAnimationFrame(upd); setTimeout(upd, 150); }
 function s19Dock() { const sh = document.querySelector('#sheet .sh'); if (!sh || !document.body.classList.contains('s7L') || sh.classList.contains('dk')) return;
-  { const tp = UI.sheets[UI.sheets.length - 1]; if (tp && tp.cf) { sh.classList.add('cf'); return; } } // v1.12 확인 카드
+  { const tp = UI.sheets[UI.sheets.length - 1]; if (tp && tp.cf) { sh.classList.add('cf'); return; } if (tp && tp.inf) sh.classList.add('inf'); } // v1.12 확인 카드·정보형(inf)
   const shh = sh.querySelector('.shh'), shb = sh.querySelector('.shb'), shf = sh.querySelector('.shf'); if (!shh || !shb) return;
   const mk = (t, c) => { const d = document.createElement(t); d.className = c; return d; };
   const faces = [...shb.querySelectorAll('.row:has(>.fc)')], P = faces.length ? faces[0].parentElement : null;

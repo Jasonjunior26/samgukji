@@ -6,7 +6,7 @@
 <!-- v107 S7 UI v1.4 시험기. 게임 파일은 고치지 않는다.
      촬영: chrome --headless=new --allow-file-access-from-files --window-size=800,360 --screenshot=... "file:///.../tools/s7_harness.html?m=4"
      기능 시험: --dump-dom "...?m=4&test=1" → 결과 JSON (pre#out)
-     인자: m=월(계절), city=선택 도시, tab=탭, info=root|pol, sheet=명령(군사 등, 시트 열기), root=뿌리, zoom=배율 -->
+     인자: m=월(계절), city=선택 도시, tab=탭, info=root|pol, sheet=명령(군사 등, 시트 열기), save=세이브 json 절대경로(슬래시), end=1(이번 달 끝내기), ev=임의 JS, root=뿌리, zoom=배율 -->
 <iframe id="g" src="../samguk_v108.html"></iframe>
 <pre id="out"></pre>
 <script src="s7_contrast.js"></script>
@@ -21,6 +21,7 @@ document.getElementById('g').addEventListener('load', async () => {
     w.eval(`newGame('조조'); UI.scr = 'main'; S.m = ${+(Q.get('m') || 4)}; S.fac[S.player].root = S.fac[S.player].root || ${JSON.stringify(Q.get('root') || '경륜')};
       S.fac[S.player].pol = S.fac[S.player].pol && S.fac[S.player].pol.length ? S.fac[S.player].pol : ['구현령', '상업 진흥'];
       UI.city = ${JSON.stringify(Q.get('city') || '')} || capitalOf(S.player); UI.sheets = []; render();`);
+    if (Q.get('save')) { const t = await (await fetch('file:///' + Q.get('save'))).text(); w.eval('loadText')(t); w.eval("UI.scr = 'main'; UI.sheets = []; UI.city = UI.city || capitalOf(S.player); render();"); }
     await sl(150);
     if (Q.get('tab')) w.eval('ACT').s7tab(Q.get('tab'));
     if (Q.get('info')) w.eval('ACT').s7info(Q.get('info'));
