@@ -6374,11 +6374,6 @@ function priceIdx() { if (!S) return 1; if (!S.inc0) S.inc0 = worldInc() || 1; c
 function econSnap(fid) { const cs = citiesOf(fid).filter(c => kindOf(c.n) === '도시'); const n = Math.max(1, cs.length); const sum = k => cs.reduce((s, c) => s + (typeof k === 'function' ? k(c) : (c[k] || 0)), 0);
   const inc = sum(c => Math.round(cityGold(c, (c.tax || 30) / 30) / 3) + ECO.cityBase); const up = sum(c => upkeepOf(c)); const sal = gensOf(fid).reduce((s, g) => s + salary(g), 0); const trG = Math.round(sum('troops') / ECO.troopGold);
   return { y: S.y, n: cs.length, gold: sum('gold'), food: sum('food'), inc, up, sal, trG, harv: sum(c => cityFood(c, (c.tax || 30) / 30)), use: sum(c => Math.ceil(c.troops / ECO.troopFood) * 12), pop: sum('pop'), troops: sum('troops'), dev: Math.round(sum('dev') / n), com: Math.round(sum('com') / n), flood: Math.round(sum('flood') / n), loy: Math.round(sum('loy') / n), grade: +(sum(c => gradeOf(c)) / n).toFixed(1), facs: sum(c => (c.facs || []).length), towers: sum(c => c.towers || 0), gens: gensOf(fid).length, price: +priceIdx().toFixed(2) }; }
-monthStep('L6364', { pre: () => { const was = S.m; return was; }, post: was => { try { if (was === 12 && S.m === 1 && !S.over) { S.annual = S.annual || {}; const y = S.y - 1; const all = {}; Object.values(S.fac).filter(F => F.alive).forEach(F => { const s = econSnap(F.id); s.y = y; all[F.id] = s; }); const me = econSnap(S.player); me.y = y; S.annual[y] = { me, all, world: { price: me.price, inc: Math.round(worldInc()) } }; Object.keys(S.annual).map(Number).filter(k => k < y - 20).forEach(k => delete S.annual[k]);
-      (S.eventQueue = S.eventQueue || []).unshift({ id: 'annual', title: `${y}년 연간 보고`, art: 'palace', face: S.fac[S.player].ruler, text: `${y}년 한 해의 나라 살림을 정리했습니다.`, opts: [{ l: '보고서 보기', a: 'annualOpen:' + y }, { l: '나중에', a: 'none' }] }); } } catch (e) { }
-} });
-// 매달 기록 (최근 48개월) — 연간 보고서 그래프용
-monthStep('econSnap', { post: () => { try { if (!S.over && S.fac[S.player] && S.fac[S.player].alive) { const s = econSnap(S.player); S.econM = S.econM || []; S.econM.push({ t: S.y * 12 + S.m, gold: s.gold, inc: s.inc, up: s.up, sal: s.sal, trG: s.trG, food: s.food, harv: s.harv, use: s.use, troops: s.troops, pop: s.pop, dev: s.dev, com: s.com, flood: s.flood, loy: s.loy, n: s.n, price: s.price }); if (S.econM.length > 48) S.econM.splice(0, S.econM.length - 48); } } catch (e) { }} });
 // 다른 세력에서 쌓인 불만은 새 주군을 섬기면 사라짐 (등용·귀순·포로 등용 모두)
 { const f = joinFac; joinFac = function (g, fid) { const old = g && g.fac; const r = f.apply(this, arguments); try { if (g && fid && old !== fid) { g.disc = 0; g.why = null; g.promise = null; g.idle = 0; g.unpaid = 0; g.rewards = []; } } catch (e) { } return r; }; }
 // 불러올 때: 이미 잘못 남아 있는 불만 정리 (우리 세력에 온 뒤 쌓인 이유가 아니면)
@@ -13421,6 +13416,12 @@ function trFxMonthly() {
     if (Math.random() < TR6C.popFind * t) { try { const g = spawnRandom(c.n); if (g) { g.st = '현역'; g.fac = c.owner; g.loc = c.n; g.loy = 70; const o = trFx(c.owner); o.n.인재 = (o.n.인재 || 0) + 1; if (c.owner === S.player) news(`${c.n}의 넉넉한 백성 사이에서 ${g.n}이(가) 나와 우리 편이 되었다 (덕화).`); } } catch (e) { } } });
 }
 monthStep('trFxMonthly', { post: () => { try { trFxMonthly(); } catch (e) { console.warn('tr6c', e); }} });
+// 경제 기록 둘(연간 보고 was·econSnap)은 월 단계 맨 끝 — 교역·교역 효과가 끝난 뒤 수치를 잰다(설계 P7/F8)
+monthStep('L6364', { pre: () => { const was = S.m; return was; }, post: was => { try { if (was === 12 && S.m === 1 && !S.over) { S.annual = S.annual || {}; const y = S.y - 1; const all = {}; Object.values(S.fac).filter(F => F.alive).forEach(F => { const s = econSnap(F.id); s.y = y; all[F.id] = s; }); const me = econSnap(S.player); me.y = y; S.annual[y] = { me, all, world: { price: me.price, inc: Math.round(worldInc()) } }; Object.keys(S.annual).map(Number).filter(k => k < y - 20).forEach(k => delete S.annual[k]);
+      (S.eventQueue = S.eventQueue || []).unshift({ id: 'annual', title: `${y}년 연간 보고`, art: 'palace', face: S.fac[S.player].ruler, text: `${y}년 한 해의 나라 살림을 정리했습니다.`, opts: [{ l: '보고서 보기', a: 'annualOpen:' + y }, { l: '나중에', a: 'none' }] }); } } catch (e) { }
+} });
+// 매달 기록 (최근 48개월) — 연간 보고서 그래프용
+monthStep('econSnap', { post: () => { try { if (!S.over && S.fac[S.player] && S.fac[S.player].alive) { const s = econSnap(S.player); S.econM = S.econM || []; S.econM.push({ t: S.y * 12 + S.m, gold: s.gold, inc: s.inc, up: s.up, sal: s.sal, trG: s.trG, food: s.food, harv: s.harv, use: s.use, troops: s.troops, pop: s.pop, dev: s.dev, com: s.com, flood: s.flood, loy: s.loy, n: s.n, price: s.price }); if (S.econM.length > 48) S.econM.splice(0, S.econM.length - 48); } } catch (e) { }} });
 
 </script>
 <script>

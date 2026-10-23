@@ -1,13 +1,13 @@
 {
  "hash": {
-  "1-조조": "전체 d590670ecbdf seed 1 months 24",
-  "1-조조--auto": "전체 5bc0d33ff918 seed 1 months 24",
-  "1-유비": "전체 9adaa6a45526 seed 1 months 24",
-  "1-유비--auto": "전체 a9d691a78441 seed 1 months 24",
-  "2-조조": "전체 87b58adae920 seed 2 months 24",
-  "2-조조--auto": "전체 3ac71136210a seed 2 months 24",
-  "2-유비": "전체 54406ea89f2a seed 2 months 24",
-  "2-유비--auto": "전체 ec1627d49a3f seed 2 months 24"
+  "1-조조": "전체 e3ea3826ef08 seed 1 months 24",
+  "1-조조--auto": "전체 aeae4fa720de seed 1 months 24",
+  "1-유비": "전체 53a15a089e50 seed 1 months 24",
+  "1-유비--auto": "전체 aa710be45a1f seed 1 months 24",
+  "2-조조": "전체 92f8e135f33f seed 2 months 24",
+  "2-조조--auto": "전체 f4b8ca6876b9 seed 2 months 24",
+  "2-유비": "전체 db379a8984de seed 2 months 24",
+  "2-유비--auto": "전체 0ecd664b9576 seed 2 months 24"
  },
  "probe": {
   "p2_mobilize.js": "[[\"정책없음\",1,\"금\",-390,\"병력\",1200,\"민충\",\"75->85\",true],[\"총동원령(뿌리 없음)\",1,\"금\",-363,\"병력\",1200,\"민충\",\"75->85\",true],[\"총동원령(소속 뿌리)\",1,\"금\",-363,\"병력\",1200,\"민충\",\"75->85\",true],[\"총동원령(비소속 뿌리)\",0.6,\"금\",-374,\"병력\",1200,\"민충\",\"75->85\",true]]",
