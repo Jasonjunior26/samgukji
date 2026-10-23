@@ -24,7 +24,7 @@ const errs = [];
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { errs.push('block' + i + ': ' + e.message); } });
 if (errs.length) console.log("로드 에러:", errs.join(" | ").slice(0, 900));
 const PROBE = opt('--probe', '');
-if (PROBE) { const files = PROBE.split(','); files.forEach(f => { let r; try { r = vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f }); } catch (e) { r = 'ERR ' + e.message; } console.log(path.basename(f), JSON.stringify(r)); }); process.exit(0); }
+if (PROBE) { const files = PROBE.split(','); files.forEach(f => { _s = SEED >>> 0; /* 탐침마다 같은 난수열에서 시작(앞 탐침의 소비량에 영향받지 않게) */ let r; try { r = vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f }); } catch (e) { r = 'ERR ' + e.message; } console.log(path.basename(f), JSON.stringify(r)); }); process.exit(0); }
 const out = vm.runInContext(`(() => {
   const L = []; let ex = [];
   newGame(${JSON.stringify(FAC)}); if (${A.includes("--auto")}) citiesOf(S.player).forEach(c => { c.autoKeep = true; c.autoMil = true; });
