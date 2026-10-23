@@ -9,6 +9,7 @@ const NAT = ['kor', 'jpn', 'eeu', 'weu', 'usa'];
 const DIST = { kor: 1.0, jpn: 1.0, eeu: 1.5, weu: 2.2, usa: 3.0 };
 const SETS = { A: { d: 6, c: 200 }, B: { d: 4, c: 200 }, C: { d: 4, c: 120 }, D: { d: 6, c: 40 }, S120: { d: 5, c: 120, kp: 1 }, S90: { d: 5, c: 90, kp: 1 }, S60: { d: 5, c: 60, kp: 1 }, S45: { d: 5, c: 45, kp: 1 }, S30: { d: 5, c: 30, kp: 1 }, S60k200: { d: 5, c: 60 },
   Q_S0: { d: 5, c: 60, kp: 1, st: 'S0' }, Q_S1: { d: 5, c: 60, kp: 1, st: 'S1' }, Q_S2: { d: 5, c: 60, kp: 1, st: 'S2' },
+  Q3_A: { d: 5, c: 60, kp: 2, st: 'S2', rule: 'A', imm: 1 }, Q3_B: { d: 5, c: 60, kp: 2, st: 'S2', rule: 'B', imm: 1 }, Q3_A24: { d: 5, c: 60, kp: 2, st: 'S2', rule: 'A', px: 'm24' }, Q3_B24: { d: 5, c: 60, kp: 2, st: 'S2', rule: 'B', px: 'm24' },
   Q_P0: { d: 5, c: 60, kp: 1, st: 'S1', px: 'm0' }, Q_P24: { d: 5, c: 60, kp: 1, st: 'S1', px: 'm24' }, Q_PN: { d: 5, c: 60, kp: 1, st: 'S1', px: 'none' } };
 let USE = Object.keys(SETS); try { const a = JSON.parse(process.argv[3] || '{}'); if (a.sets) USE = a.sets; } catch (e) { }
 const K = 200, DECAY = 1, BUDGET = 0.5, HUBG = 0.5;
@@ -52,7 +53,7 @@ vm.runInContext(`(() => {
   const hubCount = (f, n) => HUBDIR[n].filter(cn => S.city[cn] && S.city[cn].owner === f).length;
   const origPrice = priceIdx;
   let T = null, MO = 0, ERR = '';
-  function mk(n0) { const o = {}; PR.sets.forEach(k => { o[k] = { K: SETS[k].kp ? K * Math.max(1, n0 / 12) : K, rel: {}, first100: {}, sp: {}, gained: 0, cut: 0, snap: {}, tal: {}, fr: {} }; NAT.forEach(n => o[k].rel[n] = {}); }); return o; }
+  function mk(n0) { const o = {}; PR.sets.forEach(k => { o[k] = { K: SETS[k].kp ? K * Math.max(SETS[k].kp === 2 ? 1.5 : 1, n0 / 12) : K, rel: {}, first100: {}, sp: {}, gained: 0, cut: 0, snap: {}, tal: {}, fr: {} }; NAT.forEach(n => o[k].rel[n] = {}); }); return o; }
   function raise(t, f, n, dl) {
     const R = t.rel[n]; const before = R[f] || 0; let v = Math.min(100, before + dl); R[f] = v;
     const ids = Object.keys(R); let tot = 0; ids.forEach(i => tot += R[i]);
@@ -74,19 +75,36 @@ vm.runInContext(`(() => {
     const sc = n => (Math.pow(1 / DIST[n], pr.w) * (1 + HUBG * hubs[n]) * pr.taste[NAT.indexOf(n)]);
     const cand = () => NAT.filter(n => !q.foc.includes(n) && !((q.ban[n] || 0) > mo)).sort((a, b) => sc(b) - sc(a));
     const rel = n => t.rel[n][f] || 0;
-    const s2 = s.st === 'S2';
+    const pl = f === PX && !!s.px; // 플레이어 대리(px 세트): 포기·정지 규칙 없이 주력만 밀어붙임
+    const s2 = s.st === 'S2' && !pl;
     if (s2) { q.foc.slice().forEach(n => { if (rankOf(t, n, f) > 5 && rel(n) < 30) { q.ban[n] = mo + 12; q.foc.splice(q.foc.indexOf(n), 1); t.skips = (t.skips || 0) + 1; } }); }
     q.foc.slice().forEach(n => { if ((q.low[n] || 0) >= 12) { q.ban[n] = mo + 24; q.foc.splice(q.foc.indexOf(n), 1); q.low[n] = 0; t.switches = (t.switches || 0) + 1; } });
     if (q.foc.length === 0 || (q.foc.length < 5 && q.foc.every(n => q.done[n]))) { let c = cand(); if (s2) c = c.filter(n => !(rankOf(t, n, f) > 5 && rel(n) < 30)); if (c.length) q.foc.push(c[0]); }
     let budget = pr.fr * net, spent = 0, dem = 0;
     for (const n of q.foc) { const r = rel(n); if (r >= 100) continue;
-      if (s2 && r >= 80) { let c100 = 0; Object.keys(t.rel[n]).forEach(i => { if (i !== f && t.rel[n][i] >= 99.999) c100++; }); if (c100 >= 2) continue; }
+      if (s.rule === 'B' && !pl) { let c80 = 0; Object.keys(t.rel[n]).forEach(i => { if (i !== f && t.rel[n][i] >= 79.999) c80++; }); if (r >= 80 || c80 >= 3) { q.done[n] = true; continue; } }
+      else if (s2 && r >= 80) { let c100 = 0; Object.keys(t.rel[n]).forEach(i => { if (i !== f && t.rel[n][i] >= 99.999) c100++; }); if (c100 >= 2) continue; }
       const c = costOf(s.c, P, n, r); dem += c;
       if (c <= budget) { budget -= c; spent += c; t.fr[f] = (t.fr[f] || 0) + c; raise(t, f, n, s.d * (1 + HUBG * hubs[n]));
         const r2 = rel(n); q.low[n] = r2 < 20 ? (q.low[n] || 0) + 1 : 0; if (r2 >= 80) q.done[n] = true; } }
     const best = NAT.filter(n => rel(n) >= 60).sort((a, b) => rel(b) - rel(a))[0];
     if (best) { const c2 = s.c * P * DIST[best] * 2; dem += c2; if (c2 <= budget) { budget -= c2; spent += c2; t.tal[f] = (t.tal[f] || 0) + c2; } }
     const a = (t.sp[f] = t.sp[f] || { inc: 0, net: 0, spent: 0, dem: 0, n: 0, over: 0 }); a.inc += inc; a.net += net; a.spent += spent; a.dem += dem; a.n++; if (dem > inc) a.over++; if (dem > pr.fr * net + 1e-9 && dem > 0) a.blk = (a.blk || 0) + 1;
+  }
+  const VAR = { V1: { tab: [2, 4, 7, 10], tot: 10, lv: 0.08 }, V2: { tab: [1, 2, 3.5, 5], tot: 5, lv: 0.08 }, V3: { tab: [2, 4, 7, 10], tot: 10, lv: 0.04 }, Z: { tab: [2, 4, 7, 10], tot: 10, lv: 0.08, zero: 36 } };
+  const capOf = (tab, r) => { if (r < 40) return 0; if (r >= 100) return tab[3]; const x = [40, 60, 80, 100]; let i = 0; while (r >= x[i + 1]) i++; return tab[i] + (tab[i + 1] - tab[i]) * (r - x[i]) / 20; };
+  function immStep(t, s, mo, alive) {
+    const I = (t.imm = t.imm || {}), A = (t.imA = t.imA || {}), G = (t.imG = t.imG || {}), B = (t.imB = t.imB || {});
+    Object.keys(VAR).forEach(vk => { const v = VAR[vk]; const M = (I[vk] = I[vk] || {}); const bk = (B[vk] = B[vk] || { el: 0, blk: 0 }); let gb = 0, gi = 0;
+      alive.forEach(f => { let fb = 0, fi = 0;
+        let cap = 0; NAT.forEach(n => { cap += capOf(v.tab, (v.zero && mo >= v.zero) ? 0 : (t.rel[n][f] || 0)); }); cap = Math.min(v.tot, cap) / 100;
+        citiesOf(f).filter(isCity).forEach(c => { if (c.pop == null) initPop(c); const base = c.pop; let im = M[c.n] || 0; const tg = base * cap;
+          if (im < tg) { let add = Math.min(base * 0.02 / 12, tg - im); const room = popMax(c) - base - im; bk.el++; if (room < add) { bk.blk++; add = Math.max(0, room); } im += add; }
+          else if (im > tg) im -= (im - tg) * v.lv;
+          M[c.n] = im; fb += base; fi += im; });
+        gb += fb; gi += fi;
+        if ([12, 36, 60, 72].includes(mo)) { const a = (A[mo] = A[mo] || {}); (a[vk] = a[vk] || []).push([Math.round(fb), Math.round(fi), (t.ever && t.ever[f] >= 40 - 1e-9) ? 1 : 0, f]); } });
+      (G[vk] = G[vk] || {})[mo] = [Math.round(gb), Math.round(gi)]; });
   }
   function step(mo) {
     const alive = Object.keys(S.fac).filter(f => S.fac[f].alive && citiesOf(f).filter(isCity).length);
@@ -113,10 +131,11 @@ vm.runInContext(`(() => {
       NAT.forEach(n => Object.keys(t.rel[n]).forEach(f => { if (t.rel[n][f] >= 99.999 && t.first100[n + '|' + f] === undefined) t.first100[n + '|' + f] = mo; }));
       if ([12, 24, 36, 48, 60].includes(mo) && PX) { t.pxr = t.pxr || {}; const o = { rel: {}, rank: {} }; NAT.forEach(n => { o.rel[n] = +(t.rel[n][PX] || 0).toFixed(1); o.rank[n] = t.rel[n][PX] !== undefined ? rankOf(t, n, PX) : null; }); o.alive = alive.includes(PX); t.pxr[mo] = o; }
       Object.keys(t.rel.kor).concat(Object.keys(t.rel.jpn), Object.keys(t.rel.eeu), Object.keys(t.rel.weu), Object.keys(t.rel.usa)).forEach(f => { const m = Math.max(...NAT.map(n => t.rel[n][f] || 0)); t.ever = t.ever || {}; if (!(t.ever[f] >= m)) t.ever[f] = m; });
-      if (mo === PR.months) { const fin = { n: alive.length, ever: [0, 0, 0], at: [0, 0, 0] }; alive.forEach(f => { const m = Math.max(...NAT.map(n => t.rel[n][f] || 0)); [40, 60, 80].forEach((th, i) => { if (m >= th - 1e-9) fin.at[i]++; if ((t.ever[f] || 0) >= th - 1e-9) fin.ever[i]++; }); }); t.fin = fin; }
+      if (mo === 60) { const fin = { n: alive.length, ever: [0, 0, 0], at: [0, 0, 0] }; alive.forEach(f => { const m = Math.max(...NAT.map(n => t.rel[n][f] || 0)); [40, 60, 80].forEach((th, i) => { if (m >= th - 1e-9) fin.at[i]++; if ((t.ever[f] || 0) >= th - 1e-9) fin.ever[i]++; }); }); t.fin = fin; }
       if ([12, 36, 60].includes(mo)) { t.top2 = t.top2 || {}; t.top2[mo] = {}; NAT.forEach(n => { const v = Object.values(t.rel[n]).sort((a, b) => b - a); const tot = v.reduce((a, b) => a + b, 0); t.top2[mo][n] = tot > 0 ? (v[0] + (v[1] || 0)) / tot : 0; }); }
       if ([12, 36, 60].includes(mo)) { const sn = {}; NAT.forEach(n => { sn[n] = [40, 60, 80, 100].map(th => Object.values(t.rel[n]).filter(x => x >= th - 1e-9).length); }); t.snap[mo] = sn; }
     });
+    Object.keys(T).forEach(k => { if (SETS[k].imm) immStep(T[k], SETS[k], mo, alive.filter(f => citiesOf(f).filter(isCity).length)); });
   }
   { const f = monthlyUpdate; monthlyUpdate = function () { const r = f.apply(this, arguments); if (T) { try { MO++; step(MO); } catch (e) { ERR = String(e && e.stack || e).slice(0, 300); } } return r; }; }
   newGame('조조', { rand: true, custom: true, scen: PR.scen, diff: 1 });
@@ -130,7 +149,7 @@ vm.runInContext(`(() => {
     if (S.over === 'lose' || S.over === 'win') S.over = null;
   }
   const out = { scen: PR.scen, seed: PR.seed, nF, err: ERR, mo: MO, sets: {} };
-  PR.sets.forEach(k => { const t = T[k]; out.sets[k] = { K: t.K, first100: t.first100, sp: t.sp, tal: t.tal, fr: t.fr, gained: t.gained, cut: t.cut, snap: t.snap, rel60: t.rel, top2: t.top2, fin: t.fin, pxr: t.pxr, skips: t.skips || 0, switches: t.switches || 0 }; });
+  PR.sets.forEach(k => { const t = T[k]; out.sets[k] = { K: t.K, first100: t.first100, sp: t.sp, tal: t.tal, fr: t.fr, gained: t.gained, cut: t.cut, snap: t.snap, rel60: t.rel, top2: t.top2, fin: t.fin, pxr: t.pxr, imA: t.imA, imG: t.imG, imB: t.imB, skips: t.skips || 0, switches: t.switches || 0 }; });
   out.px = PX;
   globalThis.RESULT = out;
 })();`, ctx);
