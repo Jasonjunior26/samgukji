@@ -6226,7 +6226,7 @@ monthStep('L6204', { post: () => { try {
       if (pol.includes('총동원령') && isFront(c.n, fid) && c.train > 30) c.train -= 1;
       if (pol.includes('둔전제')) { c.food += Math.round(use * 0.5); }
       if (pol.includes('상업 진흥')) { c.gold += Math.round(inc * 0.15) - Math.round(c.troops / ECO.troopGold * 0.2); c.food = Math.max(0, c.food - Math.round(use * 0.15)); c.gold = Math.max(0, c.gold); }
-      if (pol.includes('덕치')) c.loy = Math.min(100, c.loy + 0.6);
+      if (pol.includes('덕치') && P(60)) c.loy = Math.min(100, c.loy + 1); // 기대값 월 +0.6 을 확률 정수로(민충은 정수, S4-F5)
       if (pol.includes('법치')) { if (c.bandit) c.bandit = Math.max(0, c.bandit - 3); }
     });
     if (S.m === 3) { const gs = gensOf(fid).filter(g => !isRuler(g)); if (pol.includes('구현령')) { gs.forEach(g => g.loy = Math.max(0, g.loy - 1)); const cs = citiesOf(fid).filter(c => kindOf(c.n) === '도시'); const n = Math.round(cs.length / 2); for (let i = 0; i < n; i++) { const c = cs[Math.floor(Math.random() * cs.length)]; const g = makeTalent(c.n, R(17, 24), Math.min(5, starTarget2(c.acad || 0) + talentBonus(c) + 0.3), '구현령'); joinFac(g, fid, c.n, 72); if (fid === S.player) news(`구현령을 듣고 ${g.n}이(가) ${c.n}에 찾아왔다.`); } } if (pol.includes('공신 우대')) gs.forEach(g => g.loy = Math.min(100, g.loy + 3)); }
