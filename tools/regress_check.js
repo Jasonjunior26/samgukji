@@ -168,7 +168,7 @@ const PAGE = async function (ONLY) {
     ['개발', '상업', '치수', '성벽', '시주', '진휼', '세율', '시설'].forEach(v => probe('내정/' + v, () => ACT.s7dev(v))); probe('국책', () => ACT.s7pol()); probe('교역', () => ACT.cmd('교역')); probe('교역/시장', () => ACT.trOpen());
     ['장수', '도시', '세력', '목표', '도감', '기록'].forEach(v => probe('자료/' + v, () => ACT.info(v))); probe('설정', () => ACT.sys()); probe('노선', () => ACT.rootMenu());
     Object.keys(S.fac).filter(f => f !== S.player).slice(0, 3).forEach(f => probe('외교/' + f, () => ACT.dpT(f)));
-    for (const v of ['drill', 'mat', 'arb', 'wel', 'armz', 'lux']) { errs.length = 0; UI.sheets = []; try { ACT.trFx(v); } catch (e) { rep('FAIL', `trFx:${v} 예외`); } }
+    for (const v of ['openWorldTrade', 'openTrBanq']) { errs.length = 0; UI.sheets = []; try { if (v === 'openTrBanq') UI.f = { nat: 'kor' }; window[v] ? window[v]() : eval(v + '()'); } catch (e) { rep('FAIL', `${v} 예외 ${e.message}`); } }
     if (tabbar.length) rep('FAIL', `시트 안 내정 탭 막대 잔재: ${tabbar.join(', ')}`); if (dead.size) rep('FAIL', `ACT 에 없는 죽은 단추: ${[...dead].slice(0, 6).join(', ')}`); if (empty.length) rep('WARN', `시트가 안 열리는 행: ${empty.join(', ')}`);
     closeAll();
   });
