@@ -1,0 +1,45 @@
+  // ---------- 교역 전법 (v108 교역 F7) ----------
+  // 교역도 >= 80 인 나라의 고유 뼈대(고구려 복병·왜 암습·서역 기사 질주·대진 방진·부상 포격)를 그 세력의 장수 부대가 전투당 2번(해금된 전법 합계) 쓴다.
+  // 위력 배율은 docs/교역_전법_균형.md §5 확정치: 암습 27%·포격 37%·기사 질주 60%·복병 60%(+이동 불가 1턴)·방진은 피해 -30% 그대로. 위력 = forecast 명중 피해 x 배율, 반격 없음, 성벽 피해 없음.
+  const TRAD_KIND = { kor: 'ambush', jpn: 'raid', eeu: 'gallop', weu: 'phalanx', usa: 'barrage' };
+  const TRAD_NAME = { ambush: '복병', raid: '암습', gallop: '기사 질주', phalanx: '방진', barrage: '포격' };
+  const TRAD_K = { ambush: 0.7 * 2.2 * 0.6, raid: 2.2 * 1.2 * 0.27, gallop: 1.9 * 0.4 * 0.6, barrage: 1.6 * 0.37 };
+  const TRAD_NB4 = [[1, 0], [-1, 0], [0, 1], [0, -1]], TRAD_NB8 = TRAD_NB4.concat([[1, 1], [1, -1], [-1, 1], [-1, -1]]);
+  function tradInit() {
+    const mk = fid => { const kinds = []; try { if (fid != null && typeof trRel === 'function') Object.keys(TRAD_KIND).forEach(n => { if (Math.round(trRel(fid, n)) >= 80) kinds.push(TRAD_KIND[n]); }); } catch (e) { } return { left: kinds.length ? 2 : 0, kinds }; };
+    return { A: mk(W.att), D: mk(W.def) };
+  }
+  const tdFoes = u => W.units.filter(o => o.alive && foe(o, u));
+  const tdFree = (u, x, y) => { const c = at(x, y); return !!c && !unitAt(x, y) && moveCost(u, c) < 99 && !'TLKOZY'.includes(c.t); };
+  const tdFc = (u, d, m) => Math.round(forecast(u, d).dmg * m);
+  const tdSee = (u, x, y, fn) => { const ox = u.x, oy = u.y; u.x = x; u.y = y; try { return fn(); } finally { u.x = ox; u.y = oy; } };
+  const tdCover = u => [[0, 0]].concat(TRAD_NB4).some(([dx, dy]) => { const c = at(u.x + dx, u.y + dy); return !!c && (c.t === 'F' || c.t === 'M'); }); // 숲·산 칸 위나 바로 옆 (완화된 조건)
+  const TRAD_PLAN = {
+    ambush(u) { if (!tdCover(u)) return null; const ts = tdFoes(u).filter(o => md(u, o) <= 2); if (!ts.length) return null; const vs = ts.map(o => [o, tdFc(u, o, TRAD_K.ambush)]); const val = vs.reduce((a, [, v]) => a + v, 0);
+      return { val, tt: ts.reduce((a, o) => a + o.troops, 0), run() { const res = []; vs.forEach(([o, v]) => { const n = hurt(o, v, u); res.push({ id: o.id, dmg: n }); if (o.alive) o.tradStuck = 2; }); return { res }; } }; },
+    raid(u) { let b = null; tdFoes(u).filter(o => md(u, o) <= 4).forEach(o => { const cells = TRAD_NB8.map(([dx, dy]) => ({ x: o.x + dx, y: o.y + dy })).filter(c => tdFree(u, c.x, c.y) && md(c, u) <= 5); const here = md(u, o) <= 1; if (!cells.length && !here) return;
+        const adj = c0 => tdFoes(u).filter(q => q !== o && md(q, c0) <= 1).length; const cell = here ? { x: u.x, y: u.y } : cells.sort((a, c) => adj(a) - adj(c))[0];
+        const v = tdSee(u, cell.x, cell.y, () => tdFc(u, o, TRAD_K.raid)); const w = v * (o.gen ? 1.5 : 1);
+        if (!b || w > b.w) b = { w, val: v, tt: o.troops, run() { const from = { x: u.x, y: u.y }; const moved = cell.x !== u.x || cell.y !== u.y; if (moved) { u.ox = null; u.x = cell.x; u.y = cell.y; u.dir = face(from, o); W.ev.push({ t: 'move', id: u.id, path: [{ x: cell.x, y: cell.y }], from }); } const n = hurt(o, tdFc(u, o, TRAD_K.raid), u); if (o.alive) { o.mor = clamp(o.mor - 15, 0, 100); if (o.mor <= 0) rout(o, u); } return { res: [{ id: o.id, dmg: n }] }; } }; }); return b; },
+    gallop(u) { let b = null; TRAD_NB4.forEach(([dx, dy]) => { const pth = []; for (let i = 1; i <= 3; i++) { const c = { x: u.x + dx * i, y: u.y + dy * i }; if (!tdFree(u, c.x, c.y)) break; pth.push(c); } if (pth.length < 3) return;
+        const arr = tdFoes(u).filter(o => pth.some(c => md(c, o) <= 1)); if (!arr.length) return; const end = pth[2]; const vs = arr.map(o => tdSee(u, end.x, end.y, () => tdFc(u, o, TRAD_K.gallop))); const val = vs.reduce((a, v) => a + v, 0);
+        if (!b || val > b.val) b = { val, tt: arr.reduce((a, o) => a + o.troops, 0), run() { const from = { x: u.x, y: u.y }; u.ox = null; u.x = end.x; u.y = end.y; u.dir = face(from, end); W.ev.push({ t: 'move', id: u.id, path: pth.map(c => ({ x: c.x, y: c.y })), from }); const res = []; arr.forEach((o, i) => { if (o.alive) res.push({ id: o.id, dmg: hurt(o, vs[i], u) }); }); return { res }; } }; }); return b; },
+    phalanx(u) { const box = W.units.filter(o => o.alive && !foe(o, u) && Math.max(Math.abs(o.x - u.x), Math.abs(o.y - u.y)) <= 2); if (box.length < 2 || !tdFoes(u).some(o => md(u, o) <= 3)) return null;
+      return { val: box.length * 300, tt: 0, box: box.length, run() { box.forEach(o => { o.gdLeft = 2; o.gdK = 0.30; }); return { res: box.map(o => ({ id: o.id, dmg: 0, fx: '방어↑' })) }; } }; },
+    barrage(u) { let b = null; tdFoes(u).filter(o => md(u, o) <= 5).forEach(o => { const side = tdFoes(u).filter(q => q !== o && md(q, o) <= 1); const v0 = tdFc(u, o, TRAD_K.barrage), vs = side.map(q => [q, tdFc(u, q, TRAD_K.barrage * 0.5)]); const val = v0 + vs.reduce((a, [, v]) => a + v, 0);
+        if (!b || val > b.val) b = { val, tt: o.troops + side.reduce((a, q) => a + q.troops, 0), run() { const res = [{ id: o.id, dmg: hurt(o, v0, u) }]; vs.forEach(([q, v]) => { if (q.alive) res.push({ id: q.id, dmg: hurt(q, v, u) }); }); return { res }; } }; }); return b; }
+  };
+  const tradSide = u => W && W.trad && W.trad[team(u)];
+  function tradKinds(u) { const T = tradSide(u); if (!T || !u || !u.alive || !u.gen) return []; return T.kinds.map(k => ({ kind: k, name: TRAD_NAME[k], left: T.left, ok: T.left > 0 && !u.acted && !u.sts.conf && !!TRAD_PLAN[k](u) })); }
+  function tradUse(u, kind) {
+    const T = tradSide(u); if (!T || T.left <= 0 || !u.alive || u.acted || u.sts.conf || !u.gen || !T.kinds.includes(kind)) return false;
+    const pl = TRAD_PLAN[kind](u); if (!pl) return false; const r = pl.run(); T.left--; u.acted = true; u.moved = true;
+    W.ev.push({ t: 'trad', id: u.id, kind, name: TRAD_NAME[kind], res: r.res || [] }); log(`${u.gen}의 교역 전법 「${TRAD_NAME[kind]}」 — ${(r.res || []).length}부대 ${fmt((r.res || []).reduce((a, x) => a + x.dmg, 0))} 피해`); check(); return true;
+  }
+  // AI: 해금했으면 전투당 2번, 그 차례 후보 중 예상 피해 최대 1부대, 예상 피해가 대상 병력의 10%를 넘을 때만 (방진은 아군 3부대 이상 뭉침). 10%·1부대는 빌드 후 플레이로 조정
+  function tradAI(u) {
+    const T = tradSide(u); if (!T || T.left <= 0 || !u.gen || u.sts.conf || u.acted) return false; const tm = team(u), key = W.turn + tm + W.phase; W.tradPick = W.tradPick || {};
+    const okPl = (k, p) => p && (k === 'phalanx' ? p.box >= 3 : p.val > 0.10 * p.tt);
+    if (!W.tradPick[tm] || W.tradPick[tm].key !== key) { let best = null; W.units.filter(o => o.alive && team(o) === tm && !o.acted && o.gen && !o.sts.conf).forEach(o => T.kinds.forEach(k => { const p = TRAD_PLAN[k](o); if (okPl(k, p) && (!best || p.val > best.val)) best = { id: o.id, kind: k, val: p.val }; })); W.tradPick[tm] = { key, id: best ? best.id : null, kind: best && best.kind }; }
+    const pk = W.tradPick[tm]; if (pk.id !== u.id) return false; pk.id = null; const p = TRAD_PLAN[pk.kind](u); if (!okPl(pk.kind, p)) return false; return tradUse(u, pk.kind);
+  }

@@ -1,7 +1,7 @@
 // 전투 v4 시험기: 게임 HTML을 Node에서 불러 AI끼리 전투를 돌림 (화면 없음)
 // 사용: node tools/battle_sim.js [판수=20] [log]
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(process.env.GAME || path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 // 시드 고정: BSEED 환경변수(기본 1). 같은 코드면 같은 결과 → 차이가 나면 실제 변화다. BSEED=0 이면 Math.random 그대로.
@@ -10,7 +10,7 @@ const SMath = SEED ? Object.assign(Object.create(Math), { random: () => { _s = (
 const ctx = { console, Math: SMath, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },
   localStorage: { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } },
   document: el(), navigator: { userAgent: 'node' }, location: { reload() { } } };
-ctx.window = ctx; vm.createContext(ctx);
+ctx.window = ctx; ctx.addEventListener = ctx.removeEventListener = () => { }; ctx.matchMedia = () => ({ matches: false, addEventListener() { } }); vm.createContext(ctx);
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { console.log('block', i, e.message); } });
 const N = +(process.argv[2] || 20), showLog = process.argv[3] === 'log';
 vm.runInContext(`(() => {
