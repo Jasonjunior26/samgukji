@@ -1,0 +1,17 @@
+{
+ "hash": {
+  "1-조조": "전체 67ae14b05591 seed 1 months 24",
+  "1-조조--auto": "전체 0ebf4b0fe60a seed 1 months 24",
+  "1-유비": "전체 ed5f94538273 seed 1 months 24",
+  "1-유비--auto": "전체 44419d5a2442 seed 1 months 24",
+  "2-조조": "전체 d677e33bf945 seed 2 months 24",
+  "2-조조--auto": "전체 792afada86cb seed 2 months 24",
+  "2-유비": "전체 c638af119d0e seed 2 months 24",
+  "2-유비--auto": "전체 a63a79292ebc seed 2 months 24"
+ },
+ "probe": {
+  "p2_mobilize.js": "[[\"정책없음\",\"금\",-390,\"병력\",1200,\"민충\",\"75->85\",true],[\"총동원령\",\"금\",-273,\"병력\",1200,\"민충\",\"75->85\",true]]",
+  "p3_silver.js": "[[\"조조\",\"금\",250,\"충성\",18,true,null],[\"하후돈\",\"금\",240,\"충성\",14,true,null],[\"하후연\",\"금\",250,\"충성\",14,true,null],[\"gold300\",-50,15,true]]",
+  "p_sheet.js": "[58306,-1126528258,false]"
+ }
+}

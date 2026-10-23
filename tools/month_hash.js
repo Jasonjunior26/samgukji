@@ -1,12 +1,13 @@
 // 월 진행 상태 해시: 같은 시드로 N달을 끝낸 뒤 S 상태 해시를 찍는다. 래퍼 정리 전후 비교용(게임 파일은 고치지 않음).
-// 사용: node tools/month_hash.js [달수=12] [세력=조조] [--auto] [--game 경로.html] [--dump 파일.json]
+// 사용: node tools/month_hash.js [달수=12] [세력=조조] [--auto] [--game 경로.html] [--dump 파일.json] [--probe a.js,b.js]
+//   --probe: 월 진행 대신 탐침 파일(tools/probes/*.js, 마지막 식 값을 JSON 출력)을 같은 vm 에서 실행한다(MSEED 고정).
 //   MSEED 환경변수(기본 1)로 Math.random 고정 (battle_sim.js 의 BSEED 와 같은 mulberry32). Date 는 고정 시각으로 바꾼다.
 //   한 달 = endMonth() → 대기 방어전(UI.queue)은 버림(regress_check A5 와 같음) → monthlyUpdate().
 //   --auto: 플레이어 도시를 모두 맡기기(autoKeep·autoMil)로 둬서 cityAutoRun·endMonth 맡기기 경로까지 돈다.
 //   출력: 달마다 "y-m 해시 금합 병력합 장수수" 한 줄, 마지막에 전체 해시. 차이가 나면 --dump 두 개를 diff 한다.
 const fs = require('fs'), vm = require('vm'), path = require('path'), crypto = require('crypto');
 const A = process.argv.slice(2), opt = (k, d) => { const i = A.indexOf(k); return i >= 0 ? A[i + 1] : d; };
-const pos = A.filter((x, i) => !x.startsWith('--') && !(i > 0 && ['--game', '--dump'].includes(A[i - 1])));
+const pos = A.filter((x, i) => !x.startsWith('--') && !(i > 0 && ['--game', '--dump', '--probe'].includes(A[i - 1])));
 const N = +(pos[0] || 12), FAC = pos[1] || '조조';
 const GAME = path.resolve(opt('--game', path.join(__dirname, '..', 'samguk_v108.html'))), DUMP = opt('--dump', '');
 const html = fs.readFileSync(GAME, 'utf8');
@@ -22,6 +23,8 @@ ctx.window = ctx; ctx.addEventListener = ctx.removeEventListener = () => { }; vm
 const errs = [];
 [...html.matchAll(/<script(?: [^>]*)?>([\s\S]*?)<\/script>/g)].forEach((m, i) => { try { vm.runInContext(m[1], ctx, { filename: 'block' + i }); } catch (e) { errs.push('block' + i + ': ' + e.message); } });
 if (errs.length) console.log("로드 에러:", errs.join(" | ").slice(0, 900));
+const PROBE = opt('--probe', '');
+if (PROBE) { const files = PROBE.split(','); files.forEach(f => { let r; try { r = vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f }); } catch (e) { r = 'ERR ' + e.message; } console.log(path.basename(f), JSON.stringify(r)); }); process.exit(0); }
 const out = vm.runInContext(`(() => {
   const L = []; let ex = [];
   newGame(${JSON.stringify(FAC)}); if (${A.includes("--auto")}) citiesOf(S.player).forEach(c => { c.autoKeep = true; c.autoMil = true; });
