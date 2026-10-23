@@ -10,11 +10,12 @@
   const ck = mine[0], cn = mine[1]; // ck: 군단 도시, cn: 일반 맡기기 도시
   const leader = Object.values(S.gen).filter(g => g.st === '현역' && g.fac === pid && !isRuler(g))[0]; if (leader) leader.rank = 2; // 군단장은 3품 이내여야 한다
   out.leader = leader && leader.n; if (!leader) return out;
-  leader.loc = ck.n;
+  leader.loc = ck.n; { const others = Object.values(S.gen).filter(g => g.st === '현역' && g.fac === pid && !isRuler(g) && g !== leader); others.forEach((g, i) => { g.loc = i < 3 ? ck.n : cn.n; }); } // 장수를 많이 두어 내정 뒤에도 훈련할 여력이 남게
   S.corps = [{ name: '시험군', leader: leader.n, cities: [ck.n], policy: '내정', target: null, targetFac: null }];
   mine.forEach(c => { c.autoKeep = c.n === cn.n; c.autoMil = c.n === cn.n; });
-  ck.gold = 30000; ck.food = 90000; cn.gold = 30000; cn.food = 90000; ck.train = 40; cn.train = 40;
-  endMonth();
-  out.autoSum = S.autoSum; out.ckTrain = ck.train; out.cnTrain = cn.train; out.corpsOfAfter = !!corpsOf(ck.n);
+  ck.gold = 30000; ck.food = 90000; cn.gold = 30000; cn.food = 90000; ck.train = 40; cn.train = 40; ck.troops = Math.max(ck.troops, 90000); cn.troops = Math.max(cn.troops, 90000);
+  const _wag = withAutoGov; withAutoGov = () => ""; // 맡기기 본체가 장수를 다 쓰지 않게 막아 훈련 경로를 드러냄
+  endMonth(); withAutoGov = _wag;
+  out.autoSum = S.autoSum; out.ckGold = ck.gold; out.ckTroops = ck.troops; out.ckLoy = ck.loy; out.ckTrain = ck.train; out.cnTrain = cn.train; out.corpsOfAfter = !!corpsOf(ck.n);
   return out;
 })()

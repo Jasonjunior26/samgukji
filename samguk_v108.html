@@ -5607,8 +5607,8 @@ function withAutoGov(c) {
 }
 // 맡기기 도시 실행(S2-e). 예전에 cityAutoRun 을 래퍼 9겹으로 덧씌우던 것을 같은 순서로 펼쳤다. 안쪽 → 바깥 후처리 순서도 그대로다.
 // 카운터(CMD_AUTO·AUTO_DRAFT)는 맨 바깥이고, 덕화 덕치 베풂만 카운터를 내린 뒤에 돈다(그래서 그때는 AUTO_DRAFT 가 0이다).
-function cityAutoRun(c) {
-  CMD_AUTO++; AUTO_DRAFT++;
+function cityAutoRun(c, ctx) {
+  CMD_AUTO++; AUTO_DRAFT++; const asCorps = !!(ctx && ctx.asCorps); if (asCorps) AS_CORPS++;
   let r;
   try {
     // 전선 수비 도시 성벽 보강
@@ -5621,7 +5621,7 @@ function cityAutoRun(c) {
     if (c.owner === S.player && before && c.gov && before !== c.gov && G(before) && G(before).loc === c.n) govChangeNote(c, before, c.gov, '도시 맡기기');
     // 맡긴 징병 도시는 훈련 우선
     try { if (c.autoMil && c.train < 80 && c.troops > 0) for (let i = 0; i < 2 && c.train < 80; i++) { const g = freeGens(c.n, c.owner).sort((a, b) => stat(b, 't') - stat(a, 't'))[0]; if (!g || c.gold < trainCost(c) + reserveOf(c, c.owner)) break; if (!(cmdTrain(c.n, g.n) || {}).ok) break; } } catch (e) { }
-  } finally { AUTO_DRAFT--; CMD_AUTO--; }
+  } finally { AUTO_DRAFT--; CMD_AUTO--; if (asCorps) AS_CORPS--; }
   try {
     if (BAEPUM.on && c && c.owner === S.player && rootOf(c.owner) === '덕화' && hasPol(c.owner, '덕치') && c.loy >= BAEPUM.min) {
       for (let i = 0; i < 3 && baepumRoom(c) >= 0.05 && c.loy >= BAEPUM.min; i++) {
@@ -5777,7 +5777,7 @@ monthStep('flowUp', { post: () => { try { if (!(S.corps || []).length) flowUp(S.
   if (top && top.id !== fid && powOf(top.id) > tot * 0.3 && lordNeigh(fid).includes(top.id) && F.lord && F.lord.enemy !== top.id && !F.lord.coal && P(50)) { F.lord.enemy = top.id; F.lord.until = S.y * 12 + S.m + 12; F.lord.coal = true; if (nearPlayer(citiesOf(fid).map(c => c.n))) world(`${fname(fid)}이(가) 세력이 커진 ${fname(top.id)}을(를) 견제하기로 했다.`); }
   if (F.lord && F.lord.enemy !== (top && top.id)) F.lord.coal = false; }; }
 // 거점 판정 (AI: 군주 공세 준비 / 우리: 군단 거점)
-function stagingOf(fid, cn) { if (fid === S.player) { const k = corpsOf(cn); return k && k.policy === '공격' && k.staging === cn ? { staging: cn, target: k.target || (k.sec && null) } : null; } const F = S.fac[fid]; return F && F.prep && F.prep.staging === cn ? F.prep : null; }
+function stagingOf(fid, cn) { if (fid === S.player) { if (AS_CORPS) return null; /* 군단 도시 맡기기: 거점 처리는 군단 쪽에서 */ const k = corpsOf(cn); return k && k.policy === '공격' && k.staging === cn ? { staging: cn, target: k.target || (k.sec && null) } : null; } const F = S.fac[fid]; return F && F.prep && F.prep.staging === cn ? F.prep : null; }
 function stagingReady(fid, cn) { const p = stagingOf(fid, cn); if (!p) return false; const s = C(cn); const t = p.target && C(p.target); if (!t) { const e = ADJ[cn].map(n => S.city[n]).filter(x => x && x.owner && x.owner !== fid).sort((a, b) => effPower(a) - effPower(b))[0]; return e ? s.troops >= effPower(e) * 1.5 : false; } return s.troops >= effPower(t) * 1.5; }
 function stagingFighters(cn, fid) { return gensIn(cn, fid).filter(g => !g.away && g.st === '현역' && !isRuler(g)).sort((a, b) => (stat(b, 't') + stat(b, 'w')) - (stat(a, 't') + stat(a, 'w'))).slice(0, 4).map(g => g.n); }
 function stagingCivic(c, fid, free) { const keep = new Set(stagingFighters(c.n, fid)); const civ = (free || gensIn(c.n, fid).filter(g => !g.acted && !g.away)).filter(g => !keep.has(g.n)).sort((a, b) => (stat(b, 'p') + stat(b, 'c')) - (stat(a, 'p') + stat(a, 'c'))); const out = [];
@@ -5796,10 +5796,10 @@ function stagingCivic(c, fid, free) { const keep = new Set(stagingFighters(c.n, 
 // ===== v37: 군단 도시 운영 · 수도 승급 · 금 걸기 공방 · 대비 시설 · 정탐 경보 · 정예 · 내각 · 조정 회의 =====
 // ---------- 1. 군단 도시 = 태수 판단 ----------
 function corpsCityPolicy(k, c) { if (k.policy === '공격') return isFront(c.n, S.player) ? '균형' : '내정'; if (k.policy === '방어') return '균형'; return '내정'; }
-{ const f = aiCityEcon; aiCityEcon = function (c, fid) { if (fid === S.player && corpsOf(c.n)) return; return f.apply(this, arguments); }; }
-endStep('corpsAuto', { pre: () => { // 군단 도시 맡기기(corpsOf 를 잠깐 null 로 — 설계 P4/F7 은 S4 에서)
+{ const f = aiCityEcon; aiCityEcon = function (c, fid) { if (fid === S.player && !AS_CORPS && corpsOf(c.n)) return; return f.apply(this, arguments); }; }
+endStep('corpsAuto', { pre: () => { // 군단 도시 맡기기(asCorps 문맥 — corpsOf 는 그대로라 군단장 보너스가 든다)
     if (!S.over) (S.corps || []).forEach(k => { if (!corpsValid(k)) return; k.cities.forEach(cn => { const c = C(cn); if (!c || c.owner !== S.player || kindOf(cn) !== '도시') return; c.autoKeep = true; c.autoMil = true; if (!(k.staging === cn)) c.autoPolicy = corpsCityPolicy(k, c);
-      const co = corpsOf; corpsOf = () => null; try { const t = cityAutoRun(c); if (t) S.autoSum = (S.autoSum ? S.autoSum + ' / ' : '도시 맡기기 — ') + '[' + k.name + '] ' + t; } catch (e) { } finally { corpsOf = co; } }); });
+      try { const t = cityAutoRun(c, { asCorps: true }); if (t) S.autoSum = (S.autoSum ? S.autoSum + ' / ' : '도시 맡기기 — ') + '[' + k.name + '] ' + t; } catch (e) { } }); });
 } });
 // 병력이 모인 도시(방어분 1.5배·1만 이상)는 훈련 80까지
 // 군량 올리기는 받는 도시의 7월 썩음 기준(1년 소비 2배, 창고 4배) 안에서만
@@ -6348,6 +6348,7 @@ function foodCapTroops(c) { const k = Math.max(0.5, foodMul(c.owner)); const toH
 function foodRoom(c) { return Math.max(0, foodCapTroops(c) - c.troops); }
 // 맡기기·AI 징병도 같은 한도 (직접 명령한 징병은 막지 않고 알림만)
 let AUTO_DRAFT = 0;
+let AS_CORPS = 0; // >0 이면 군단 도시 맡기기 중(cityAutoRun 문맥): 거점·내정 가드만 군단 소속을 무시
 { const f = aiTurn; aiTurn = function () { AUTO_DRAFT++; try { return f.apply(this, arguments); } finally { AUTO_DRAFT--; } }; }
 
 // ===== v50: 군량 경제 — 수확을 인구 중심으로 완만하게, 병사 소비 20% 감소, 시작 군량 보강 =====
