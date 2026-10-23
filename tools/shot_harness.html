@@ -11,6 +11,16 @@
 const Q = new URLSearchParams(location.search);
 const sl = ms => new Promise(r => setTimeout(r, ms));
 const SCN = {
+  // 군주 전용 그림 시험: 아군·적군 군주를 병종별로 두 줄 세운다. ?weak=1 은 병력 10%(웅크린 피격 칸), ?sel=1 은 첫 아군 선택·총대장 깃발, ?dir=n|w|e|s 방향
+  lord: async (w, g) => { const V4 = w.V4, W = V4.W; const uq = g.eval('JOJO_UNITS.uniq'); const cls = ['보병', '기병', '궁병', '궁기병', '산악병', '책사', '방진', '보병'];
+    for (const side of ['A', 'D']) { let us = W.units.filter(u => u.side === side && !uq[u.gen]); while (us.length && us.length < 8) { const c = Object.assign({}, us[0], { id: W.uid++, sts: {}, buf: { A: 3, D: 3, I: 3, E: 3, M: 3, V: 3 }, gen: us[us.length % us.length].gen }); W.units.push(c); us.push(c); } us = us.slice(0, 8); us.forEach((u, i) => { u.lord = true; u.cls = cls[i]; u.tier = i % 3; u.x = 4 + i; u.y = side === 'A' ? 3 : 5; u.dir = Q.get('dir') || (side === 'A' ? 'n' : 's'); u.alive = true; u.troops = Q.get('weak') ? Math.round(u.max * .1) : u.max; if (Q.get('sel') && side === 'A' && i === 0) { w.V4UI.ui.sel = u.id; W.hq.A = u.id; } }); document.title += ' ' + side + us.length; }
+    W.units.filter(u => !u.lord).forEach(u => { u.x = 12; u.y = 12; });
+    await sl(1500); w.V4UI.focus(+(Q.get('fx') || 7), 4, false); w.V4UI.kick(); await sl(600); w.V4UI.focus(+(Q.get('fx') || 7), 4, false); w.V4UI.kick(); await sl(300); },
+  // 군주 그림 렌더 경로 시험: 모든 부대를 군주로 만들고 양쪽 AI를 여러 차례 돌리며 그린다. 오류는 id="errs" 에 모은다
+  lordplay: async (w, g) => { const V4 = w.V4, W = V4.W; const cls = ['보병', '기병', '궁병', '궁기병', '산악병', '책사', '방진']; g.__errs = []; g.addEventListener('error', e => g.__errs.push(String(e.message)));
+    W.units.forEach((u, i) => { if (u.cls !== '공성' && u.cls !== '수군') { u.lord = true; u.cls = cls[i % 7]; u.tier = i % 3; } });
+    for (let k = 0; k < 12 && !W.over; k++) { try { V4.runPhaseAI(W.phase, true); w.V4UI.kick(); } catch (e) { g.__errs.push(e.stack); } await sl(250); }
+    document.body.insertAdjacentHTML('beforeend', '<pre id="errs">ERRS=' + g.__errs.length + ' ' + g.__errs.slice(0, 3).join('|') + ' turn=' + W.turn + '</pre>'); },
   // 처음 화면: 아군 부대 하나 고르기
   sel: async (w) => { const W = w.V4.W; const u = W.units.find(u => u.side === 'A' && !u.acted); w.V4UI.tap(u.x, u.y); },
   // 가까이 붙인 뒤 이동 → 행동 메뉴 / 예상 창 / 공격 연출

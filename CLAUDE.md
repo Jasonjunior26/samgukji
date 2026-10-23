@@ -22,4 +22,4 @@
 ## 환경
 - Windows. 파이썬은 `PYTHONIOENCODING=utf-8`, 긴 스크립트는 파일로 만들어 실행.
 - 시뮬레이션: `node tools/battle_sim.js`, `node tools/battle_calib.js`. 출력은 파일로 저장 후 `head`/`grep`.
-- `screenshots/`, `assets/`는 커밋하지 않는다. `<script id="jojo-*">` 블록은 코에이 원본 자료(개인 플레이 전용)라 공개 배포 시 제거.
+- `screenshots/`, `assets/`는 커밋하지 않는다. `<script id="jojo-*">` 블록(`jojo-units`·`jojo-maps`·`jojo-rules`·`jojo-sfx`·`jojo-bgm`·**`jojo-lord`** 군주 전용 그림)은 코에이 원본 자료·그 파생(개인 플레이 전용)라 공개 배포 시 제거. `jojo-lord`가 없으면 군주도 기존 병사 그림(폴백).
