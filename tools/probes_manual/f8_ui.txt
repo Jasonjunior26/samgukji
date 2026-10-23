@@ -1,0 +1,32 @@
+window.__errs = []; window.addEventListener('error', e => window.__errs.push('E ' + e.message)); window.addEventListener('unhandledrejection', e => window.__errs.push('R ' + (e.reason && e.reason.message || e.reason)));
+const ce = console.error; console.error = (...a) => { window.__errs.push('C ' + a.join(' ').slice(0, 150)); ce.apply(console, a); };
+newGame('조조'); UI.scr = 'main'; UI.city = capitalOf('조조'); render();
+const T = trT(); T.rel['조조'] = { kor: 100, jpn: 100, eeu: 100, weu: 100, usa: 100 }; S.player = '조조';
+const out = {};
+openTradeCmd(); await new Promise(r => setTimeout(r, 300)); out.cmdSheet = document.body.innerText.includes('해외 교역');
+ACT.trOpen(); await new Promise(r => setTimeout(r, 300)); out.friendSheet = document.body.innerText.includes('해외 친선');
+ACT.frGo('kor'); await new Promise(r => setTimeout(r, 300)); out.friendKor = document.body.innerText.includes('사절');
+const fg = freeList()[0]; if (fg) { UI.f.g = fg.n; ACT.frSend(); } await new Promise(r => setTimeout(r, 300));
+openWorldTrade(); ACT.frTal('jpn'); await new Promise(r => setTimeout(r, 300)); out.talSheet = document.body.innerText.includes('인재 탐색');
+ACT.frTalGo(); await new Promise(r => setTimeout(r, 600)); out.afterTal = document.body.innerText.slice(0, 0) + (UI.sheets ? UI.sheets.length : -1);
+out.errs1 = window.__errs.slice(0, 5);
+return out;
+//STEP
+const out = {}; closeAll && closeAll();
+const us = autoUnits(gensIn('초', '조조'), 8000, 5);
+startBattle('조조', '초', '진류', us, 4000, 'A', '야전'); enterBattle();
+await new Promise(r => setTimeout(r, 1500));
+try { ACT.v4Plan('정공'); } catch (e) { out.planErr = String(e); } await new Promise(r => setTimeout(r, 800));
+const W = V4.W; out.v4 = !!W; if (W) {
+  out.trad = W.trad && W.trad.A.kinds;
+  const a = W.units.find(u => u.alive && u.side === 'A' && u.gen); const e = W.units.find(u => u.alive && u.side === 'D');
+  for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) { const c = W.map[y][x]; if (c.t !== 'P') c.t = 'P'; }
+  W.units.forEach(u => { u.acted = false; u.moved = false; });
+  a.x = 5; a.y = 5; e.x = 7; e.y = 5; W.phase = 'A';
+  await new Promise(r => setTimeout(r, 3000)); out.busy0 = V4UI.ui.busy; V4UI.ui.busy = false; V4UI.ui.sel = a.id; V4UI.ui.mode = 'act'; V4UI.panel(); await new Promise(r => setTimeout(r, 300));
+  out.btn = document.body.innerText.includes('교역 전법'); out.tk = V4.tradKinds(a).map(k => k.kind + k.ok); out.mode = V4UI.ui.mode; out.cmd = (document.querySelector('.v4cmd') || {}).innerText; out.dlg = Array.from(document.querySelectorAll('.modal,.pop,.dlg,#story,.ev')).map(x => x.className + ':' + x.innerText.slice(0, 30)); out.txt = document.body.innerText.replace(/s+/g, ' ').slice(-250);
+  const before = e.troops; ACT.v4cTrad_barrage && ACT['v4cTrad_barrage'](); await new Promise(r => setTimeout(r, 4000));
+  out.dmg = before - e.troops; out.evTrad = W.ev.filter(x => x.t === 'trad').length;
+}
+out.errs2 = window.__errs.slice(0, 6);
+return out;

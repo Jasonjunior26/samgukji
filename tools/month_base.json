@@ -18,6 +18,7 @@
   "p_dunjeon.js": "{\"n\":94,\"far\":64,\"famineFar\":0,\"famineNear\":0,\"foodFar\":251375}",
   "p_friend.js": "{\"nGen\":11,\"costs\":{\"kor\":60,\"jpn\":60,\"eeu\":90,\"weu\":132,\"usa\":180},\"r1\":true,\"r2\":false,\"r2msg\":\"이번 달 고구려에는 이미 친선 사절을\",\"rel1\":7.5,\"r3\":true,\"dFood\":1200,\"planFood\":1200,\"dGold\":0,\"costGold\":132,\"r4\":false,\"r4msg\":\"여유 군량이 모자랍니다 (\",\"frKept\":true,\"usedNext\":false,\"decayed\":0.5,\"sheet\":true,\"sheet2\":true,\"foot\":true}",
   "p_imm.js": "{\"cap\":[0,0.02,0.03,0.04,0.1],\"capBoth\":0.1,\"pct\":{\"12\":1.97,\"36\":5.79,\"72\":10},\"over\":0,\"peak\":9241,\"integer\":true,\"monthsTo10pct\":14,\"oldOk\":true}",
+  "p_old.js": "{\"ncity\":1,\"gold0\":1360,\"gold1\":320,\"exp\":[1060,620],\"cargoGone\":true,\"cleaned\":true,\"awayCleared\":true,\"hasNew\":true,\"noTrade\":true,\"err12\":0}",
   "p_price.js": "{\"p\":1.231,\"p2\":{\"pass\":22,\"extra\":27,\"short\":0},\"dGold\":119,\"n\":1}",
   "p_sheet.js": "[58263,1266946062,false]",
   "p_talent.js": "{\"foreign\":60,\"uniqueNames\":true,\"byTier\":[30,25,5],\"tier59\":0,\"r0\":false,\"tier60\":1,\"r1\":true,\"found\":[\"재야\",true,true,1],\"r2\":false,\"genCount\":true,\"queue\":true,\"endMsg\":\"이 등급의 인재는 모두 나\",\"tier1All\":6,\"noDup\":true,\"searchTook\":0,\"pay_food\":[true,true],\"btn\":true,\"sheet\":true}",
