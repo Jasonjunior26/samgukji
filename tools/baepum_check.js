@@ -4,7 +4,7 @@
 //   push : 매달 AI 턴 전에 덕화 세력 모든 도시가 가용 장수 1명으로 진휼을 한 번 더 호출 (플레이어가 열심히 쓰는 경우)
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const MONTHS = +(process.argv[2] || 24), SEEDS = (process.argv[3] || '1,2,3').split(',').map(Number), MODE = process.argv[4] || 'ai', DH = process.argv[5] || '조조';
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 function mk(seedIn) {
   const store = {}; let seed = seedIn >>> 0; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

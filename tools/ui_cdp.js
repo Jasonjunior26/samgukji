@@ -1,10 +1,10 @@
-// v1.6: 헤드리스 Chrome 으로 samguk_v108.html 을 열고 JS 본문을 실행, 결과·스크린샷 출력.
+// v1.6: 헤드리스 Chrome 으로 samguk_v109.html 을 열고 JS 본문을 실행, 결과·스크린샷 출력.
 // 사용: node tools/ui_cdp.js W H mobile(0|1) 스크립트파일 [png]   스크립트는 async 함수 본문(return 값 출력)
 // 스크립트에서 window.__tap(x,y) 같은 CDP 입력이 필요하면 코드 안에서 'TAP x y' 문자열을 반환하지 말고 아래 __input 사용 불가 — 대신 dispatch 는 CDP 로 따로: 스크립트 파일 첫 줄 주석 //TAP x,y 이면 실행 뒤 그 좌표를 터치한다.
 const { spawn } = require('child_process'), path = require('path'), fs = require('fs'), os = require('os');
 const [W, H, MOB, SCRIPT, PNG] = process.argv.slice(2), PORT = 9300 + Math.floor(Math.random() * 500);
 const CH = 'C:/Program Files/Google/Chrome/Application/chrome.exe', prof = fs.mkdtempSync(path.join(os.tmpdir(), 'uicdp-'));
-const url = 'file:///' + path.resolve(__dirname, '..', 'samguk_v108.html').replace(/\\/g, '/');
+const url = 'file:///' + path.resolve(__dirname, '..', 'samguk_v109.html').replace(/\\/g, '/');
 const ch = spawn(CH, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--allow-file-access-from-files', '--force-device-scale-factor=1', `--window-size=${W},${H}`, `--remote-debugging-port=${PORT}`, `--user-data-dir=${prof}`, 'about:blank'], { stdio: 'ignore' });
 const sl = ms => new Promise(r => setTimeout(r, ms));
 (async () => {

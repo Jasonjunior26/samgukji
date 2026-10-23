@@ -4,7 +4,7 @@
 //      출력은 docs/sim/v107_s5_root.txt 에 저장해 head/grep 으로 본다.
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const MONTHS = +(process.argv[2] || 120), SEEDS = String(process.argv[3] || '1,2,3').split(',').map(Number), SCEN = process.argv[4] || '190', PLAYER = process.argv[5] || '조조', ONLY = process.argv[6] || '';
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = 1; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

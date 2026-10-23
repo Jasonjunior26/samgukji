@@ -9,7 +9,7 @@ const fs = require('fs'), vm = require('vm'), path = require('path'), crypto = r
 const A = process.argv.slice(2), opt = (k, d) => { const i = A.indexOf(k); return i >= 0 ? A[i + 1] : d; };
 const pos = A.filter((x, i) => !x.startsWith('--') && !(i > 0 && ['--game', '--dump', '--probe'].includes(A[i - 1])));
 const N = +(pos[0] || 12), FAC = pos[1] || '조조';
-const GAME = path.resolve(opt('--game', path.join(__dirname, '..', 'samguk_v108.html'))), DUMP = opt('--dump', '');
+const GAME = path.resolve(opt('--game', path.join(__dirname, '..', 'samguk_v109.html'))), DUMP = opt('--dump', '');
 const html = fs.readFileSync(GAME, 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {}; const SEED = +(process.env.MSEED ?? 1); let _s = SEED >>> 0;

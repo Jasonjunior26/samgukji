@@ -1,5 +1,5 @@
 // 군주 전용 스프라이트 생성기 (설계: docs/그래픽_군주_설계.md '게임 연동 명세')
-// 입력: samguk_v108.html 의 <script id="jojo-units"> (읽기만)  ->  출력: assets/jojo_lord.png + assets/jojo_lord.json
+// 입력: samguk_v109.html 의 <script id="jojo-units"> (읽기만)  ->  출력: assets/jojo_lord.png + assets/jojo_lord.json
 // 사용: node tools/gen_lord_sprites.js [html경로] [출력폴더]
 // 출력 PNG 는 '아군 기준색(원본 빨강 램프)'에 금테·표식을 얹은 18행(6병종 x 3단계). 진영색은 런타임에 lordRecolor 로 칠한다.
 const fs = require('fs'), zlib = require('zlib'), path = require('path');
@@ -176,7 +176,7 @@ function build(htmlPath) {
 module.exports = { build, loadJojo, decodePng, encodeIndexed, lordRecolor, frameList, VARIANTS, VARIANT_BY_COL, GOLD, SRC_RAMP, CLS, SRC_BASE, ROWH, HEAD, isRamp };
 
 if (require.main === module) {
-  const html = process.argv[2] || path.join(ROOT, 'samguk_v108.html'), outDir = process.argv[3] || path.join(ROOT, 'assets');
+  const html = process.argv[2] || path.join(ROOT, 'samguk_v109.html'), outDir = process.argv[3] || path.join(ROOT, 'assets');
   const r = build(html); fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'jojo_lord.png'), r.png); fs.writeFileSync(path.join(outDir, 'jojo_lord.json'), JSON.stringify(r.meta));
   // HTML 에 넣을 블록 본문(<script id="jojo-lord"> 안). anchors·gold 설명용 키는 빼서 작게.

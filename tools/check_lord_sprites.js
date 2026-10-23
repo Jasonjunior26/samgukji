@@ -2,7 +2,7 @@
 const fs = require('fs'), path = require('path');
 const G = require('./gen_lord_sprites.js');
 const ROOT = path.join(__dirname, '..');
-const html = process.argv[2] || path.join(ROOT, 'samguk_v108.html'), dir = process.argv[3] || path.join(ROOT, 'assets');
+const html = process.argv[2] || path.join(ROOT, 'samguk_v109.html'), dir = process.argv[3] || path.join(ROOT, 'assets');
 const { J, A } = G.loadJojo(html);
 const png = fs.readFileSync(path.join(dir, 'jojo_lord.png')), meta = JSON.parse(fs.readFileSync(path.join(dir, 'jojo_lord.json'), 'utf8'));
 const L = G.decodePng(png);

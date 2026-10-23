@@ -31,7 +31,7 @@ if (cmd === 'report2') { report2(process.argv.slice(3)); process.exit(0); }
 
 const PR = Object.assign({ sets: USE, games: 1, months: 60, seed: 1, scen: '190' }, JSON.parse(process.argv[3] || '{}'));
 const OUT = process.argv[4] || '';
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = PR.seed >>> 0; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

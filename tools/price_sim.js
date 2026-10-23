@@ -4,7 +4,7 @@
 //  off — 6a 끔(세력 물가 1, 전국 상한 해제 → S2 그대로의 물가·비용). 비교 기준선
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const MONTHS = +(process.argv[2] || 120), SEEDS = (process.argv[3] || '1,2,3').split(',').map(Number), MODE = process.argv[4] || 'both';
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 function run(seedIn, on) {
   const store = {}; let seed = seedIn >>> 0; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

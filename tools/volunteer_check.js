@@ -1,7 +1,7 @@
 // v107 6d 덕화 초기 보호 단위 점검기(발동 완화 ⓐ 빈 성·ⓑ 위협 소집 포함): 게임 HTML을 Node vm 에 올려 의용병 규모식·훈련 가중 평균·인구 차감·중복 방지·비덕화 0·인구 가산 월 1회 값을 실제 코드로 찍는다.
 // 사용: node tools/volunteer_check.js > docs/sim/v107_s6d_check.txt   (패치 없이 실제 코드로 돈다. 마지막 줄 "FAIL 0"이면 통과)
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = 7; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

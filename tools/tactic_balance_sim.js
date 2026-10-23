@@ -3,7 +3,7 @@
 // 전투: battle_sim.js 와 같은 조조(초,진류) vs 동탁(낙양) V4 AI끼리. 판마다 시드를 조건과 무관하게 같게 맞춰 짝지음 비교.
 // 모의 전법: 설계서 6-2b 표의 '2단계 기준 초안' 값 × s(개인 1.0 / 교역 0.6). 위력 = V4.forecast 명중 피해(회심 제외) × 배수. 반격 없음.
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let _s = 1;

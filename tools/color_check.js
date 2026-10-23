@@ -2,7 +2,7 @@
 // 사용: node tools/color_check.js > out.txt ; head out.txt   (인자 없으면 190/194/200/207/219 전부)
 // 통과 기준: 인접 쌍 ΔE 최솟값 ≥ 25, 전체 쌍 ΔE<15 개수 0(가능하면). 새 게임 시작 직후 + fixFacCols()(렌더 때 도는 중복 보정) 뒤 상태를 잰다.
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console: { log() { }, error() { }, warn() { }, info() { } }, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => 0 },

@@ -3,7 +3,7 @@
 사용: python -I tools/jojo_assets.py <reverse-engineering-jojo 경로> [--foreign assets/foreign]
   1) 원본 UNIT_MOV/ATK/SPC에서 필요한 병사 그림만 골라 한 장(assets/jojo_units.png)으로 묶고
   2) 장수 이름 → 그림 번호, 병과 → 그림 번호 표(assets/jojo_units.json)를 만든 뒤
-  3) samguk_v108.html 안 <script id="jojo-units"> 블록을 새로 써 넣는다 (그림은 data URL로 내장).
+  3) samguk_v109.html 안 <script id="jojo-units"> 블록을 새로 써 넣는다 (그림은 data URL로 내장).
 
 한 줄(높이 64) 배치: 이동 11칸 × 48 | 공격 12칸 × 64 | 특수 5칸 × 48 (48칸은 발밑 맞춰 아래 정렬).
 """
@@ -124,7 +124,7 @@ b64 = base64.b64encode(open(png, 'rb').read()).decode()
 block = ('<script id="jojo-units">\n// 조조전 원본 병사 그림 (개인 플레이 전용, 배포 금지) — tools/jojo_assets.py가 만든 블록'
          + (' (외국 병종 5종 재채색 포함, --foreign)' if frows else '') + '\n'
          f'const JOJO_UNITS = {json.dumps({**meta, "img": "data:image/png;base64," + b64}, ensure_ascii=False)};\n</script>\n')
-html = os.path.join(ROOT, 'samguk_v108.html')
+html = os.path.join(ROOT, 'samguk_v109.html')
 s = open(html, encoding='utf8', newline='').read()
 # 블록이 이미 있으면 그 자리에(줄 번호 유지), 없으면 jojo-maps 앞 또는 </body> 앞에 넣는다
 m = re.search(r'(?m)^<script id="jojo-units">[\s\S]*?</script>\r?\n', s)  # 작업 사본이 CRLF 여도 찾도록

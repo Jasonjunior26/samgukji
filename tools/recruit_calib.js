@@ -5,7 +5,7 @@
 // 비교는 래퍼(아이템·정책·재야 exFac 등)를 뺀 본체 식만. 합류의 lp.minus(옛 주군 충성 감점)는 무시(변경 전후 동일 항).
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const TUNE = process.argv[2] === 'tune';
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = 1; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

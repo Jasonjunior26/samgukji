@@ -14,7 +14,7 @@ if (cmd === 'report') { report(process.argv.slice(3)); process.exit(0); }
 const PR = Object.assign({ mode: 'design', games: 4, months: 144, seed: 1, scen: '190', roots: 'forced', a: 1, b: 0.3, pass: 0.6, cap: 0.10, hubGain: 0.5, land: true, tradeFrac: 0.5, openAll: false, noPrice: false, noTrade: false, tradeScale: 1, rec: false, foodFloor: 15, holdN: 12, holdRate: 0.03, r3: false, lux: [40, 70, 100], luxM: [0.10, 0.20, 0.32], luxMer: 1.5, luxCap: 0.6, sinkFrac: 0.7, assign: false, deukBonus: 0.4, popT: [120000, 170000, 230000], popInc: 0.04, popLoy: 0.15, popFind: 0.006, foodBuyN: 0, sinkArm: 0.55, volun: false, volK: 0.03, volCap: 0.04, volTrain: 40, popGrow: 0 }, JSON.parse(process.argv[3] || '{}'));
 const OUT = process.argv[4] || '';
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 let seed = PR.seed >>> 0; const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };

@@ -1,7 +1,7 @@
 // 전투 v4 시험기: 게임 HTML을 Node에서 불러 AI끼리 전투를 돌림 (화면 없음)
 // 사용: node tools/battle_sim.js [판수=20] [log]
 const fs = require('fs'), vm = require('vm'), path = require('path');
-const html = fs.readFileSync(process.env.GAME || path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(process.env.GAME || path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 // 시드 고정: BSEED 환경변수(기본 1). 같은 코드면 같은 결과 → 차이가 나면 실제 변화다. BSEED=0 이면 Math.random 그대로.

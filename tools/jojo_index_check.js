@@ -2,7 +2,7 @@
 // v107: 외국 병종(JOJO_UNITS.foreign, rows 키 'f'+행) 5종 × 3색도 확인한다.
 // 사용: node tools/jojo_index_check.js
 const fs = require('fs');
-const h = fs.readFileSync(__dirname + '/../samguk_v108.html', 'utf8');
+const h = fs.readFileSync(__dirname + '/../samguk_v109.html', 'utf8');
 const i = h.indexOf('<script id="jojo-units">'), j = h.indexOf('</script>', i);
 const J = new Function(h.slice(i + 24, j) + ';return JOJO_UNITS;')();
 const CLS = ['보병', '방진', '기병', '궁병', '궁기병', '산악병', '공성', '책사', '수군'];

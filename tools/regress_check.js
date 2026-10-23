@@ -1,6 +1,6 @@
 // 회귀 점검기: UI 경로(미리보기·시트·탭)와 규칙(cmd*)이 어긋나는지, 상한·NaN 이 깨지는지 한 번씩 훑는다. 게임 파일은 고치지 않는다.
 // 사용:  node tools/regress_check.js [--out 결과파일] [--only A1,A3] [--game 경로.html] [--json]
-//   - 헤드리스 Chrome 에 samguk_v108.html 을 직접 열고(Runtime.evaluate, tools/s7_cdp.js 와 같은 CDP 방식) 게임 전역을 호출한다.
+//   - 헤드리스 Chrome 에 samguk_v109.html 을 직접 열고(Runtime.evaluate, tools/s7_cdp.js 와 같은 CDP 방식) 게임 전역을 호출한다.
 //     s7_harness.html 을 거치지 않는 이유: iframe 없이 let/const 전역(S, UI, ACT)에 바로 닿고 결과를 JSON 으로 받기 위해서.
 //   - 판수 최소: newGame('조조') 후 항목마다 한 번씩, 월 끝내기 3번이 가장 오래 걸린다(전체 약 30~60초).
 // 점검 항목(ID):
@@ -15,7 +15,7 @@
 // 환경: Windows, Chrome 경로는 아래 CH. 종료코드 0=FAIL 없음, 1=FAIL 있음.
 const { spawn } = require('child_process'), path = require('path'), fs = require('fs'), os = require('os');
 const A = process.argv.slice(2), opt = (k, d) => { const i = A.indexOf(k); return i >= 0 ? A[i + 1] : d; };
-const GAME = path.resolve(opt('--game', path.join(__dirname, '..', 'samguk_v108.html'))), OUT = opt('--out', path.join(os.tmpdir(), 'regress_check.txt'));
+const GAME = path.resolve(opt('--game', path.join(__dirname, '..', 'samguk_v109.html'))), OUT = opt('--out', path.join(os.tmpdir(), 'regress_check.txt'));
 const ONLY = (opt('--only', '') || '').split(',').filter(Boolean);
 const CH = 'C:/Program Files/Google/Chrome/Application/chrome.exe', PORT = 9300 + Math.floor(Math.random() * 500), prof = fs.mkdtempSync(path.join(os.tmpdir(), 'rc-'));
 

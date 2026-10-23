@@ -1,11 +1,11 @@
-// v107 S7 (UI v1.4) 빌드 도구: 지도 바탕 데이터 MAP_BASE 를 만들고 tools/s7_ui.html 블록을 samguk_v108.html 에 넣는다.
+// v107 S7 (UI v1.4) 빌드 도구: 지도 바탕 데이터 MAP_BASE 를 만들고 tools/s7_ui.html 블록을 samguk_v109.html 에 넣는다.
 // 사용: node tools/s7_build.js        (다시 돌리면 <!-- v107 S7 --> ~ <!-- /v107 S7 --> 사이를 통째로 바꾼다)
 //       node tools/s7_build.js --data  (MAP_BASE 크기·점 개수만 출력)
 // 해안선·산맥·계절 팔레트는 목업 tools/mockup_v14/build.js(4차)에서 그대로 옮겼다. 흐림 필터용 데이터는 없다.
 const fs = require('fs');
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
-const HTML = path.join(ROOT, 'samguk_v108.html');
+const HTML = path.join(ROOT, 'samguk_v109.html');
 const SRC = path.join(__dirname, 's7_ui.html');
 
 function catmull(pts, seg) {

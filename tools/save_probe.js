@@ -2,7 +2,7 @@
 // 사용: node tools/save_probe.js <세이브.json>
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const file = process.argv[2]; if (!file) { console.log('사용: node tools/save_probe.js <세이브.json>'); process.exit(1); }
-const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v108.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'samguk_v109.html'), 'utf8');
 const el = () => new Proxy(function () { }, { get: (t, k) => k === Symbol.toPrimitive ? () => '' : (k === 'length' ? 0 : el()), set: () => true, apply: () => el(), construct: () => el() });
 const store = {};
 const ctx = { console: { log() { }, error() { }, warn() { }, info() { } }, Math, Date, JSON, setTimeout: () => 0, clearTimeout() { }, setInterval: () => 0, requestAnimationFrame: () => 0, performance: { now: () => Date.now() },
