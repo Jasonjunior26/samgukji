@@ -10724,7 +10724,7 @@ function cityEff(c) { return adminEff(c.owner) * distEff(c) * conqEff(c); }
 { const f = autoBattle; autoBattle = function (att, fromCn, toCn) { const c = C(toCn); const own = c && c.owner; const r = f.apply(this, arguments); try { if (REFORM && c && own && c.owner === att && own !== att) { c.conq = { from: own, t: S.y * 12 + S.m }; c.loy = Math.min(c.loy, 50); } } catch (e) { } return r; }; }
 // 5) 백성도 군량을 먹음: 매달 인구 400명당 1. 모자라면 기근(인구 −1%, 민충 −3). 수도에서 먼 도시의 병사는 보급 손실(4칸 넘는 만큼 5%씩 더 먹음)
 function civFood(c) { return Math.ceil((c.pop || 0) / 400); }
-monthStep('L10712', { post: () => { try { const mo = S.y * 12 + S.m; Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시') return; const need = civFood(c) + Math.round(Math.ceil(c.troops / ECO.troopFood) * 0.05 * Math.max(0, capDist(c) - 4)); if (c.food >= need) c.food -= need; else { c.food = 0; c.pop = Math.round(c.pop * 0.99); c.loy = Math.max(0, c.loy - 3); c.famine = (c.famine || 0) + 1; }
+monthStep('L10712', { post: () => { try { const mo = S.y * 12 + S.m; Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시') return; const need = civFood(c) + (hasPol(c.owner, '둔전제') ? 0 : Math.round(Math.ceil(c.troops / ECO.troopFood) * 0.05 * Math.max(0, capDist(c) - 4))); /* 둔전제는 원거리 보급 손실이 없다(S4-F6: 전엔 할증을 먼저 물려 기근을 판정하고 뒤에서 돌려줬다) */ if (c.food >= need) c.food -= need; else { c.food = 0; c.pop = Math.round(c.pop * 0.99); c.loy = Math.max(0, c.loy - 3); c.famine = (c.famine || 0) + 1; }
       if (c.conq) { const t = mo - c.conq.t; if (t >= 36) delete c.conq; else { const old = S.fac[c.conq.from]; if (old && old.alive && ADJ[c.n].some(n => S.city[n] && S.city[n].owner === c.conq.from) && c.loy < 45 && Math.random() < (45 - c.loy) / 300) { const was = c.owner; c.owner = c.conq.from; c.troops = Math.round(c.troops * 0.5); gensIn(c.n).forEach(g => { if (g.fac === was) { g.loc = capitalOf(was) || g.loc; } }); if (was === S.player) news(`${c.n}의 백성이 옛 주군 ${fname(c.conq.from)}에게 돌아섰다.`); else world(`${c.n}이(가) 옛 주군 ${fname(c.conq.from)}에게 돌아갔다.`, 3, [c.n]); delete c.conq; } } } }); } catch (e) { }
 } });
 // 6) 대연합: 천하 도시의 30% 이상을 가진 세력이 나오면 나머지가 서로 불가침·동맹하고 그 세력을 주 적으로
@@ -10837,8 +10837,7 @@ monthStep('L10821', { post: () => { try { Object.values(S.fac).filter(F => F.ali
 { const f = autoBattle; autoBattle = function (att, fromCn, toCn, units) { const def = C(toCn) && C(toCn).owner; let k = 1; if (hasPol(att, '정예주의')) k *= 1.02; if (def && hasPol(def, '정예주의')) k /= 1.02; if (k === 1) return f.apply(this, arguments); (units || []).forEach(u => u.troops = Math.round(u.troops * k)); try { return f.apply(this, arguments); } finally { (units || []).forEach(u => u.troops = Math.round(u.troops / k)); } }; }
 { const f = cityGold; cityGold = function (c) { const v = f.apply(this, arguments); return c && c.owner && hasPol(c.owner, '법치') ? Math.round(v * 1.05) : v; }; }
 { const f = plotRisk; plotRisk = function (fid) { let v = f.apply(this, arguments); if (hasPol(fid, '공신 우대')) v -= 15; if (hasPol(fid, '법치')) v -= 10; return v; }; }
-// 둔전제: 먼 전선 보급 손실 없음 — 보급 손실을 돌려줌
-monthStep('L10826', { post: () => { try { Object.values(S.city).forEach(c => { if (c.owner && hasPol(c.owner, '둔전제') && kindOf(c.n) === '도시') c.food += Math.round(Math.ceil(c.troops / ECO.troopFood) * 0.05 * Math.max(0, capDist(c) - 4)); }); } catch (e) { }} });
+// 둔전제: 먼 전선 보급 손실 없음 — 기근 판정(L10712)에서 할증을 아예 빼므로 여기서 돌려줄 것이 없다(S4-F6)
 // 법치: 정복지 이탈 절반 (이탈 판정 전에 민심을 조금 받쳐 줌)
 monthStep('L10828', { pre: () => { try { Object.values(S.city).forEach(c => { if (c.conq && c.owner && hasPol(c.owner, '법치')) c.loy = Math.min(100, c.loy + 2); }); } catch (e) { } } });
 // 은퇴한 장수는 등용·수색으로 다시 데려오지 않음
