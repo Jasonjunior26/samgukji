@@ -1088,14 +1088,17 @@ function endMonthCore() { // 월 끝내기 본체(조립은 endMonth = 아래 �
   if (S.joint) { S.joint.until--; if (S.joint.until <= 0) S.joint = null; }
   return S.pendingDefense;
 }
+// 이번 달 본체가 쓴 소득(inc)·유지비(base, 병사·행정)와 payUpkeep 이 낸 시설 유지비(upk). 물가 전가 단계가 같은 식을 다시 계산하지 않고 이 값을 읽는다(S4-F10). 저장하지 않는 임시값.
+let MTMP = { inc: {}, base: {}, upk: {} };
 function monthlyCore() { // 월 처리 본체(조립은 monthlyUpdate = 아래 러너 + monthStep 단계들)
   // 다음 달
   S.m++; if (S.m > 12) { S.m = 1; S.y++; }
+  MTMP = { inc: {}, base: {}, upk: {} };
   const y = S.y, m = S.m;
   Object.values(S.city).forEach(c => {
     if (!c.owner) { c.troops = Math.max(0, c.troops); return; }
     const mul = (c.owner !== S.player ? DF().inc : 1) * ((c.tax || 30) / 30);
-    c.gold += Math.round(cityGold(c, mul) / 3);
+    { const g = Math.round(cityGold(c, mul) / 3); c.gold += g; MTMP.inc[c.n] = g; }
     if (m === 7) c.food += cityFood(c, mul);
     if (c.tax && c.tax !== 30 && P(Math.abs(c.tax - 30) * 3)) c.loy = clamp(c.loy + (c.tax > 30 ? -1 : 1), 0, 100);
     c.food -= Math.ceil(c.troops / (typeof ECO !== 'undefined' ? ECO.troopFood : 25) * (typeof foodMulOf === 'function' ? foodMulOf(c.owner) : 1));
@@ -3856,7 +3859,7 @@ function monthlyUpkeep() {
   Object.values(S.city).forEach(c => {
     if (!c.owner) return;
     const merc = Math.min(c.merc || 0, c.troops); c.merc = merc;
-    const cost = Math.ceil(Math.max(0, c.troops + merc - 3000) / ECO.troopGold) + (ECO.admin[c.tier] || 0);
+    const cost = Math.ceil(Math.max(0, c.troops + merc - 3000) / ECO.troopGold) + (ECO.admin[c.tier] || 0); MTMP.base[c.n] = cost;
     if (c.gold >= cost) c.gold -= cost; else { c.gold = 0; const d = Math.floor(c.troops * 0.02); c.troops -= d; c.loy = clamp(c.loy - 1, 0, 100); if (c.owner === S.player) warn[c.n] = `금이 모자라 병사 ${fmt(d)}명이 떠났다`; }
     const cap = garrisonCap(c); const over = c.troops - cap;
     if (over > 0) { const d = Math.ceil(over * ECO.desert); c.troops -= d; c.food = Math.max(0, c.food - Math.ceil(over / ECO.troopFood)); if (c.owner === S.player) warn[c.n] = `주둔 한도(${fmt(cap)})를 넘어 병사 ${fmt(d)}명이 달아났다`; }
@@ -6326,7 +6329,7 @@ function dbBorn(d) { return d.출생 || (typeof d.등장 === 'number' ? d.등장
 // 유지비: 인구·내정(100 넘는 부분)·시설·방어 탑·성벽·도시 등급
 const UPK = { pop: 20, dom: 6, fac: 30, tow: 120, wall: 3, grade: 10 };
 function upkeepOf(c) { const g = gradeOf(c); const ex = ['dev', 'com', 'flood'].reduce((s, k) => s + Math.max(0, (c[k] || 0) - 100), 0); return Math.round(UPK.pop * Math.pow((c.pop || 0) / 1e5, 1.4) + UPK.dom * ex + UPK.fac * (c.facs || []).length * (1 + g / 2) + UPK.tow * (c.towers || 0) + UPK.wall * Math.max(0, (c.def || 0) - 60) + UPK.grade * ([0, 0, 1, 3, 7, 14, 24, 38][g] || 0)); }
-function payUpkeep() { const R = {}; Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시') return; const u = upkeepOf(c); const r = R[c.owner] = R[c.owner] || { paid: 0, short: [] };
+function payUpkeep() { const R = {}; Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시') return; const u = upkeepOf(c); MTMP.upk[c.n] = u; const r = R[c.owner] = R[c.owner] || { paid: 0, short: [] };
   if (c.gold >= u) { c.gold -= u; r.paid += u; c.upkShort = 0; return; }
   r.paid += c.gold; const miss = u - c.gold; c.gold = 0; c.upkShort = (c.upkShort || 0) + 1; r.short.push(c.n);
   // 못 낸 만큼: 100 넘는 내정부터 깎이고, 민충 하락, 3개월 밀리면 성벽·탑 낡음
@@ -12512,8 +12515,8 @@ function facPriceMul(fid) { const F = S && fid && S.fac[fid]; if (!F) return 1; 
 monthStep('L12498', { post: () => {
   try { if (S && !S.over) { const warn = {}; S.p2 = S.p2 || { pass: 0, extra: 0, short: 0 };
     Object.values(S.city).forEach(c => { if (!c.owner || kindOf(c.n) !== '도시' || !S.fac[c.owner]) return; const p = facPriceIdx(c.owner); if (!(p > 1)) return;
-      const inc = Math.round(cityGold(c, (c.owner !== S.player ? DF().inc : 1) * ((c.tax || 30) / 30)) / 3); const add = Math.round(inc * P2.pass * (p - 1)); c.gold += add; S.p2.pass += add;
-      const base = Math.ceil(Math.max(0, c.troops + Math.min(c.merc || 0, c.troops) - 3000) / ECO.troopGold) + (ECO.admin[c.tier] || 0) + upkeepOf(c); const ex = Math.round(base * (p - 1)); S.p2.extra += ex;
+      const inc = MTMP.inc[c.n] || 0; const add = Math.round(inc * P2.pass * (p - 1)); c.gold += add; S.p2.pass += add; // 본체가 쓴 소득을 재사용(S4-F10)
+      const base = (MTMP.base[c.n] || 0) + (MTMP.upk[c.n] || 0); const ex = Math.round(base * (p - 1)); S.p2.extra += ex;
       if (c.gold >= ex) c.gold -= ex; else { c.gold = 0; const d = Math.floor(c.troops * 0.02); c.troops -= d; c.loy = clamp(c.loy - 1, 0, 100); S.p2.short++; if (c.owner === S.player) warn[c.n] = `물가 탓에 유지비가 모자라 병사 ${fmt(d)}명이 떠났다`; } });
     Object.entries(warn).forEach(([n, t]) => news(`${n}: ${t}.`)); } } catch (e) { }
 } });
