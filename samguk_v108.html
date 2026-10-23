@@ -2787,6 +2787,9 @@ function devGainWhy(g, kind, c) {
   return { v, why };
 }
 function devGain(g, kind) { return devGainWhy(g, kind, C(UI && UI.city || g.loc)).v; }
+// 훈련도 상한 하나(S4-F4): 기본 100, 정예주의 120. 모든 훈련 증가 지점이 이 값으로 자른다(이미 넘은 값은 깎지 않는 곳도 있음).
+function TRAIN_MAX(c) { // 이미 넘은 값은 깎지 않도록 호출처에서 Math.max(현재값, TRAIN_MAX(c))로 쓴다
+  return c && c.owner && hasPol(c.owner, '정예주의') ? 120 : 100; }
 // 징병 규칙(상태를 바꾸지 않는 계산, S3-g). 실제 징병(draftExec)과 징병 창 미리보기(s112DraftSim)가 같은 함수를 쓴다.
 function draftCapOf(c, g) { let cap = draftCap(c); if (hasTr(g, '모병가')) cap = Math.floor(cap * 1.3 / 100) * 100; return cap; } // 한 번에 모을 수 있는 한도
 function draftCostOf(c, g, a) { let k = draftCost(c, a); if (hasTr(g, '모병가')) k = Math.round(k * 0.7 / 10) * 10; return k; } // 금 비용
@@ -2834,9 +2837,9 @@ function cmdDraft(cn, gn, amt) {
     if (r && r.ok && c && hasPol(c.owner, '총동원령')) c.gold += Math.round((gB - c.gold) * 0.3 * (polW(c.owner, '총동원령') < 1 ? 0.6 : 1)); // 총동원령 환급 30%(비소속 뿌리면 60%) — 징병비만 대상(F2: 자동 민충 보강비·진휼은 제외)
     try { if (!x.food && r && r.ok && c && c.owner === S.player && c.troops > foodCapTroops(c)) r.msg += ` (주의: 군량으로 버틸 수 있는 병력은 약 ${fmt(foodCapTroops(c))}입니다)`; } catch (e) { }
   } finally { DR_IRON = false; }
-  if (r && r.ok && use) { const got = Math.max(0, c.troops - t0); const n = Math.min(trCityCargo(cn).철 || 0, Math.max(1, Math.ceil(got / USE_PR.ironPer))); useTake(cn, '철', n); const cov = Math.min(got, n * USE_PR.ironPer); const bonus = Math.round(USE_PR.ironTrain * cov / Math.max(1, c.troops)); c.train = clamp(c.train + bonus, 0, 100); r.msg += ` 철 ${n}개 투입(비용 −10%, 훈련 +${bonus}).`; }
+  if (r && r.ok && use) { const got = Math.max(0, c.troops - t0); const n = Math.min(trCityCargo(cn).철 || 0, Math.max(1, Math.ceil(got / USE_PR.ironPer))); useTake(cn, '철', n); const cov = Math.min(got, n * USE_PR.ironPer); const bonus = Math.round(USE_PR.ironTrain * cov / Math.max(1, c.troops)); c.train = clamp(c.train + bonus, 0, Math.max(c.train, TRAIN_MAX(c))); r.msg += ` 철 ${n}개 투입(비용 −10%, 훈련 +${bonus}).`; }
   if (r && r.ok && c) {
-    if (rootOf(c.owner) === '덕화' && l0 >= 70 && c.troops > t0) c.train = Math.round(c.train + 5 * (c.troops - t0) / c.troops);
+    if (rootOf(c.owner) === '덕화' && l0 >= 70 && c.troops > t0) c.train = Math.min(Math.max(c.train, TRAIN_MAX(c)), Math.round(c.train + 5 * (c.troops - t0) / c.troops));
   }
   return r;
 }
@@ -5076,19 +5079,19 @@ function cabEffRaw(fid, post) { const g = cabActive(fid, post); if (!g) return 0
 // 훈련. 예전에 래퍼 셋(내각·군단장 보너스 / 정예주의 / 조련가)과 개성 훅으로 덧씌우던 것을 같은 순서로 펼쳤다(S2-b).
 function cmdTrain(cn, gn) {
   const c = C(cn); const b0 = c.train; let r;
-  if (c && hasPol(c.owner, '정예주의') && c.train >= 100 && c.train < 120) { // 정예주의: 100~119 는 별도 훈련(보너스·개성 훅 없음)
+  if (c && hasPol(c.owner, '정예주의') && c.train >= 100 && c.train < TRAIN_MAX(c)) { // 정예주의: 100~119 는 별도 훈련(보너스·개성 훅 없음)
     const cost = trainCost(c); if (c.gold < cost) return { ok: false, msg: '금이 모자랍니다.' };
-    c.gold -= cost; c.train = Math.min(120, c.train + 4); G(gn).acted = true; r = { ok: true, msg: `${cn} 정예 훈련 (훈련 ${c.train})` };
+    c.gold -= cost; c.train = Math.min(TRAIN_MAX(c), c.train + 4); G(gn).acted = true; r = { ok: true, msg: `${cn} 정예 훈련 (훈련 ${c.train})` };
   } else {
     const g = G(gn); const cost = trainCost(c); if (!spend(c, cost)) return { ok: false, msg: `금이 부족합니다 (${cost} 필요).` };
     let v = 4 * abf(stat(g, 't')); if (hasFac(c, '훈련장')) v *= 1.3; if (rootOf(c.owner) === '강병') v *= 1.25; if (c.train > 100) v *= 100 / c.train; v = Math.max(1, Math.round(v));
-    c.train += v; g.acted = true; const b = g.t; addExp(g, 't', 9);
+    c.train = Math.max(c.train, Math.min(TRAIN_MAX(c), c.train + v)); g.acted = true; const b = g.t; addExp(g, 't', 9);
     r = { ok: true, msg: `${g.n}이(가) 병사를 훈련시켜 훈련 +${v} (${c.train}). 통솔 경험을 쌓았다${g.t > b ? ` — 통솔 +${g.t - b}!` : ''}.` };
     const e = cabEff(c.owner, '국방') * 0.08 + (corpsOf(cn) ? Math.max(0, (stat(G(corpsOf(cn).leader), 't') - 50) * 0.003) * (hasTr(G(corpsOf(cn).leader), '대장감') ? 1.5 : 1) : 0); // 국방 내각·군단장
-    if (r.ok && c.train > b0 && e > 0) c.train = Math.min(100, c.train + Math.round((c.train - b0) * e));
+    if (r.ok && c.train > b0 && e > 0) c.train = Math.min(Math.max(b0, TRAIN_MAX(c)), c.train + Math.round((c.train - b0) * e));
     try { maybeTrait(G(gn), '조련가', 't', '오랜 훈련'); } catch (x) { } // 개성 훅
   }
-  if (r.ok && hasTr(G(gn), '조련가')) { const add = Math.round((c.train - b0) * 0.5); c.train = clamp(c.train + add, 0, 120); r.msg += ` 개성 조련가 +${add}.`; }
+  if (r.ok && hasTr(G(gn), '조련가')) { const add = Math.round((c.train - b0) * 0.5); c.train = clamp(c.train + add, 0, Math.max(b0, TRAIN_MAX(c))); r.msg += ` 개성 조련가 +${add}.`; }
   return r;
 }
 function monthlyDecay() {
@@ -10830,7 +10833,7 @@ if (typeof recPass === 'function') { recPass = () => true; } { const f = renderS
 
 // ===== v75: 국책 다시 맞춤 · 은퇴한 장수는 다시 데려오지 않음 =====
 { const f = devGain; devGain = function (g, kind) { const v = f.apply(this, arguments); return g && kind === '상업' && hasPol(g.fac, '둔전제') && typeof v === 'number' ? Math.max(1, Math.round(v * 0.8)) : v; }; }
-monthStep('L10821', { post: () => { try { Object.values(S.fac).filter(F => F.alive && hasPol(F.id, '정예주의')).forEach(F => citiesOf(F.id).forEach(c => { if (kindOf(c.n) === '도시' && c.train < 120) c.train = Math.min(120, c.train + 2); })); } catch (e) { }} });
+monthStep('L10821', { post: () => { try { Object.values(S.fac).filter(F => F.alive && hasPol(F.id, '정예주의')).forEach(F => citiesOf(F.id).forEach(c => { if (kindOf(c.n) === '도시' && c.train < TRAIN_MAX(c)) c.train = Math.min(TRAIN_MAX(c), c.train + 2); })); } catch (e) { }} });
 { const f = autoBattle; autoBattle = function (att, fromCn, toCn, units) { const def = C(toCn) && C(toCn).owner; let k = 1; if (hasPol(att, '정예주의')) k *= 1.02; if (def && hasPol(def, '정예주의')) k /= 1.02; if (k === 1) return f.apply(this, arguments); (units || []).forEach(u => u.troops = Math.round(u.troops * k)); try { return f.apply(this, arguments); } finally { (units || []).forEach(u => u.troops = Math.round(u.troops / k)); } }; }
 { const f = cityGold; cityGold = function (c) { const v = f.apply(this, arguments); return c && c.owner && hasPol(c.owner, '법치') ? Math.round(v * 1.05) : v; }; }
 { const f = plotRisk; plotRisk = function (fid) { let v = f.apply(this, arguments); if (hasPol(fid, '공신 우대')) v -= 15; if (hasPol(fid, '법치')) v -= 10; return v; }; }
@@ -13377,7 +13380,7 @@ function trFxDo(fid, k) {
   const why = trFxWhy(fid, k); if (why) return { ok: false, msg: why };
   const P = trPriceMul(fid), o = trFx(fid); let msg = '';
   if (k === 'drill') { const cost = Math.round(TR6C.drill * P / trBranchFx(fid, '개성')); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const gs = gensOf(fid); const g = gs[Math.floor(Math.random() * gs.length)]; if (!g) return { ok: false, msg: '장수가 없습니다.' }; const r = trStatUp(g, 1); msg = `${g.n}이(가) 외국 연수를 다녀왔다: ${TR_STATN[r.k]} ${r.d ? '+1' : '(이미 100)'} (금 ${fmt(cost)}).`; }
-  else if (k === 'mat') { const cost = Math.round(TR6C.mat * P); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const c = trFront(fid); const t = trLowArm(c); const fm = trBranchFx(fid, '물자'), ma = Math.max(1, Math.round(TR6C.matArm * fm)), mt = Math.round(TR6C.matTrain * fm); c.arm[t] = (c.arm[t] || 0) + ma; c.train = Math.min(100, (c.train || 0) + mt); msg = `외국 물자가 ${c.n}에 닿았다: ${t} 군비 +${ma}, 훈련 +${mt} (금 ${fmt(cost)}).`; }
+  else if (k === 'mat') { const cost = Math.round(TR6C.mat * P); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const c = trFront(fid); const t = trLowArm(c); const fm = trBranchFx(fid, '물자'), ma = Math.max(1, Math.round(TR6C.matArm * fm)), mt = Math.round(TR6C.matTrain * fm); c.arm[t] = (c.arm[t] || 0) + ma; c.train = Math.min(TRAIN_MAX(c), (c.train || 0) + mt); msg = `외국 물자가 ${c.n}에 닿았다: ${t} 군비 +${ma}, 훈련 +${mt} (금 ${fmt(cost)}).`; }
   else if (k === 'arb') { const x0 = trArbX(fid), cap = Math.max(1, trArbCap(fid)); const sat = Math.max(0.2, 1 - o.vol / cap); const mg = (TR6C.arbBase + TR6C.arbSlope * trRelAvg(fid) / 100) * sat; const profit = x0 * mg * P, fee = TR6C.arbFee * x0 * P; const net = Math.round(profit - fee); const cn = trFxPayCity(fid); trEarn(fid, cn, net); o.vol += x0; o.gain.차익 = (o.gain.차익 || 0) + net; msg = `상인단에 금 ${fmt(Math.round(x0 * P))}어치 위탁 거래를 맡겨 순이익 금 ${fmt(net)} (이익률 ${(mg * 100).toFixed(1)}%, 포화 ×${sat.toFixed(2)}).`; }
   else if (k === 'lux') { const tier = trLuxTier(fid), mer = trRoot(fid) === '상략'; const x0 = trLuxX(fid), cap = Math.max(1, trLuxCap(fid)); const sat = Math.max(0.2, 1 - o.volL / cap); const mg = TR6C.luxM[tier - 1] * (mer && tier >= 2 ? TR6C.luxMer : 1) * sat; const profit = x0 * mg * P, fee = TR6C.luxFee * x0 * P; const net = Math.round(profit - fee); const cn = trFxPayCity(fid); trEarn(fid, cn, net); o.volL += x0; o.gain.고가품 = (o.gain.고가품 || 0) + net; o.tier = tier; if (fid !== S.player) trLuxSink(fid, profit * TR6C.sinkFrac); msg = `${tier}등급 고가품을 팔아 순이익 금 ${fmt(net)} (이익률 ${(mg * 100).toFixed(1)}%, 포화 ×${sat.toFixed(2)}).`; }
   else if (k === 'wel') { const cost = Math.round(TR6C.wel * P); const fd = trWelFood(fid); const e = trFxPay(fid, cost); if (e) return { ok: false, msg: e }; const lo = trFxCities(fid).sort((a, b) => a.loy - b.loy)[0]; const fw = trBranchFx(fid, '민생'), wl = Math.max(1, Math.round(TR6C.welLoy * fw)); lo.pop = Math.round(lo.pop * (1 + TR6C.welPop * fw)); lo.loy = Math.min(100, lo.loy + wl); fd.food -= TR6C.welFood; msg = `${lo.n}에 민생 구휼: 인구 +${Math.round(TR6C.welPop * fw * 100)}%, 민충 +${wl} (금 ${fmt(cost)}, ${fd.n} 군량 ${fmt(TR6C.welFood)}).`; }
